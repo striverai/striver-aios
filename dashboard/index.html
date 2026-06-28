@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jarvis OS</title>
+  <link rel="stylesheet" href="/static/style.css?v=14">
+</head>
+<body>
+  <div class="hud">
+
+    <!-- ===== TOP BAR ===== -->
+    <header class="hud-top">
+      <div class="brand"><span class="brand-icon">⬡</span> <span class="brand-text">JARVIS OS</span></div>
+      <div class="hud-center-title">
+        <span class="ws-name" id="workspaceName">Jarvis OS</span>
+        <span class="ws-date" id="currentDate"></span>
+      </div>
+      <div class="hud-actions">
+        <button class="studio-open-btn" id="studioOpenBtn" title="Studio — Agents, Skills, Workflows">▦ Studio</button>
+        <div class="voice-picker-wrap">
+          <button class="hud-icon-btn" id="voicePickerBtn" title="Chọn giọng nói">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+          <div class="voice-popover" id="voicePopover">
+            <div class="popover-section">
+              <div class="popover-label">GIỌNG ĐỌC</div>
+              <div class="voice-options">
+                <label class="voice-opt">
+                  <input type="radio" name="voice" value="vi-VN-HoaiMyNeural" checked>
+                  <div><strong>HoaiMy</strong><div class="opt-sub">Nữ · tự nhiên nhất</div></div>
+                </label>
+                <label class="voice-opt">
+                  <input type="radio" name="voice" value="vi-VN-NamMinhNeural">
+                  <div><strong>NamMinh</strong><div class="opt-sub">Nam · trầm</div></div>
+                </label>
+              </div>
+            </div>
+            <div class="popover-section">
+              <div class="popover-label">TỐC ĐỘ <span id="rateLabel" style="float:right;color:var(--accent);font-family:var(--font)">1.10×</span></div>
+              <input type="range" id="rateSlider" min="0.7" max="1.8" step="0.05" value="1.1" style="width:100%">
+              <div class="rate-marks"><span>Chậm</span><span>BT</span><span>Nhanh</span></div>
+            </div>
+            <div class="popover-section">
+              <button class="test-btn" id="testVoiceBtn">▶ Nghe thử</button>
+            </div>
+          </div>
+        </div>
+        <button class="hud-icon-btn" id="ttsToggle" title="Bật/tắt giọng Jarvis">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          </svg>
+        </button>
+        <button class="hud-icon-btn" id="resetBtn" title="Reset hội thoại">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.7 3M3 4v5h5"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== BODY: 3 columns ===== -->
+    <div class="hud-body">
+
+      <!-- LEFT: metrics -->
+      <aside class="hud-left">
+        <div class="panel-label">
+          SỐ LIỆU KINH DOANH
+          <button class="mini-btn" id="refreshMetrics" title="Cập nhật">⟳</button>
+        </div>
+        <div class="metric-cards" id="metricCards"></div>
+        <div class="metric-status" id="metricStatus"></div>
+      </aside>
+
+      <!-- CENTER: 3D orb -->
+      <div class="hud-center">
+        <canvas id="starfield"></canvas>
+        <div id="graph3dContainer"></div>
+        <div class="concept-labels" id="conceptLabels"></div>
+        <div class="orb-overlay">
+          <div class="orb-state" id="orbState">SẴN SÀNG</div>
+          <div class="orb-interim" id="voiceInterim"></div>
+        </div>
+        <div class="orb-graph-ctl">
+          <select id="graphSource" class="graph-select">
+            <option value="brain">Brain (mặc định)</option>
+          </select>
+          <button class="graph-folder-btn" id="pickFolderBtn" title="Chọn brain từ folder máy tính">📁</button>
+          <span class="graph-stats" id="graphStats">—</span>
+        </div>
+        <div class="graph-tooltip" id="graphTooltip"></div>
+      </div>
+
+      <!-- RIGHT: transcript + activity -->
+      <aside class="hud-right">
+        <div class="panel-label">HỘI THOẠI</div>
+        <div class="transcript" id="chatArea"></div>
+        <div class="tool-bar" id="toolBar" style="display:none">
+          <span class="tool-spinner"></span>
+          <span id="toolBarText">Đang xử lý...</span>
+        </div>
+        <div class="panel-label" style="margin-top:10px">
+          BỘ NHỚ DÀI HẠN <span class="mem-count" id="memCount">0</span>
+        </div>
+        <div class="mem-box">
+          <div class="mem-desc">Ký ức lưu ngay trong vault đang chọn — đổi máy chỉ cần trỏ lại vault là Jarvis nhớ như cũ.</div>
+          <label class="auto-learn">
+            <input type="checkbox" id="autoLearnToggle" checked>
+            <span>Tự học sau mỗi 6 lượt</span>
+          </label>
+          <button class="learn-btn" id="learnBtn">🧠 Học ngay từ hội thoại</button>
+          <div class="mem-result" id="memResult"></div>
+        </div>
+
+        <div class="panel-label" style="margin-top:10px">HỆ THỐNG</div>
+        <div class="sys-status">
+          <div class="mcp-item" id="claudeStatus">⬤ Claude Code CLI</div>
+          <div class="mcp-item" id="ttsStatus">⬤ Voice (Edge TTS)</div>
+        </div>
+        <div class="panel-label" style="margin-top:8px">MCP ĐANG DÙNG</div>
+        <div id="mcpList" class="mcp-list"><div class="mcp-item dim">Chưa có hoạt động</div></div>
+      </aside>
+    </div>
+
+    <!-- Attachment chips -->
+    <div class="attach-bar" id="attachBar"></div>
+
+    <!-- ===== BOTTOM: voice bar ===== -->
+    <div class="hud-voice" id="hudVoice">
+      <button class="mic-big" id="voiceBtn" title="Bấm để nói (hoặc giữ Space)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
+        </svg>
+      </button>
+      <button class="attach-btn" id="attachBtn" title="Đính kèm file (ảnh, text, tài liệu) → lưu vào Sources">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+        </svg>
+      </button>
+      <input type="file" id="fileInput" multiple style="display:none">
+      <textarea id="chatInput" class="voice-input" placeholder="Nói với Jarvis, gõ ở đây, hoặc kéo/dán file vào..." rows="1"></textarea>
+      <button class="stop-btn" id="stopBtn" title="Ngắt lệnh / dừng đọc (Esc)" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      </button>
+      <button class="send-btn" id="sendBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Studio overlay -->
+  <div class="studio" id="studio">
+    <div class="studio-head">
+      <div class="studio-title">▦ STUDIO</div>
+      <div class="studio-tabs">
+        <button class="stab active" data-tab="workflows">Workflows</button>
+        <button class="stab" data-tab="agents">Agents</button>
+        <button class="stab" data-tab="skills">Skills</button>
+      </div>
+      <button class="studio-close" id="studioClose">✕</button>
+    </div>
+    <div class="studio-body">
+      <div class="stab-panel" id="panel-workflows"></div>
+      <div class="stab-panel" id="panel-agents" hidden></div>
+      <div class="stab-panel" id="panel-skills" hidden></div>
+    </div>
+    <!-- Run output drawer -->
+    <div class="run-drawer" id="runDrawer">
+      <div class="run-head">
+        <span id="runTitle">Chạy workflow</span>
+        <button class="run-close" id="runClose">✕</button>
+      </div>
+      <div class="run-steps" id="runSteps"></div>
+    </div>
+    <!-- Editor modal (agent/workflow) -->
+    <div class="studio-editor" id="studioEditor">
+      <div class="editor-box" id="editorBox"></div>
+    </div>
+  </div>
+
+  <!-- Vault structure banner -->
+  <div class="vault-banner" id="vaultBanner">
+    <span class="vb-icon">⚠</span>
+    <span class="vb-text" id="vbText">Cấu trúc vault chưa chuẩn cho Jarvis.</span>
+    <button class="vb-init" id="vbInit">Khởi tạo cấu trúc</button>
+    <button class="vb-close" id="vbClose">✕</button>
+  </div>
+
+  <!-- Drag-drop overlay -->
+  <div class="drop-overlay" id="dropOverlay">
+    <div class="drop-msg">📎 Thả file vào đây → lưu vào Sources</div>
+  </div>
+
+  <!-- Folder picker modal -->
+  <div class="modal-overlay" id="folderModal">
+    <div class="folder-modal">
+      <div class="fm-head">
+        <span>📁 Chọn brain (folder chứa ghi chú .md)</span>
+        <button class="fm-close" id="fmClose">✕</button>
+      </div>
+      <div class="fm-path" id="fmPath">—</div>
+      <div class="fm-list" id="fmList"></div>
+      <div class="fm-foot">
+        <span class="fm-hint" id="fmHint"></span>
+        <button class="fm-use" id="fmUse">Dùng folder này</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/voice.js?v=8"></script>
+  <script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
+  <script src="/static/graph3d.js?v=11"></script>
+  <script src="/static/app.js?v=22"></script>
+  <script src="/static/studio.js?v=1"></script>
+</body>
+</html>

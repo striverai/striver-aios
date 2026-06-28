@@ -1,0 +1,21 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment (cấu hình local; .env.example là bản mẫu)
+.env
+
+# Runtime / temp
+.staging/
+*.mp3
+test_output*.mp3
+
+# Bộ nhớ cá nhân của project brain (thay đổi mỗi phiên, không cần version)
+brain/Memory/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
