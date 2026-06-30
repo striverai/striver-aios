@@ -15,14 +15,15 @@ from pathlib import Path
 from typing import AsyncIterator, Optional
 
 
-# Registry các tiến trình Claude đang chạy — để ngắt giữa chừng
-_ACTIVE_PROCS = set()
+# Registry các tiến trình Claude đang chạy — để ngắt giữa chừng.
+# Map proc -> tag ("chat" | "metrics" | "workflow" | "loop" | ...) để ngắt CÓ CHỌN LỌC.
+_ACTIVE_PROCS = {}
 _PROC_LOCK = threading.Lock()
 
-def cancel_all():
-    """Ngắt mọi tiến trình Claude đang chạy (nút Stop)."""
+def cancel_all(tag=None):
+    """Ngắt tiến trình Claude. tag=None → tất cả; có tag → chỉ ngắt nhóm khớp (vd nút Stop chỉ ngắt 'chat')."""
     with _PROC_LOCK:
-        procs = list(_ACTIVE_PROCS)
+        procs = [p for p, t in _ACTIVE_PROCS.items() if tag is None or t == tag]
     for p in procs:
         try:
             if os.name == "nt":
@@ -58,12 +59,168 @@ def find_claude_cli() -> Optional[str]:
     return None
 
 
+# ---- Claude Code auth (đăng nhập Anthropic dùng cho engine CLI) ----
+def _no_window():
+    return subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+
+
+def auth_status():
+    """Trạng thái đăng nhập Claude Code: {connected, email, plan, org}."""
+    cli = find_claude_cli()
+    if not cli:
+        return {"connected": False, "error": "Claude CLI chưa cài"}
+    try:
+        r = subprocess.run([cli, "auth", "status", "--json"], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=25, creationflags=_no_window())
+        d = json.loads((r.stdout or "").strip() or "{}")
+        return {"connected": bool(d.get("loggedIn")), "email": d.get("email", ""),
+                "plan": d.get("subscriptionType", "") or d.get("authMethod", ""), "org": d.get("orgName", "")}
+    except Exception as e:
+        return {"connected": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def auth_logout():
+    cli = find_claude_cli()
+    if not cli:
+        return {"ok": False, "error": "Claude CLI chưa cài"}
+    try:
+        subprocess.run([cli, "auth", "logout"], capture_output=True, text=True, timeout=25, creationflags=_no_window())
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def auth_login():
+    """Mở luồng đăng nhập (browser) ở tiến trình nền — tự hoàn tất qua localhost callback rồi thoát.
+    Chạy được trên máy có trình duyệt (local). Frontend poll auth_status tới khi connected."""
+    cli = find_claude_cli()
+    if not cli:
+        return {"ok": False, "error": "Claude CLI chưa cài"}
+    try:
+        subprocess.Popen([cli, "auth", "login", "--claudeai"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=_no_window())
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+# ---- MCP native (cho server OAuth — Claude Code tự lo OAuth; scope user = dùng chung mọi cwd) ----
+def mcp_native_add(name, url, transport="http", header=None, client_id=None):
+    cli = find_claude_cli()
+    if not cli:
+        return {"ok": False, "error": "Claude CLI chưa cài"}
+    args = [cli, "mcp", "add", "--scope", "user", "--transport", transport]
+    if header:
+        args += ["--header", header]
+    if client_id:
+        args += ["--client-id", client_id]
+    args += [name, url]
+    try:
+        r = subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=30, creationflags=_no_window())
+        ok = r.returncode == 0
+        return {"ok": ok, "out": (r.stdout or r.stderr or "").strip()[:300]}
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def mcp_native_remove(name):
+    cli = find_claude_cli()
+    if not cli:
+        return {"ok": False, "error": "Claude CLI chưa cài"}
+    try:
+        subprocess.run([cli, "mcp", "remove", "--scope", "user", name], capture_output=True,
+                       text=True, timeout=30, creationflags=_no_window())
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def mcp_native_status(name):
+    """Trạng thái server OAuth native: {authenticated, status} qua `claude mcp get` (parse 'Needs authentication')."""
+    cli = find_claude_cli()
+    if not cli:
+        return {"authenticated": False, "status": "no_cli"}
+    try:
+        r = subprocess.run([cli, "mcp", "get", name], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=30, creationflags=_no_window())
+        out = ((r.stdout or "") + (r.stderr or "")).lower()
+        if "needs authentication" in out:
+            return {"authenticated": False, "status": "needs_auth"}
+        if r.returncode != 0 or "not found" in out or "no mcp server" in out:
+            return {"authenticated": False, "status": "not_found"}
+        return {"authenticated": True, "status": "ok"}
+    except Exception as e:
+        return {"authenticated": False, "status": "error", "error": f"{type(e).__name__}: {e}"}
+
+
+def mcp_native_list():
+    """Liệt kê MCP sẵn trong Claude Code (đồng bộ từ claude.ai) — chỉ để hiển thị.
+    Parse output `<tên>: <url> - <trạng thái>` (health check nên hơi lâu)."""
+    cli = find_claude_cli()
+    if not cli:
+        return []
+    try:
+        r = subprocess.run([cli, "mcp", "list"], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=60, creationflags=_no_window())
+        out = r.stdout or ""
+    except Exception:
+        return []
+    servers = []
+    for line in out.splitlines():
+        line = line.strip()
+        if " - " not in line:
+            continue
+        pos = line.find("http://")
+        if pos < 0:
+            pos = line.find("https://")
+        if pos < 0:
+            continue
+        name = line[:pos].rstrip().rstrip(":").strip()
+        rest = line[pos:]
+        dash = rest.rfind(" - ")
+        if dash < 0:
+            continue
+        url = rest[:dash].strip()
+        status = rest[dash + 3:].strip()
+        connected = ("connected" in status.lower()) or ("✔" in status) or ("✓" in status)
+        servers.append({"name": name, "url": url, "status": status, "connected": connected})
+    return servers
+
+
+def mcp_open_auth_terminal():
+    """Mở 1 cửa sổ terminal chạy `claude` để user gõ /mcp xác thực OAuth MCP (chỉ máy local có màn hình)."""
+    cli = find_claude_cli()
+    if not cli:
+        return {"ok": False, "error": "Claude CLI chưa cài"}
+    try:
+        if os.name == "nt":
+            subprocess.Popen('start "Jarvis - Xac thuc MCP (go /mcp)" cmd /k claude', shell=True)
+        else:
+            for term in ("x-terminal-emulator", "gnome-terminal", "konsole", "xterm"):
+                if shutil.which(term):
+                    subprocess.Popen([term, "-e", "claude"])
+                    break
+            else:
+                return {"ok": False, "error": "Không tìm thấy terminal"}
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
 class ClaudeCLI:
-    def __init__(self, system_prompt: Optional[str] = None, cwd: Optional[str] = None):
+    def __init__(self, system_prompt: Optional[str] = None, cwd: Optional[str] = None,
+                 tag: str = "chat", allowed_tools: Optional[list] = None, model: Optional[str] = None):
         self.cli_path = find_claude_cli()
         self.system_prompt = system_prompt
         self.cwd = cwd or os.getcwd()
         self.session_id: Optional[str] = None
+        self.tag = tag                      # nhóm để ngắt chọn lọc
+        self.allowed_tools = allowed_tools  # None = mọi tool; list = CHỈ các tool này (an toàn cho loop)
+        self.model = model                  # None = model mặc định của CLI; hoặc sonnet/opus/haiku
+        self.mcp_config: Optional[str] = None   # path file --mcp-config (MCP do Jarvis quản lý)
+        self.mcp_strict: bool = False           # True → --strict-mcp-config (bỏ qua MCP sẵn của máy)
+        self.disallowed_tools: Optional[list] = None  # pattern --disallowedTools (server chỉ-đọc)
 
     def is_available(self) -> bool:
         return self.cli_path is not None
@@ -80,6 +237,17 @@ class ClaudeCLI:
             "--verbose",
             "--dangerously-skip-permissions",
         ]
+        if self.model:
+            args.extend(["--model", self.model])
+        if self.allowed_tools:
+            # Giới hạn CHỈ các tool an toàn (vd Read,Write,Edit,Glob,Grep) → loop không gọi được MCP tiền/đơn
+            args.extend(["--allowedTools", ",".join(self.allowed_tools)])
+        if self.disallowed_tools:
+            args.extend(["--disallowedTools", ",".join(self.disallowed_tools)])
+        if self.mcp_config:
+            args.extend(["--mcp-config", self.mcp_config])
+            if self.mcp_strict:
+                args.append("--strict-mcp-config")
         if self.system_prompt:
             args.extend(["--append-system-prompt", self.system_prompt])
         if self.session_id:
@@ -110,7 +278,7 @@ class ClaudeCLI:
                     creationflags=creationflags,
                 )
                 with _PROC_LOCK:
-                    _ACTIVE_PROCS.add(proc)
+                    _ACTIVE_PROCS[proc] = self.tag
 
                 # Đọc stderr riêng trong thread phụ
                 stderr_lines = []
@@ -144,7 +312,7 @@ class ClaudeCLI:
                 try:
                     if proc is not None:
                         with _PROC_LOCK:
-                            _ACTIVE_PROCS.discard(proc)
+                            _ACTIVE_PROCS.pop(proc, None)
                 except Exception:
                     pass
                 asyncio.run_coroutine_threadsafe(queue.put(SENTINEL), loop)
@@ -210,3 +378,141 @@ class ClaudeCLI:
 
     def reset_session(self):
         self.session_id = None
+
+
+# ============================================================
+# Codex CLI — chạy `codex exec --json` cho provider ChatGPT OAuth (gói subscription).
+# Giống cách Hermes spawn codex (app-server); ta dùng `exec` gọn hơn. codex tự lo
+# subscription auth (~/.codex/auth.json) + MCP (~/.codex/config.toml) + tool NATIVE
+# → ChatGPT subscription DÙNG ĐƯỢC MCP (điều mà raw HTTP endpoint không làm được).
+# ============================================================
+def find_codex_cli() -> Optional[str]:
+    cli = shutil.which("codex")
+    if cli:
+        return cli
+    home = Path(os.environ.get("USERPROFILE", "")) if os.name == "nt" else Path.home()
+    cands = [
+        home / ".codex" / ".sandbox-bin" / "codex.exe",
+        home / ".codex" / "plugins" / ".plugin-appserver" / "codex.exe",
+        Path(os.environ.get("APPDATA", "")) / "npm" / "codex.cmd",
+        Path(os.environ.get("APPDATA", "")) / "npm" / "codex.exe",
+        home / ".codex" / ".sandbox-bin" / "codex",
+    ]
+    for p in cands:
+        try:
+            if p.exists():
+                return str(p)
+        except Exception:
+            pass
+    for p in ("/usr/local/bin/codex", "~/.local/bin/codex"):
+        pp = Path(p).expanduser()
+        if pp.exists():
+            return str(pp)
+    return None
+
+
+class CodexCLI:
+    def __init__(self, cwd: Optional[str] = None, tag: str = "chat", model: Optional[str] = None,
+                 instructions: Optional[str] = None):
+        self.cli_path = find_codex_cli()
+        self.cwd = cwd or os.getcwd()
+        self.tag = tag
+        self.model = model              # gpt-5.5 / gpt-5.4 ...
+        self.instructions = instructions
+        self.extra_config = []          # list '-c key=value' (override config, vd thêm mcp_servers)
+        self.profile = None             # tên profile codex (-p) — Jarvis ghi jarvis.config.toml để thêm MCP
+
+    def is_available(self) -> bool:
+        return self.cli_path is not None
+
+    async def query(self, prompt: str) -> AsyncIterator[dict]:
+        if not self.cli_path:
+            yield {"type": "error", "content": "Không tìm thấy Codex CLI (cần ChatGPT login qua codex)."}
+            return
+        args = [self.cli_path, "exec", "--json",
+                "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check"]
+        if self.model:
+            args += ["-m", self.model]
+        if self.profile:
+            args += ["-p", self.profile]
+        for c in (self.extra_config or []):
+            args += ["-c", c]
+        args.append(prompt)
+
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue = asyncio.Queue()
+        SENTINEL = object()
+
+        def reader_thread():
+            proc = None
+            try:
+                creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+                proc = subprocess.Popen(
+                    args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    cwd=self.cwd, text=True, encoding="utf-8", errors="replace", bufsize=1,
+                    creationflags=creationflags,
+                )
+                with _PROC_LOCK:
+                    _ACTIVE_PROCS[proc] = self.tag
+                stderr_lines = []
+
+                def read_stderr():
+                    for line in proc.stderr:
+                        line = line.rstrip()
+                        if line:
+                            stderr_lines.append(line)
+                st = threading.Thread(target=read_stderr, daemon=True)
+                st.start()
+                for line in proc.stdout:
+                    line = line.strip()
+                    if line:
+                        asyncio.run_coroutine_threadsafe(queue.put(line), loop)
+                proc.wait()
+                st.join(timeout=2)
+                if proc.returncode != 0 and stderr_lines:
+                    asyncio.run_coroutine_threadsafe(
+                        queue.put({"__error__": "Codex lỗi (exit " + str(proc.returncode) + "):\n" + "\n".join(stderr_lines[-5:])}), loop)
+            except Exception as e:
+                traceback.print_exc()
+                asyncio.run_coroutine_threadsafe(queue.put({"__error__": f"Codex subprocess: {type(e).__name__}: {e}"}), loop)
+            finally:
+                try:
+                    if proc is not None:
+                        with _PROC_LOCK:
+                            _ACTIVE_PROCS.pop(proc, None)
+                except Exception:
+                    pass
+                asyncio.run_coroutine_threadsafe(queue.put(SENTINEL), loop)
+
+        threading.Thread(target=reader_thread, daemon=True).start()
+
+        final_text = ""
+        while True:
+            item = await queue.get()
+            if item is SENTINEL:
+                break
+            if isinstance(item, dict) and "__error__" in item:
+                yield {"type": "error", "content": item["__error__"]}
+                continue
+            try:
+                ev = json.loads(item)
+            except json.JSONDecodeError:
+                continue
+            t = ev.get("type")
+            if t == "item.completed":
+                it = ev.get("item") or {}
+                itype = it.get("type")
+                if itype == "agent_message":
+                    txt = it.get("text") or ""
+                    if txt.strip():
+                        final_text += (("\n" if final_text else "") + txt)
+                        yield {"type": "text", "content": txt}
+                elif itype in ("mcp_tool_call", "command_execution", "function_call",
+                               "tool_call", "local_shell_call", "web_search_call"):
+                    name = it.get("name") or it.get("server") or it.get("command") or itype
+                    yield {"type": "tool_call", "name": str(name)[:80]}
+            elif t == "turn.completed":
+                yield {"type": "final", "content": final_text, "session_id": None}
+            elif t in ("error", "turn.failed", "thread.error", "stream.error"):
+                msg = ev.get("message") or (ev.get("error") or {}).get("message") or json.dumps(ev)[:200]
+                yield {"type": "error", "content": "Codex: " + str(msg)}

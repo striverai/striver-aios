@@ -23,6 +23,7 @@ class JarvisVoice {
     this.ttsRate = opts.ttsRate || "+5%";
     this.currentAudio = null;
     this.ttsQueue = [];
+    this.speechQueue = [];   // hàng đợi đọc nối tiếp (các bước trung gian + kết quả)
     this.isPlaying = false;
 
     // Audio analysis — cho hiệu ứng phát sáng theo âm thanh
@@ -195,76 +196,118 @@ class JarvisVoice {
     else this.startListening();
   }
 
+  // Đọc NGAY: ngắt phần đang đọc + xoá hàng đợi, rồi đọc đoạn này.
   speak(text) {
+    this.stopSpeaking();
+    this.enqueueSpeak(text);
+  }
+
+  // Đọc NỐI TIẾP: thêm vào cuối hàng đợi, KHÔNG cắt ngang đoạn đang đọc.
+  // Dùng cho các cập nhật ở bước trung gian (stream).
+  enqueueSpeak(text) {
     if (!this.ttsEnabled) return;
-    const clean = text
+    const clean = this._cleanForTTS(text);
+    if (!clean) return;
+    this.speechQueue.push(clean);
+    if (!this.isPlaying) this._pumpQueue();
+  }
+
+  // Lấy đoạn kế trong hàng đợi để đọc; hết hàng đợi thì dừng.
+  _pumpQueue() {
+    if (!this.speechQueue || this.speechQueue.length === 0) { this.isPlaying = false; return; }
+    this.isPlaying = true;
+    const text = this.speechQueue.shift();
+    if (this.ttsBackend) this._speakBackend(text);   // Edge TTS (giọng Việt chuẩn)
+    else this._speakBrowser(text);                   // fallback Web Speech
+  }
+
+  _cleanForTTS(text) {
+    return text
+      .replace(/```[\s\S]*?```/g, " ")        // bỏ code block
       .replace(/\*\*(.+?)\*\*/g, "$1")
       .replace(/\*(.+?)\*/g, "$1")
       .replace(/`(.+?)`/g, "$1")
-      .replace(/^#+\s+/gm, "")
-      .replace(/^[-•]\s+/gm, "")
-      .replace(/\[(.+?)\]\(.+?\)/g, "$1");
+      .replace(/!\[.*?\]\(.*?\)/g, "")          // ảnh
+      .replace(/\[(.+?)\]\(.+?\)/g, "$1")       // link → giữ chữ
+      .replace(/^#{1,6}\s+/gm, "")              // heading
+      .replace(/^\s*\d+[.)]\s+/gm, "")          // list số
+      .replace(/^\s*[-*•]\s+/gm, "")            // list dấu đầu dòng
+      .replace(/\s*[—–]\s*/g, ", ")             // gạch ngang em/en → phẩy (hết khựng)
+      .replace(/\s*\|\s*/g, ", ")               // ô bảng markdown
+      .replace(/\n{2,}/g, ". ")                 // đoạn mới → chấm
+      .replace(/\n/g, ", ")                     // xuống dòng → phẩy (liền mạch, vẫn có nhịp thở)
+      .replace(/\s*([,.])\s*([,.])/g, "$1")     // dồn dấu trùng (.,  ,. → .)
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
 
-    if (this.ttsBackend) {
-      // Edge TTS backend — giọng Vietnamese chuẩn
-      this._speakBackend(clean);
-    } else {
-      // Fallback browser Web Speech
-      this._speakBrowser(clean);
-    }
+  _chunkUrl(text) {
+    return `${this.ttsBackend}?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(this.ttsVoice)}&rate=${encodeURIComponent(this.ttsRate)}`;
   }
 
   async _speakBackend(text) {
-    this.stopSpeaking();
-    const chunks = this._splitIntoChunks(text, 400);
-    this.ttsQueue = chunks.map(c => ({ text: c, played: false }));
-    this._playNextInQueue();
+    // KHÔNG stopSpeaking ở đây — hàng đợi (_pumpQueue) điều phối thứ tự đọc.
+    // Đoạn to (đa số câu trả lời = 1 đoạn → đọc liền 1 mạch, không khoảng trống)
+    this.ttsChunks = this._splitIntoChunks(text, 600);
+    this._preloaded = null;
+    this.isPlaying = true;
+    this._playChunk(0);
   }
 
-  async _playNextInQueue() {
-    if (this.ttsQueue.length === 0) { this.isPlaying = false; return; }
-    const item = this.ttsQueue.shift();
-    const url = `${this.ttsBackend}?text=${encodeURIComponent(item.text)}&voice=${encodeURIComponent(this.ttsVoice)}&rate=${encodeURIComponent(this.ttsRate)}`;
+  _playChunk(i) {
+    // Hết chunk của đoạn này → chuyển sang đoạn kế trong hàng đợi (không tự dừng).
+    if (!this.ttsChunks || i >= this.ttsChunks.length) { this._pumpQueue(); return; }
+    // Dùng audio đã preload nếu trùng index, không thì tạo mới
+    let audio = (this._preloaded && this._preloaded.i === i) ? this._preloaded.audio
+              : new Audio(this._chunkUrl(this.ttsChunks[i]));
+    this._preloaded = null;
+    this.currentAudio = audio;
+
+    // Route analyser (cho hiệu ứng glow) chỉ khi context chạy + chưa route
     try {
-      this.currentAudio = new Audio(url);
-      // Chỉ route qua Web Audio analyser KHI context đang chạy.
-      // Nếu suspend, route sẽ nuốt tiếng → bỏ qua, phát thẳng (luôn có tiếng Việt).
-      try {
-        const ctx = this._ensureCtx();
-        if (ctx && ctx.state === "running") {
-          this.currentAudio.crossOrigin = "anonymous";
-          const srcNode = ctx.createMediaElementSource(this.currentAudio);
-          const an = ctx.createAnalyser();
-          an.fftSize = 128;
-          srcNode.connect(an);
-          an.connect(ctx.destination);
-          this.outAnalyser = an;
-        }
-      } catch (e) { /* analyser optional — vẫn phát thẳng */ }
-      this.isPlaying = true;
-      this.currentAudio.onended = () => this._playNextInQueue();
-      this.currentAudio.onerror = (e) => {
-        console.warn("TTS backend failed, fallback browser", e);
-        this._speakBrowser(item.text);
-        this.ttsQueue = [];
-      };
-      await this.currentAudio.play();
-    } catch (e) {
-      console.warn("TTS play error:", e);
-      this._speakBrowser(item.text);
+      const ctx = this._ensureCtx();
+      if (ctx && ctx.state === "running" && !audio.__routed) {
+        audio.crossOrigin = "anonymous";
+        const src = ctx.createMediaElementSource(audio);
+        const an = ctx.createAnalyser();
+        an.fftSize = 128;
+        src.connect(an);
+        an.connect(ctx.destination);
+        this.outAnalyser = an;
+        audio.__routed = true;
+      }
+    } catch (e) { /* phát thẳng vẫn ổn */ }
+
+    // PRELOAD đoạn kế tiếp ngay khi đoạn này bắt đầu → khi hết là phát liền, không trống
+    if (i + 1 < this.ttsChunks.length) {
+      const na = new Audio(this._chunkUrl(this.ttsChunks[i + 1]));
+      na.preload = "auto";
+      try { na.load(); } catch (e) {}
+      this._preloaded = { i: i + 1, audio: na };
     }
+
+    audio.onended = () => this._playChunk(i + 1);
+    // Lỗi đoạn này → đọc bằng browser rồi đọc tiếp các chunk còn lại của đoạn.
+    audio.onerror = () => { this._speakBrowser(this.ttsChunks[i], () => this._playChunk(i + 1)); };
+    audio.play().catch(() => this._speakBrowser(this.ttsChunks[i], () => this._playChunk(i + 1)));
   }
 
-  _speakBrowser(text) {
+  // onDone: gọi khi đọc xong đoạn (mặc định: lấy đoạn kế trong hàng đợi).
+  _speakBrowser(text, onDone) {
+    const done = onDone || (() => this._pumpQueue());
     const chunks = this._splitIntoChunks(text, 200);
-    this.synth.cancel();
-    chunks.forEach(chunk => {
-      const utter = new SpeechSynthesisUtterance(chunk);
+    let idx = 0;
+    const playNext = () => {
+      if (idx >= chunks.length) { done(); return; }
+      const utter = new SpeechSynthesisUtterance(chunks[idx++]);
       utter.lang = this.lang;
       if (this.vietnameseVoice) utter.voice = this.vietnameseVoice;
       utter.rate = 1.05;
+      utter.onend = playNext;
+      utter.onerror = playNext;
       this.synth.speak(utter);
-    });
+    };
+    playNext();
   }
 
   stopSpeaking() {
@@ -273,7 +316,13 @@ class JarvisVoice {
       this.currentAudio.pause();
       this.currentAudio = null;
     }
+    if (this._preloaded && this._preloaded.audio) {
+      try { this._preloaded.audio.pause(); } catch (e) {}
+    }
+    this._preloaded = null;
+    this.ttsChunks = null;
     this.ttsQueue = [];
+    this.speechQueue = [];
     this.isPlaying = false;
   }
 
@@ -283,6 +332,11 @@ class JarvisVoice {
 
   setRate(rate) {
     this.ttsRate = rate;
+  }
+
+  setRecognitionLang(lang) {
+    this.lang = lang;
+    if (this.recognition) this.recognition.lang = lang;
   }
 
   toggleTTS() {

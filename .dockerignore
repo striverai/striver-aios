@@ -1,0 +1,28 @@
+# Keep build context small + never bake secrets/state into the image.
+.git
+.venv
+**/__pycache__
+*.pyc
+*.pyo
+.env
+.env.*
+!.env.example
+.learn/
+.staging/
+Brain Default/
+brain/
+vault/
+server/settings.json
+server/.sessions.json
+server/.mcp_config.json
+server/mcp_servers.json
+server/loop_config.json
+server/conversations.db
+server/conversations.db-wal
+server/conversations.db-shm
+server/jarvis.log
+*.log
+*.mp3
+.DS_Store
+Thumbs.db
+desktop.ini

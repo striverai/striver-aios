@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jarvis OS</title>
-  <link rel="stylesheet" href="/static/style.css?v=14">
+  <link rel="stylesheet" href="/static/style.css?v=23">
+  <link rel="stylesheet" href="/static/console.css?v=11">
 </head>
 <body>
   <div class="hud">
@@ -12,12 +13,28 @@
     <!-- ===== TOP BAR ===== -->
     <header class="hud-top">
       <div class="brand"><span class="brand-icon">⬡</span> <span class="brand-text">JARVIS OS</span></div>
+      <!-- Select Brain: dời từ góc graph lên navbar (trái) -->
+      <div class="orb-graph-ctl navbar-brain">
+        <select id="graphSource" class="graph-select">
+          <option value="brain">Brain Default</option>
+        </select>
+        <button class="graph-folder-btn" id="pickFolderBtn" title="Chọn brain từ folder máy tính">📁</button>
+        <span class="graph-stats" id="graphStats">—</span>
+      </div>
       <div class="hud-center-title">
         <span class="ws-name" id="workspaceName">Jarvis OS</span>
         <span class="ws-date" id="currentDate"></span>
       </div>
       <div class="hud-actions">
         <button class="studio-open-btn" id="studioOpenBtn" title="Studio — Agents, Skills, Workflows">▦ Studio</button>
+        <button class="hud-icon-btn" id="settingsBtn" title="Cài đặt">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
+            <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+            <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
+          </svg>
+        </button>
         <div class="voice-picker-wrap">
           <button class="hud-icon-btn" id="voicePickerBtn" title="Chọn giọng nói">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -26,6 +43,20 @@
             </svg>
           </button>
           <div class="voice-popover" id="voicePopover">
+            <div class="popover-section">
+              <div class="popover-label">NGÔN NGỮ NGHE</div>
+              <div class="voice-options">
+                <label class="voice-opt">
+                  <input type="radio" name="recognitionLang" value="vi-VN" checked>
+                  <div><strong>Tiếng Việt</strong><div class="opt-sub">vi-VN · mặc định</div></div>
+                </label>
+                <label class="voice-opt">
+                  <input type="radio" name="recognitionLang" value="en-US">
+                  <div><strong>Tiếng Anh</strong><div class="opt-sub">en-US · khi nói toàn Anh</div></div>
+                </label>
+              </div>
+              <div class="opt-sub" style="margin-top:4px;opacity:.6">Nói lẫn Việt+Anh → chọn Tiếng Việt,<br>từ Anh thông dụng vẫn nhận được.</div>
+            </div>
             <div class="popover-section">
               <div class="popover-label">GIỌNG ĐỌC</div>
               <div class="voice-options">
@@ -85,19 +116,38 @@
           <div class="orb-state" id="orbState">SẴN SÀNG</div>
           <div class="orb-interim" id="voiceInterim"></div>
         </div>
-        <div class="orb-graph-ctl">
-          <select id="graphSource" class="graph-select">
-            <option value="brain">Brain (mặc định)</option>
-          </select>
-          <button class="graph-folder-btn" id="pickFolderBtn" title="Chọn brain từ folder máy tính">📁</button>
-          <span class="graph-stats" id="graphStats">—</span>
-        </div>
         <div class="graph-tooltip" id="graphTooltip"></div>
+
+        <!-- Lớp Agentic: số agent / skill / workflow — bấm mở Studio -->
+        <div class="brain-stats" id="brainStats">
+          <button class="bstat" data-tab="agents" title="Mở Studio · Agents">
+            <span class="bstat-num" id="statAgents">—</span>
+            <span class="bstat-lbl">AGENTS</span>
+          </button>
+          <span class="bstat-sep"></span>
+          <button class="bstat" data-tab="skills" title="Mở Studio · Skills">
+            <span class="bstat-num" id="statSkills">—</span>
+            <span class="bstat-lbl">SKILLS</span>
+          </button>
+          <span class="bstat-sep"></span>
+          <button class="bstat" data-tab="workflows" title="Mở Studio · Workflows">
+            <span class="bstat-num" id="statWorkflows">—</span>
+            <span class="bstat-lbl">WORKFLOWS</span>
+          </button>
+          <span class="bstat-sep"></span>
+          <button class="bstat" data-tab="automations" title="Mở Studio · Lịch tự động (routines đang chạy)">
+            <span class="bstat-num" id="statRoutines">—</span>
+            <span class="bstat-lbl">ROUTINES</span>
+          </button>
+        </div>
       </div>
 
       <!-- RIGHT: transcript + activity -->
       <aside class="hud-right">
-        <div class="panel-label">HỘI THOẠI</div>
+        <div class="panel-label">
+          <span>HỘI THOẠI</span>
+          <span class="engine-badge" id="engineBadge" title="Engine + model THẬT đang chạy (lấy từ server — không phải tên model tự nhận)">—</span>
+        </div>
         <div class="transcript" id="chatArea"></div>
         <div class="tool-bar" id="toolBar" style="display:none">
           <span class="tool-spinner"></span>
@@ -114,6 +164,46 @@
           </label>
           <button class="learn-btn" id="learnBtn">🧠 Học ngay từ hội thoại</button>
           <div class="mem-result" id="memResult"></div>
+        </div>
+
+        <!-- Vòng lặp tự cải thiện ĐÃ DỜI sang trang sidebar "Tự cải thiện" (console.js renderSelfImprove).
+             Giữ DOM ẩn để app.js cũ vẫn gắn handler không lỗi. -->
+        <div class="panel-label" style="margin-top:10px;display:none">
+          VÒNG LẶP TỰ CẢI THIỆN <span class="beta-tag">BETA</span>
+        </div>
+        <div class="loop-box" style="display:none">
+          <div class="loop-desc">Jarvis tự đánh thức theo lịch, tìm đòn bẩy cải thiện rồi tự kiểm chứng. An toàn: chỉ soạn nháp/ghi file trong vault — KHÔNG tự gọi MCP tạo đơn, đốt tiền, đăng bài.</div>
+          <label class="loop-row">
+            <span>Bật tự chạy nền</span>
+            <label class="toggle"><input type="checkbox" id="loopEnabled"><span></span></label>
+          </label>
+          <label class="loop-row">
+            <span>Mục tiêu</span>
+            <select id="loopGoal" class="loop-sel">
+              <option value="business">Cải thiện chỉ số kinh doanh</option>
+              <option value="brain">Làm dày bộ não (Wiki)</option>
+              <option value="product">Cải thiện Jarvis hữu dụng hơn</option>
+              <option value="custom">Tự định nghĩa…</option>
+            </select>
+          </label>
+          <textarea id="loopCustomGoal" class="loop-custom" placeholder="Mô tả mục tiêu tự cải thiện của riêng anh…" style="display:none"></textarea>
+          <label class="loop-row">
+            <span>Chế độ</span>
+            <select id="loopMode" class="loop-sel">
+              <option value="suggest">Chỉ đề xuất (an toàn)</option>
+              <option value="auto">Tự làm (ghi nháp vào vault)</option>
+            </select>
+          </label>
+          <label class="loop-row">
+            <span>Chu kỳ (phút)</span>
+            <input type="number" id="loopInterval" class="loop-num" min="5" value="60">
+          </label>
+          <div class="loop-actions">
+            <button class="loop-btn" id="loopRunNow">▶ Chạy ngay</button>
+            <button class="loop-btn ghost" id="lintBtn">🩺 LINT Wiki</button>
+          </div>
+          <div class="loop-status" id="loopStatus">Tắt</div>
+          <div class="loop-log" id="loopLog"></div>
         </div>
 
         <div class="panel-label" style="margin-top:10px">HỆ THỐNG</div>
@@ -153,34 +243,52 @@
     </div>
   </div>
 
-  <!-- Studio overlay -->
-  <div class="studio" id="studio">
-    <div class="studio-head">
-      <div class="studio-title">▦ STUDIO</div>
-      <div class="studio-tabs">
-        <button class="stab active" data-tab="workflows">Workflows</button>
-        <button class="stab" data-tab="agents">Agents</button>
-        <button class="stab" data-tab="skills">Skills</button>
+  <!-- ===== Console layer: rail điều hướng + trang quản lý (Alpine-driven) ===== -->
+  <nav class="rail" x-data x-cloak>
+    <!-- ĐỈNH cố định -->
+    <div class="rail-top">
+      <div class="rail-brand">⬡</div>
+    </div>
+    <!-- GIỮA cuộn được — nhồi bao nhiêu tính năng cũng cuộn -->
+    <div class="rail-nav">
+      <template x-for="it in $store.nav.items" :key="it.id">
+        <button class="rail-item" :class="{ active: $store.nav.active === it.id }"
+                @click="$store.nav.go(it.id)" :title="it.label">
+          <span class="rail-ico" x-html="it.icon"></span>
+          <span class="rail-lbl" x-text="it.label"></span>
+        </button>
+      </template>
+    </div>
+    <!-- ĐÁY cố định: version + tác giả (luôn hiện) -->
+    <div class="rail-foot">
+      <div class="rf-ver" id="railVersion">v0.0.0</div>
+      <a class="rf-author" href="https://minhquy.vn" target="_blank" rel="noopener">by Minh Quý</a>
+    </div>
+  </nav>
+
+  <section class="cview" id="cview" x-data x-cloak x-show="$store.nav.active !== 'home'" x-transition.opacity.duration.200ms>
+    <div class="cview-head">
+      <div>
+        <div class="cview-title"><span class="ico" x-text="$store.nav.meta.icon"></span> <span x-text="$store.nav.meta.label"></span></div>
+        <div class="cview-sub" x-text="$store.nav.meta.sub"></div>
       </div>
-      <button class="studio-close" id="studioClose">✕</button>
     </div>
-    <div class="studio-body">
-      <div class="stab-panel" id="panel-workflows"></div>
-      <div class="stab-panel" id="panel-agents" hidden></div>
-      <div class="stab-panel" id="panel-skills" hidden></div>
+    <div class="cview-body" id="cviewBody"></div>
+  </section>
+
+  <!-- Studio tách thành các trang sidebar riêng (console.js render vào #cviewBody).
+       Editor + run-drawer giờ là overlay TOP-LEVEL (dùng từ trang Workflows/Agents). -->
+  <!-- Run output drawer -->
+  <div class="run-drawer" id="runDrawer">
+    <div class="run-head">
+      <span id="runTitle">Chạy workflow</span>
+      <button class="run-close" id="runClose">✕</button>
     </div>
-    <!-- Run output drawer -->
-    <div class="run-drawer" id="runDrawer">
-      <div class="run-head">
-        <span id="runTitle">Chạy workflow</span>
-        <button class="run-close" id="runClose">✕</button>
-      </div>
-      <div class="run-steps" id="runSteps"></div>
-    </div>
-    <!-- Editor modal (agent/workflow) -->
-    <div class="studio-editor" id="studioEditor">
-      <div class="editor-box" id="editorBox"></div>
-    </div>
+    <div class="run-steps" id="runSteps"></div>
+  </div>
+  <!-- Editor modal (agent/workflow) -->
+  <div class="studio-editor" id="studioEditor">
+    <div class="editor-box" id="editorBox"></div>
   </div>
 
   <!-- Vault structure banner -->
@@ -212,11 +320,124 @@
     </div>
   </div>
 
-  <script src="/static/voice.js?v=8"></script>
+  <!-- Bộ cài đặt lần đầu (hiện khi chưa setup_done) -->
+  <div class="modal-overlay" id="setupWizard">
+    <div class="settings-modal" style="max-width:460px">
+      <div class="fm-head"><span>👋 Chào mừng tới Jarvis</span></div>
+      <div class="settings-body">
+        <div class="set-note">Vài bước nhanh để bắt đầu. Mọi thứ đổi lại được sau trong ⚙ Cài đặt.</div>
+        <div class="set-sec">
+          <h4>1. Workspace</h4>
+          <label>Tên hiển thị</label><input id="wzWsName" placeholder="Jarvis OS">
+        </div>
+        <div class="set-sec">
+          <h4>2. Tài khoản admin <span class="dim">(khuyến nghị)</span></h4>
+          <div class="set-note">Đặt mật khẩu để chặn người lạ — quan trọng nếu đưa lên VPS. Bỏ trống nếu chỉ chạy máy cá nhân.</div>
+          <label>Tài khoản</label><input id="wzUser" placeholder="admin">
+          <label>Mật khẩu</label><input id="wzPass" type="password" placeholder="để trống = không đặt mật khẩu">
+        </div>
+        <div class="set-sec">
+          <h4>3. Model xử lý</h4>
+          <label>Engine</label>
+          <select id="wzEngine">
+            <option value="cli">Claude Code CLI — đầy đủ MCP / skill / loop</option>
+            <option value="openrouter">OpenRouter — chat thuần (cần API key, đặt sau)</option>
+          </select>
+        </div>
+        <div class="set-actions"><button class="s-btn" id="wzFinish">Bắt đầu dùng Jarvis →</button></div>
+        <div class="auth-err" id="wzErr"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Đăng nhập (chỉ hiện khi admin đã đặt mật khẩu & chưa đăng nhập) -->
+  <div class="modal-overlay" id="authOverlay">
+    <div class="folder-modal auth-modal">
+      <div class="fm-head"><span id="authTitle">🔒 Đăng nhập Jarvis</span></div>
+      <div class="auth-body">
+        <input id="authUser" placeholder="Tài khoản" autocomplete="username">
+        <input id="authPass" type="password" placeholder="Mật khẩu" autocomplete="current-password">
+        <button class="fm-use" id="authSubmit">Đăng nhập</button>
+        <div class="auth-err" id="authErr"></div>
+        <div class="auth-help"><span id="authForgot">Quên mật khẩu?</span></div>
+        <div class="auth-reset" id="authResetInfo" style="display:none">
+          Mở file <code>server/settings.json</code>, xóa khối <code>"auth"</code> (hoặc đặt rỗng), rồi
+          chạy <code>stop-jarvis.bat</code> → <code>start-jarvis.vbs</code>. Mở lại sẽ về bộ cài đặt để tạo tài khoản mới.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cài đặt -->
+  <div class="modal-overlay" id="settingsOverlay">
+    <div class="settings-modal">
+      <div class="fm-head"><span>⚙ Cài đặt Jarvis</span><button class="fm-close" id="settingsClose">✕</button></div>
+      <div class="settings-body">
+        <div class="set-sec">
+          <h4>Chung</h4>
+          <label>Tên workspace</label><input id="setWsName">
+          <button class="s-btn" id="saveGeneral">Lưu</button>
+        </div>
+        <div class="set-sec">
+          <h4>Model</h4>
+          <label>Engine xử lý chat</label>
+          <select id="setEngine">
+            <option value="cli">Claude Code CLI — đầy đủ MCP / skill / loop</option>
+            <option value="openrouter">OpenRouter — chat thuần, KHÔNG có MCP</option>
+          </select>
+          <label>Model Claude (khi dùng CLI)</label>
+          <select id="setClaudeModel">
+            <option value="">Mặc định</option><option value="sonnet">Sonnet</option>
+            <option value="opus">Opus</option><option value="haiku">Haiku</option>
+          </select>
+          <label>OpenRouter API key <span class="dim" id="setKeyHint"></span></label>
+          <input id="setOrKey" type="password" placeholder="sk-or-... (để trống nếu không đổi)">
+          <label>OpenRouter model <button type="button" class="set-mini" id="loadModelsBtn">↻ Tải danh sách</button></label>
+          <select id="setOrModelSel"><option value="__custom__">✏️ Nhập tên model khác (custom)…</option></select>
+          <input id="setOrModel" placeholder="vd openai/gpt-4o-mini" style="display:none">
+          <div class="set-note">Danh sách model tải động từ OpenRouter. Không thấy model cần? Chọn "Nhập tên khác" rồi gõ chính xác id. OpenRouter sẽ kích hoạt ở bản kế (P2).</div>
+          <button class="s-btn" id="saveModel">Lưu</button>
+        </div>
+        <div class="set-sec">
+          <h4>Telegram</h4>
+          <label class="loop-row" style="padding:0"><span>Bật bot Telegram</span>
+            <label class="toggle"><input type="checkbox" id="setTgEnabled"><span></span></label></label>
+          <label>Bot token <span class="dim" id="setTgHint"></span></label>
+          <input id="setTgToken" type="password" placeholder="123456:ABC... (để trống nếu không đổi)">
+          <label>Chat ID được phép dùng</label>
+          <input id="setTgChat" placeholder="vd 123456789">
+          <div class="set-note" id="setTgStatus">—</div>
+          <div class="set-note">Nhắn Telegram ↔ Jarvis. Dùng đúng engine đang chọn (CLI thì có cả MCP để hỏi doanh thu/ads qua điện thoại). Có thể dùng lại token bot Morning Briefing.</div>
+          <div class="set-actions">
+            <button class="s-btn" id="saveTelegram">Lưu & bật</button>
+            <button class="s-btn-ghost" id="testTelegram">Gửi test</button>
+          </div>
+        </div>
+        <div class="set-sec">
+          <h4>Tài khoản đăng nhập</h4>
+          <div class="set-note" id="setAuthState"></div>
+          <label>Tài khoản</label><input id="setAuthUser" placeholder="admin">
+          <label>Mật khẩu</label><input id="setAuthPass" type="password" placeholder="đặt mật khẩu (để trống nếu không đổi)">
+          <div class="set-actions">
+            <button class="s-btn" id="savePassword">Lưu tài khoản</button>
+            <button class="s-btn-ghost" id="logoutBtn">Đăng xuất</button>
+            <button class="s-btn-ghost" id="disableAuthBtn">Tắt đăng nhập</button>
+          </div>
+          <div class="set-note">Đặt mật khẩu để chặn người lạ khi đưa Jarvis lên VPS. Lưu ý: trên VPS nên chạy sau HTTPS (reverse proxy).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/voice.js?v=9"></script>
   <script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
   <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
-  <script src="/static/graph3d.js?v=11"></script>
-  <script src="/static/app.js?v=22"></script>
-  <script src="/static/studio.js?v=1"></script>
+  <script src="/static/graph3d.js?v=13"></script>
+  <script src="/static/app.js?v=42"></script>
+  <script src="/static/sessions-ui.js?v=1"></script>
+  <script src="/static/studio.js?v=10"></script>
+  <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
+  <script src="/static/console.js?v=25"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </body>
 </html>

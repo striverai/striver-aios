@@ -1,0 +1,64 @@
+# ============================================================================
+# Jarvis OS — docker compose
+#
+#   1) cp .env.example .env
+#   2) docker compose run --rm jarvis claude auth login --claudeai   # ONE TIME
+#   3) docker compose up -d
+#
+# Bind is loopback-only by default: Claude runs with full file/tool access, so
+# do NOT publish on the public interface without auth in front. For remote use:
+#   ssh -L 7777:localhost:7777 user@your-vps   →   open http://localhost:7777
+#
+# TRUY CẬP TỪ XA (Hostinger…) — Cloudflare Tunnel, không cần mở port, có HTTPS:
+#   1) Đặt MẬT KHẨU trong Javis trước (Dashboard → Tài khoản) — BẮT BUỘC vì Claude full quyền.
+#   2) docker compose --profile tunnel up -d
+#   3) docker compose logs tunnel | grep trycloudflare   → mở URL https://<random>.trycloudflare.com
+# ============================================================================
+services:
+  jarvis:
+    build:
+      context: .
+      args:
+        CLAUDE_CLI_VERSION: ${CLAUDE_CLI_VERSION:-latest}
+    image: jarvis-os:latest
+    container_name: jarvis
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      JARVIS_HOST: 0.0.0.0
+      JARVIS_PORT: "7777"
+      JARVIS_STATE_DIR: /data/state
+      BRAIN_PATH: /data/brain
+      OBSIDIAN_VAULT_PATH: /data/vault
+      CLAUDE_CWD: /app
+    ports:
+      - "127.0.0.1:7777:7777"
+    volumes:
+      - jarvis-data:/data                       # brain/, vault/, state/ (settings, sessions, loop)
+      - claude-auth:/home/jarvis/.claude        # Claude device-login token (persist!)
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:'+os.getenv('JARVIS_PORT','7777')+'/health',timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+  # Truy cập từ xa (opt-in): docker compose --profile tunnel up -d
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: jarvis-tunnel
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    depends_on:
+      - jarvis
+    # Mặc định: QUICK TUNNEL (không cần tài khoản Cloudflare) → URL ngẫu nhiên *.trycloudflare.com.
+    # Xem URL:  docker compose logs tunnel | grep trycloudflare
+    command: tunnel --no-autoupdate --url http://jarvis:7777
+    # URL CỐ ĐỊNH (tên miền riêng): tạo named tunnel ở Cloudflare Zero Trust → đặt TUNNEL_TOKEN
+    # trong .env → đổi dòng command trên thành:
+    #   command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+
+volumes:
+  jarvis-data:
+  claude-auth:

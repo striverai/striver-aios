@@ -11,9 +11,38 @@ __pycache__/
 .staging/
 *.mp3
 test_output*.mp3
+server/jarvis.log
+server/loop_config.json
+server/settings.json
+server/.sessions.json
+server/mcp_servers.json
+server/.mcp_config.json
+server/conversations.db
+server/conversations.db-wal
+server/conversations.db-shm
+
+# Vault mặc định in-repo (dữ liệu cá nhân, không version)
+vault/
 
 # Bộ nhớ cá nhân của project brain (thay đổi mỗi phiên, không cần version)
 brain/Memory/
+
+# Dev artifact — clone Hermes để học (rất nặng, có .git riêng)
+.learn/
+
+# Dữ liệu CÁ NHÂN trong brain mặc định (không version): bộ nhớ, cache số liệu KD,
+# automations (chứa chat_id). Cấu trúc thư mục + agent/workflow mẫu vẫn được version.
+Brain Default/Memory/
+Brain Default/05 - Data Cache/
+Brain Default/Attachments/
+Brain Default/Jarvis/automations.json
+
+# Skill bị tắt (chuyển vào .disabled khi tắt) — trạng thái cục bộ, không version
+**/.claude/skills/.disabled/
+
+# File rác ở gốc (leftover di chuyển folder)
+/agents
+/workflows
 
 # OS
 .DS_Store

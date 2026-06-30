@@ -97,31 +97,10 @@ def build_graph(roots: List[str], max_files: int = 2000) -> Dict:
 
     orphan_count = len([n for n in nodes.values() if n["links"] == 0])
 
-    # Chỉ giữ thành phần liên thông LỚN NHẤT → khối cầu sạch, bỏ node đơn lẻ & cụm lạc
-    adj = {nid: set() for nid in nodes}
-    for e in unique_edges:
-        adj[e["source"]].add(e["target"])
-        adj[e["target"]].add(e["source"])
-
-    visited = set()
-    largest = set()
-    for start in nodes:
-        if start in visited:
-            continue
-        # BFS 1 component
-        stack = [start]
-        comp = set()
-        while stack:
-            cur = stack.pop()
-            if cur in visited:
-                continue
-            visited.add(cur)
-            comp.add(cur)
-            stack.extend(adj[cur] - visited)
-        if len(comp) > len(largest):
-            largest = comp
-
-    keep = largest if largest else set(nodes.keys())
+    # Loại bỏ node cô đơn (links == 0), giữ tất cả node có ít nhất 1 kết nối
+    keep = {nid for nid, n in nodes.items() if n["links"] > 0}
+    if not keep:
+        keep = set(nodes.keys())
     node_list = [n for nid, n in nodes.items() if nid in keep]
     edge_list = [e for e in unique_edges if e["source"] in keep and e["target"] in keep]
 
