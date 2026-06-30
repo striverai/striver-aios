@@ -2482,10 +2482,11 @@ async def websocket_endpoint(ws: WebSocket):
             if prov == "openai-oauth":
                 # ===== ChatGPT subscription qua CODEX CLI — MCP/tool NATIVE (như Hermes, dùng codex của máy) =====
                 actual_model = api_model or "gpt-5.5"
+                openai_oauth.write_codex_auth()   # bắc cầu token đã nối ở Models → ~/.codex/auth.json (codex dùng được)
                 ccli = CodexCLI(cwd=CLAUDE_CWD, model=actual_model, tag="chat")
                 ccli.profile = _write_codex_profile()   # đẩy MCP của Jarvis (POSCake...) sang codex
                 if not ccli.is_available():
-                    await ws.send_text(json.dumps({"type": "error", "content": "Chưa có Codex CLI hoặc chưa đăng nhập ChatGPT. Cài/đăng nhập: chạy lệnh `codex login` trong terminal."}))
+                    await ws.send_text(json.dumps({"type": "error", "content": "Chưa cài Codex CLI trong container. ChatGPT subscription là THỬ NGHIỆM — dùng Claude Code hoặc OpenRouter cho ổn định (đổi ở Models)."}))
                 else:
                     async for ev in ccli.query(_cli_think(reasoning, user_message)):
                         et = ev["type"]

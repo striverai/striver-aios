@@ -147,6 +147,34 @@ def valid_creds():
     return None
 
 
+def write_codex_auth():
+    """Bắc cầu token ChatGPT (device-code đã nối ở Models, lưu trong settings) → ~/.codex/auth.json
+    để CHÍNH Codex CLI dùng (chat ChatGPT qua `codex exec`). Device-code dùng CÙNG client_id với codex
+    → token tương thích → KHỎI phải chạy `codex login` riêng (login đó khó trên VPS headless).
+    Trả True nếu ghi được. Gọi mỗi lượt chat openai-oauth (tự refresh + cập nhật auth.json)."""
+    creds = valid_creds()
+    if not creds or not creds.get("access_token"):
+        return False
+    from pathlib import Path
+    o = cfgmod.read_settings()["model"].get("openai_oauth") or {}
+    try:
+        path = Path.home() / ".codex" / "auth.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({
+            "OPENAI_API_KEY": None,
+            "tokens": {
+                "id_token": o.get("id_token", ""),
+                "access_token": creds["access_token"],
+                "refresh_token": o.get("refresh_token", ""),
+                "account_id": creds.get("account_id", ""),
+            },
+            "last_refresh": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+        }), encoding="utf-8")
+        return True
+    except Exception:
+        return False
+
+
 def list_models(creds):
     """Lấy danh sách model account được phép (động) từ backend Codex. None → caller fallback catalog.
     Loại model '-pro' (ChatGPT account không gọi được)."""
