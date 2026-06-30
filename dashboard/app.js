@@ -1269,6 +1269,30 @@ async function initAuth() {
     }
   } catch (e) {}
 }
+
+// Cổng đăng nhập THỐNG NHẤT (thay initSetup+initAuth ở boot):
+// - đã đăng nhập (hoặc local không bắt buộc) → onboarding tùy chọn.
+// - public/đã đặt mật khẩu mà CHƯA có tài khoản → ÉP wizard tạo tài khoản (mật khẩu bắt buộc).
+// - đã có tài khoản mà chưa đăng nhập → màn đăng nhập.
+let _wizardMandatory = false;
+async function initAuthGate() {
+  let s = {};
+  try { s = await (await fetch("/auth/status")).json(); } catch (e) {}
+  if (s.authed) { initSetup(); return; }
+  if (s.needs_setup) {
+    _wizardMandatory = !!s.require_login;
+    const wz = document.getElementById("setupWizard");
+    if (!wz) { authOverlay.classList.add("open"); return; }
+    if (_wizardMandatory) {
+      const pass = document.getElementById("wzPass"); if (pass) pass.required = true;
+      const tw = document.getElementById("wzTokenWrap"); if (tw) tw.style.display = "";
+      const note = document.getElementById("wzErr"); if (note) note.textContent = "Đặt tài khoản + mật khẩu (≥8 ký tự) + MÃ THIẾT LẬP để bảo vệ Jarvis trên server công khai.";
+    }
+    wz.classList.add("open");
+  } else {
+    authOverlay.classList.add("open");
+  }
+}
 document.getElementById("authSubmit").addEventListener("click", async () => {
   const fd = new FormData();
   fd.append("username", document.getElementById("authUser").value.trim());
@@ -1444,9 +1468,11 @@ if (document.getElementById("wzFinish")) {
     const pass = document.getElementById("wzPass").value;
     const engine = document.getElementById("wzEngine").value;
     const btn = document.getElementById("wzFinish"); btn.disabled = true; btn.textContent = "Đang lưu…";
+    if (_wizardMandatory && !pass) { err.textContent = "Bắt buộc đặt mật khẩu khi chạy trên server công khai."; btn.disabled = false; btn.textContent = "Bắt đầu dùng Jarvis →"; return; }
     try {
       if (pass) {
-        const d = await (await fetch("/auth/setup", { method: "POST", body: _fd({ username: user || "admin", password: pass }) })).json();
+        const _tok = document.getElementById("wzToken");
+        const d = await (await fetch("/auth/setup", { method: "POST", body: _fd({ username: user || "admin", password: pass, setup_token: _tok ? _tok.value.trim() : "" }) })).json();
         if (!d.ok) { err.textContent = d.error || "Đặt mật khẩu lỗi"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Jarvis →"; return; }
       }
       await fetch("/settings", { method: "POST", body: _fd({ section: "general", data: JSON.stringify({ workspace_name: ws, setup_done: true }) }) });
@@ -1459,8 +1485,7 @@ if (document.getElementById("wzFinish")) {
 // ============================================
 // Boot
 // ============================================
-initSetup();
-initAuth();
+initAuthGate();
 refreshEngineBadge();
 connect();
 initStarfield();

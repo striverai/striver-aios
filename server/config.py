@@ -97,6 +97,27 @@ def auth_enabled(cfg=None):
     return bool(cfg.get("auth", {}).get("password_hash"))
 
 
+def require_login():
+    """Có BẮT BUỘC đăng nhập để dùng Javis không (kể cả khi CHƯA đặt mật khẩu → ép setup).
+    - JARVIS_REQUIRE_LOGIN=1/0 ép bật/tắt tường minh.
+    - Mặc định: BẬT khi server nghe public (JARVIS_HOST=0.0.0.0, vd Docker/Hostinger/VPS) —
+      vì Claude chạy full quyền, không được để hở ai cũng vào được."""
+    v = os.getenv("JARVIS_REQUIRE_LOGIN", "").strip().lower()
+    if v in ("1", "true", "yes", "on"):
+        return True
+    if v in ("0", "false", "no", "off"):
+        return False
+    # FAIL-CLOSED: bind KHÔNG phải loopback (0.0.0.0, ::, IP LAN…) → coi là public → bắt buộc login.
+    # Chỉ tắt khi nghe thuần localhost. (Localhost + tunnel: đặt JARVIS_REQUIRE_LOGIN=1.)
+    host = os.getenv("JARVIS_HOST", "127.0.0.1").strip().lower()
+    return host not in ("127.0.0.1", "localhost", "::1")
+
+
+def gate_active():
+    """Có cần kiểm tra session trước khi cho truy cập không (đã đặt mật khẩu HOẶC bắt buộc login)."""
+    return auth_enabled() or require_login()
+
+
 def verify_password(password, cfg=None):
     cfg = cfg or read_settings()
     a = cfg.get("auth", {})
@@ -107,16 +128,23 @@ def verify_password(password, cfg=None):
 
 
 # ---- Session (lưu ra file → restart KHÔNG bị đăng xuất) ----
+# Lưu {token: created_ts} để session CÓ HẠN (chống token bất tử nếu lỡ rò).
+import time as _time
 _SESS_PATH = STATE_DIR / ".sessions.json"
+_SESSION_TTL = 30 * 86400   # 30 ngày
 
 
 def _load_sessions():
     try:
         if _SESS_PATH.exists():
-            return set(json.loads(_SESS_PATH.read_text(encoding="utf-8")))
+            data = json.loads(_SESS_PATH.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return {k: float(v) for k, v in data.items()}
+            if isinstance(data, list):   # tương thích định dạng cũ → coi như vừa tạo
+                return {k: _time.time() for k in data}
     except Exception:
         pass
-    return set()
+    return {}
 
 
 SESSIONS = _load_sessions()
@@ -124,27 +152,92 @@ SESSIONS = _load_sessions()
 
 def _save_sessions():
     try:
-        _SESS_PATH.write_text(json.dumps(list(SESSIONS)), encoding="utf-8")
+        _SESS_PATH.write_text(json.dumps(SESSIONS), encoding="utf-8")
     except Exception:
         pass
 
 
 def new_session():
     t = secrets.token_urlsafe(32)
-    SESSIONS.add(t)
+    SESSIONS[t] = _time.time()
     _save_sessions()
     return t
 
 
 def valid_session(token):
-    return bool(token) and token in SESSIONS
+    if not token or token not in SESSIONS:
+        return False
+    if _time.time() - SESSIONS.get(token, 0) > _SESSION_TTL:
+        SESSIONS.pop(token, None)
+        _save_sessions()
+        return False
+    return True
 
 
 def drop_session(token):
-    SESSIONS.discard(token)
+    SESSIONS.pop(token, None)
     _save_sessions()
 
 
 def clear_sessions():
     SESSIONS.clear()
     _save_sessions()
+
+
+# ---- Setup token: chống CHIẾM ADMIN lần đầu trên public ----
+# Khi chạy public mà CHƯA có admin, /auth/setup PHẢI kèm token này — token chỉ in ra LOG server
+# lúc khởi động, nên chỉ chính chủ (xem được log/terminal) tạo được tài khoản. Kẻ chỉ-có-URL bó tay.
+_SETUP_TOKEN_PATH = STATE_DIR / ".setup_token"
+
+
+def setup_token_required():
+    return require_login() and not auth_enabled()
+
+
+def get_or_create_setup_token():
+    """Đọc/sinh token thiết lập 1 lần. None nếu không cần (local, hoặc đã có admin)."""
+    if not setup_token_required():
+        return None
+    try:
+        if _SETUP_TOKEN_PATH.exists():
+            t = _SETUP_TOKEN_PATH.read_text(encoding="utf-8").strip()
+            if t:
+                return t
+        t = secrets.token_urlsafe(24)
+        _SETUP_TOKEN_PATH.write_text(t, encoding="utf-8")
+        return t
+    except Exception:
+        return None
+
+
+def check_setup_token(provided):
+    try:
+        if not _SETUP_TOKEN_PATH.exists():
+            return False
+        real = _SETUP_TOKEN_PATH.read_text(encoding="utf-8").strip()
+        return bool(real) and secrets.compare_digest(real, (provided or "").strip())
+    except Exception:
+        return False
+
+
+def clear_setup_token():
+    try:
+        _SETUP_TOKEN_PATH.unlink()
+    except Exception:
+        pass
+
+
+def provision_admin_from_env():
+    """Có JARVIS_ADMIN_PASSWORD (+ tùy chọn JARVIS_ADMIN_USER) và CHƯA có admin → tạo admin lúc boot
+    → đóng /auth/setup cho mọi người (cách an toàn nhất cho deploy public). Trả True nếu vừa tạo."""
+    if auth_enabled():
+        return False
+    pw = os.getenv("JARVIS_ADMIN_PASSWORD", "")
+    if not pw:
+        return False
+    user = (os.getenv("JARVIS_ADMIN_USER", "admin").strip() or "admin")
+    h, salt = hash_password(pw)
+    cfg = read_settings()
+    cfg["auth"] = {"username": user, "password_hash": h, "salt": salt}
+    write_settings(cfg)
+    return True

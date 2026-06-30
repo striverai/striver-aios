@@ -3,38 +3,49 @@
 Jarvis OS là một AI agent cá nhân + Second Brain. "Bộ não" của nó là **Claude Code CLI**
 (đăng nhập một lần, không cần API key). Có 3 cách chạy — chọn 1.
 
-> ⚠️ **An toàn:** Jarvis chạy Claude với toàn quyền đọc/ghi file trên máy. Mặc định nó chỉ
-> mở ở `localhost` (loopback). Đừng phơi cổng 7777 ra Internet nếu chưa đặt mật khẩu
-> (vào dashboard → Settings để đặt) hoặc chưa có reverse-proxy xác thực phía trước.
+> ⚠️ **An toàn:** Jarvis chạy Claude với toàn quyền trên máy. Khi chạy public (Docker/VPS/Hostinger),
+> Jarvis **tự bật bắt buộc đăng nhập** — mở app ra là màn **tạo tài khoản admin / đăng nhập**, không
+> ai điều khiển được khi chưa đặt mật khẩu. (Chạy nội bộ muốn tắt: `JARVIS_REQUIRE_LOGIN=0`.)
 
 ---
 
-## Cách 1 — Docker (dễ nhất, khuyến nghị cho VPS)
+## Cách 1 — Hostinger Docker Manager (1-click, nhanh nhất) ⚡
 
-Cần: một VPS Linux (khuyên Ubuntu) đã có Docker. Chưa có Docker?
-`curl -fsSL https://get.docker.com | sh`
-
-```bash
-# 1) Lấy mã nguồn về server
-git clone https://github.com/blogminhquy/jarvis-os.git jarvis && cd jarvis
-
-# 2) Tạo file cấu hình (mặc định chạy được luôn, sửa sau cũng được)
-cp .env.example .env
-
-# 3) Đăng nhập Claude (bộ não) — LÀM 1 LẦN
-docker compose run --rm jarvis claude auth login --claudeai
-#    → hiện 1 đường link + 1 mã. Mở link trên trình duyệt bất kỳ, dán mã, bấm duyệt.
-#    Token được lưu vĩnh viễn trong volume claude-auth.
-
-# 4) Bật Jarvis
-docker compose up -d
+VPS Hostinger → **Docker Manager → Compose → URL** → dán link rồi **Deploy**:
 ```
-
-Mở Jarvis: nó chỉ nghe ở `localhost` của server cho an toàn. Từ máy của bạn:
-```bash
-ssh -L 7777:localhost:7777 <user>@<ip-server>
-# rồi mở http://localhost:7777 trên trình duyệt
+https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.yml
 ```
+Hostinger tự pull image + cấp URL `https://<app>.<vps>.hstgr.cloud`. Bấm **Open app** → ra
+màn **tạo tài khoản admin**.
+
+**3 việc làm 1 lần:**
+1. **Để image GHCR ở chế độ Public:** GitHub → repo `jarvis-os` → **Packages** → `jarvis-os`
+   → *Package settings* → Visibility = **Public** (để Hostinger pull không cần đăng nhập registry).
+   Image do CI tự build mỗi lần push lên `main` (xem mục Cập nhật).
+2. **Tạo tài khoản admin an toàn** (Claude chạy full quyền nên không để ai cũng tạo được):
+   - **Cách A (khuyến nghị):** trong compose của Hostinger, thêm env `JARVIS_ADMIN_USER` +
+     `JARVIS_ADMIN_PASSWORD` → admin tạo sẵn lúc khởi động, mở app ra **đăng nhập luôn**.
+   - **Cách B:** bỏ trống → mở app sẽ hỏi **MÃ THIẾT LẬP**. Lấy mã trong **App terminal**:
+     `docker compose logs jarvis | grep "SETUP TOKEN"` → dán vào màn tạo tài khoản. (Chỉ người xem
+     được log mới tạo được admin → kẻ chỉ có URL không chiếm được.)
+3. **Đăng nhập Claude (bộ não) 1 lần:** mở **App terminal** và chạy:
+   `claude auth login --claudeai` → mở link, dán code. (token lưu trong volume, không mất khi update.)
+
+---
+
+## Cách 2 — Docker trên VPS bất kỳ (pull image, không cần clone source)
+
+Cần Docker. Chưa có? `curl -fsSL https://get.docker.com | sh`
+```bash
+mkdir jarvis && cd jarvis
+curl -fsSLO https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.yml
+
+docker compose run --rm jarvis claude auth login --claudeai   # ĐĂNG NHẬP CLAUDE 1 LẦN (link + code)
+docker compose up -d                                          # pull image GHCR + chạy
+```
+Mở `http://<ip-vps>:7777` (hoặc qua tunnel ở dưới) → ra màn tạo tài khoản admin.
+Muốn build từ source thay vì pull: `curl -O .../docker-compose.build.yml` rồi
+`docker compose -f docker-compose.build.yml up -d --build`.
 
 Lệnh hằng ngày:
 ```bash

@@ -335,6 +335,11 @@
           <div class="set-note">Đặt mật khẩu để chặn người lạ — quan trọng nếu đưa lên VPS. Bỏ trống nếu chỉ chạy máy cá nhân.</div>
           <label>Tài khoản</label><input id="wzUser" placeholder="admin">
           <label>Mật khẩu</label><input id="wzPass" type="password" placeholder="để trống = không đặt mật khẩu">
+          <div id="wzTokenWrap" style="display:none">
+            <label>Mã thiết lập <span class="dim">(bảo mật)</span></label>
+            <input id="wzToken" placeholder="dán MÃ THIẾT LẬP từ log server">
+            <div class="set-note">Jarvis đang chạy public → cần MÃ THIẾT LẬP in trong log/terminal server (Hostinger: <b>App terminal</b>, hoặc <code>docker compose logs jarvis</code>) để xác nhận bạn là chủ.</div>
+          </div>
         </div>
         <div class="set-sec">
           <h4>3. Model xử lý</h4>
@@ -433,7 +438,7 @@
   <script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
   <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
   <script src="/static/graph3d.js?v=13"></script>
-  <script src="/static/app.js?v=42"></script>
+  <script src="/static/app.js?v=44"></script>
   <script src="/static/sessions-ui.js?v=1"></script>
   <script src="/static/studio.js?v=10"></script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->

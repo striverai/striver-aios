@@ -19,8 +19,8 @@ is_docker() {
 }
 
 if [ "$MODE" = "docker" ] || { [ "$MODE" = "auto" ] && is_docker; }; then
-  echo "==> Docker → build lại image + restart..."
-  docker compose build
+  echo "==> Docker → pull image mới từ GHCR + restart..."
+  docker compose pull
   docker compose up -d
   echo "==> Xong. Theo dõi:  docker compose logs -f"
 else

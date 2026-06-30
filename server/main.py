@@ -44,12 +44,15 @@ _AUTH_PUBLIC_EXACT = ("/", "/favicon.ico", "/auth/status", "/auth/login", "/auth
 
 @app.middleware("http")
 async def _auth_guard(request: Request, call_next):
-    """Chặn mọi endpoint khi admin đã đặt mật khẩu và chưa đăng nhập (cookie session)."""
-    if cfgmod.auth_enabled():
+    """Chặn endpoint khi CẦN đăng nhập (đã đặt mật khẩu HOẶC chạy public) mà chưa có session.
+    Khi chạy public (0.0.0.0) lần đầu chưa có mật khẩu → vẫn chặn để ÉP tạo tài khoản trước
+    (setup_required), tránh hở dashboard điều khiển Claude full quyền ra Internet."""
+    if cfgmod.gate_active():
         path = request.url.path
         public = path in _AUTH_PUBLIC_EXACT or any(path.startswith(p) for p in _AUTH_PUBLIC_PREFIX)
         if not public and not cfgmod.valid_session(request.cookies.get("jarvis_session", "")):
-            return JSONResponse({"error": "unauthorized", "auth_required": True}, status_code=401)
+            return JSONResponse({"error": "unauthorized", "auth_required": True,
+                                 "setup_required": not cfgmod.auth_enabled()}, status_code=401)
     return await call_next(request)
 
 DASHBOARD_PATH = Path(__file__).parent.parent / "dashboard"
@@ -270,8 +273,15 @@ async def stop():
 # ============================================================
 # Auth — 1 tài khoản admin (đặt lần đầu để chặn người lạ khi lên VPS)
 # ============================================================
-def _session_cookie(resp, token):
-    resp.set_cookie("jarvis_session", token, httponly=True, samesite="lax", max_age=30 * 86400, path="/")
+def _session_cookie(resp, token, request=None):
+    # secure=True khi truy cập qua HTTPS (Hostinger *.hstgr.cloud / Cloudflare tunnel) → cookie không
+    # đi cleartext. Truy cập HTTP thuần (http://ip:7777) thì không bật để vẫn đăng nhập được.
+    secure = False
+    if request is not None:
+        xfp = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+        secure = xfp == "https" or request.url.scheme == "https"
+    resp.set_cookie("jarvis_session", token, httponly=True, samesite="lax",
+                    secure=secure, max_age=30 * 86400, path="/")
     return resp
 
 
@@ -279,32 +289,67 @@ def _session_cookie(resp, token):
 async def auth_status(request: Request):
     cfg = cfgmod.read_settings()
     enabled = cfgmod.auth_enabled(cfg)
-    authed = (not enabled) or cfgmod.valid_session(request.cookies.get("jarvis_session", ""))
-    return {"needs_setup": not enabled, "auth_required": enabled, "authed": authed,
-            "username": cfg.get("auth", {}).get("username", "")}
+    require = cfgmod.require_login()
+    has_session = cfgmod.valid_session(request.cookies.get("jarvis_session", ""))
+    # authed: có session thật; HOẶC bản local không bắt buộc login + chưa đặt mật khẩu (giữ UX cũ).
+    authed = has_session or (not enabled and not require)
+    return {"needs_setup": not enabled, "auth_required": enabled or require,
+            "require_login": require, "authed": authed,
+            "username": (cfg.get("auth", {}).get("username", "") if authed else "")}
 
 
 @app.post("/auth/setup")
-async def auth_setup(username: str = Form(...), password: str = Form(...)):
+async def auth_setup(request: Request, username: str = Form(...), password: str = Form(...),
+                     setup_token: str = Form("")):
     cfg = cfgmod.read_settings()
     if cfgmod.auth_enabled(cfg):
         return JSONResponse({"ok": False, "error": "Đã có tài khoản — hãy đăng nhập."}, status_code=400)
-    if len(password) < 4:
-        return JSONResponse({"ok": False, "error": "Mật khẩu quá ngắn"}, status_code=400)
+    # PUBLIC: chống kẻ chỉ-có-URL chiếm admin lần đầu → bắt buộc MÃ THIẾT LẬP (in trong log server).
+    if cfgmod.setup_token_required() and not cfgmod.check_setup_token(setup_token):
+        return JSONResponse({"ok": False, "error": "Sai hoặc thiếu MÃ THIẾT LẬP — xem mã trong log/terminal của server."}, status_code=403)
+    if len(password) < 8:
+        return JSONResponse({"ok": False, "error": "Mật khẩu tối thiểu 8 ký tự"}, status_code=400)
     h, salt = cfgmod.hash_password(password)
     cfg["auth"] = {"username": username.strip() or "admin", "password_hash": h, "salt": salt}
     cfgmod.write_settings(cfg)
-    return _session_cookie(JSONResponse({"ok": True}), cfgmod.new_session())
+    cfgmod.clear_setup_token()
+    return _session_cookie(JSONResponse({"ok": True}), cfgmod.new_session(), request)
+
+
+# Rate-limit đăng nhập (chống brute-force) — đếm theo IP, khoá tạm sau N lần sai.
+_LOGIN_FAILS = {}        # ip -> [fail_count, locked_until_ts]
+_LOGIN_MAX_FAILS = 8
+_LOGIN_LOCK_SEC = 300
+
+
+def _login_locked(ip):
+    rec = _LOGIN_FAILS.get(ip)
+    return bool(rec) and rec[1] > time.time()
+
+
+def _login_fail(ip):
+    rec = _LOGIN_FAILS.get(ip) or [0, 0.0]
+    rec[0] += 1
+    if rec[0] >= _LOGIN_MAX_FAILS:
+        rec[1] = time.time() + _LOGIN_LOCK_SEC
+        rec[0] = 0
+    _LOGIN_FAILS[ip] = rec
 
 
 @app.post("/auth/login")
-async def auth_login(username: str = Form(...), password: str = Form(...)):
+async def auth_login(request: Request, username: str = Form(...), password: str = Form(...)):
+    ip = request.client.host if request.client else "?"
+    if _login_locked(ip):
+        return JSONResponse({"ok": False, "error": "Quá nhiều lần sai — thử lại sau ít phút."}, status_code=429)
     cfg = cfgmod.read_settings()
     if not cfgmod.auth_enabled(cfg):
         return {"ok": True, "note": "auth chưa bật"}
     if username.strip() != cfg["auth"].get("username") or not cfgmod.verify_password(password, cfg):
+        _login_fail(ip)
+        await asyncio.sleep(0.5)   # làm chậm brute-force online
         return JSONResponse({"ok": False, "error": "Sai tài khoản hoặc mật khẩu"}, status_code=401)
-    return _session_cookie(JSONResponse({"ok": True}), cfgmod.new_session())
+    _LOGIN_FAILS.pop(ip, None)
+    return _session_cookie(JSONResponse({"ok": True}), cfgmod.new_session(), request)
 
 
 @app.post("/auth/logout")
@@ -1045,7 +1090,7 @@ def _node_payload(fpath, roots):
 @app.websocket("/ws/graph")
 async def ws_graph(ws: WebSocket):
     """Đẩy realtime mỗi khi brain sinh ra / cập nhật note .md (poll mtime nhẹ)."""
-    if cfgmod.auth_enabled() and not cfgmod.valid_session(ws.cookies.get("jarvis_session", "")):
+    if cfgmod.gate_active() and not cfgmod.valid_session(ws.cookies.get("jarvis_session", "")):
         await ws.close(code=1008)
         return
     await ws.accept()
@@ -2069,15 +2114,23 @@ async def automations_sync(brain: str = Form("brain")):
 
 @app.on_event("startup")
 async def _start_scheduler():
-    # Cảnh báo bảo mật: chạy public (0.0.0.0, vd qua tunnel/VPS) mà CHƯA đặt mật khẩu →
-    # bất kỳ ai có URL đều điều khiển được Claude full quyền trên máy. Bắt buộc đặt mật khẩu.
+    # Bootstrap bảo mật cho deploy public: (1) tạo admin từ env nếu có; (2) nếu vẫn chưa có admin
+    # mà đang public → in MÃ THIẾT LẬP ra log để chính chủ tạo tài khoản (chống kẻ chỉ-có-URL chiếm admin).
+    import sys as _sys
     try:
-        if os.getenv("JARVIS_HOST", "127.0.0.1") == "0.0.0.0" and not cfgmod.auth_enabled():
-            print("\n⚠️  [BẢO MẬT] Jarvis đang nghe 0.0.0.0 (public) mà CHƯA đặt mật khẩu!\n"
-                  "    Vào Dashboard → Tài khoản đặt mật khẩu NGAY trước khi mở tunnel/expose ra ngoài.\n",
-                  file=__import__('sys').stderr)
-    except Exception:
-        pass
+        if cfgmod.provision_admin_from_env():
+            print("[auth] Đã tạo tài khoản admin từ JARVIS_ADMIN_PASSWORD (env).", file=_sys.stderr)
+        if cfgmod.setup_token_required():
+            _tok = cfgmod.get_or_create_setup_token()
+            print("\n" + "=" * 66 +
+                  "\n  [BẢO MẬT] Jarvis chạy PUBLIC, CHƯA có tài khoản admin."
+                  "\n  Mở app → màn tạo tài khoản sẽ hỏi MÃ THIẾT LẬP dưới đây:"
+                  f"\n      SETUP TOKEN:  {_tok}"
+                  "\n  (Chỉ người xem được log/terminal này tạo được admin. Hoặc đặt"
+                  "\n   JARVIS_ADMIN_PASSWORD env để tạo sẵn admin, khỏi cần mã.)\n" +
+                  "=" * 66 + "\n", file=_sys.stderr)
+    except Exception as e:
+        print(f"[auth bootstrap] {e}", file=_sys.stderr)
 
     async def _scheduler_loop():
         while True:
@@ -2204,7 +2257,7 @@ async def tts_voices():
 # ============================================
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
-    if cfgmod.auth_enabled() and not cfgmod.valid_session(ws.cookies.get("jarvis_session", "")):
+    if cfgmod.gate_active() and not cfgmod.valid_session(ws.cookies.get("jarvis_session", "")):
         await ws.close(code=1008)
         return
     await ws.accept()

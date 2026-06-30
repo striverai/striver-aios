@@ -1,42 +1,40 @@
 # ============================================================================
-# Jarvis OS — docker compose
+# Jarvis OS — docker compose (PRODUCTION: pull image dựng sẵn từ GHCR)
 #
-#   1) cp .env.example .env
-#   2) docker compose run --rm jarvis claude auth login --claudeai   # ONE TIME
-#   3) docker compose up -d
+# CÀI 1-CLICK TRÊN HOSTINGER:
+#   VPS → Docker Manager → Compose → URL → dán:
+#   https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.yml
+#   → Deploy. Hostinger tự pull image + cấp URL https://<app>.<vps>.hstgr.cloud
+#   (image GHCR phải để PUBLIC: GitHub → Packages → jarvis-os → Package settings → Public)
 #
-# Bind is loopback-only by default: Claude runs with full file/tool access, so
-# do NOT publish on the public interface without auth in front. For remote use:
-#   ssh -L 7777:localhost:7777 user@your-vps   →   open http://localhost:7777
+# CÀI TRÊN VPS BẤT KỲ:
+#   1) docker compose run --rm jarvis claude auth login --claudeai   # ĐĂNG NHẬP CLAUDE 1 LẦN
+#   2) docker compose up -d
 #
-# TRUY CẬP TỪ XA (Hostinger…) — Cloudflare Tunnel, không cần mở port, có HTTPS:
-#   1) Đặt MẬT KHẨU trong Javis trước (Dashboard → Tài khoản) — BẮT BUỘC vì Claude full quyền.
-#   2) docker compose --profile tunnel up -d
-#   3) docker compose logs tunnel | grep trycloudflare   → mở URL https://<random>.trycloudflare.com
+# ⚠️ BẢO MẬT: chạy public (0.0.0.0) tự BẬT JARVIS_REQUIRE_LOGIN → mở app ra là màn TẠO TÀI KHOẢN
+#    / ĐĂNG NHẬP, không ai vào điều khiển Claude được khi chưa có mật khẩu.
+#
+# Muốn build từ source thay vì pull image:  docker compose -f docker-compose.build.yml up -d --build
 # ============================================================================
 services:
   jarvis:
-    build:
-      context: .
-      args:
-        CLAUDE_CLI_VERSION: ${CLAUDE_CLI_VERSION:-latest}
-    image: jarvis-os:latest
+    image: ghcr.io/blogminhquy/jarvis-os:latest
     container_name: jarvis
     restart: unless-stopped
-    env_file:
-      - .env
+    pull_policy: always
     environment:
       JARVIS_HOST: 0.0.0.0
       JARVIS_PORT: "7777"
+      JARVIS_REQUIRE_LOGIN: "1"     # ÉP đăng nhập/đăng ký khi mở app (public)
       JARVIS_STATE_DIR: /data/state
       BRAIN_PATH: /data/brain
       OBSIDIAN_VAULT_PATH: /data/vault
       CLAUDE_CWD: /app
     ports:
-      - "127.0.0.1:7777:7777"
+      - "7777:7777"                 # Hostinger proxy / VPS map vào cổng này → cấp URL công khai
     volumes:
       - jarvis-data:/data                       # brain/, vault/, state/ (settings, sessions, loop)
-      - claude-auth:/home/jarvis/.claude        # Claude device-login token (persist!)
+      - claude-auth:/home/jarvis/.claude        # token đăng nhập Claude (giữ qua mọi update!)
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:'+os.getenv('JARVIS_PORT','7777')+'/health',timeout=4).status==200 else 1)"]
       interval: 30s
@@ -44,7 +42,8 @@ services:
       retries: 3
       start_period: 25s
 
-  # Truy cập từ xa (opt-in): docker compose --profile tunnel up -d
+  # (Tùy chọn, cho VPS KHÔNG phải Hostinger) Cloudflare Tunnel → URL HTTPS, không cần mở port:
+  #   docker compose --profile tunnel up -d  &&  docker compose logs tunnel | grep trycloudflare
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: jarvis-tunnel
@@ -52,11 +51,8 @@ services:
     profiles: ["tunnel"]
     depends_on:
       - jarvis
-    # Mặc định: QUICK TUNNEL (không cần tài khoản Cloudflare) → URL ngẫu nhiên *.trycloudflare.com.
-    # Xem URL:  docker compose logs tunnel | grep trycloudflare
     command: tunnel --no-autoupdate --url http://jarvis:7777
-    # URL CỐ ĐỊNH (tên miền riêng): tạo named tunnel ở Cloudflare Zero Trust → đặt TUNNEL_TOKEN
-    # trong .env → đổi dòng command trên thành:
+    # URL cố định: tạo named tunnel ở Cloudflare Zero Trust → TUNNEL_TOKEN env → đổi command thành:
     #   command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
 
 volumes:
