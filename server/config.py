@@ -204,7 +204,7 @@ def get_or_create_setup_token():
             if t:
                 return t
         t = secrets.token_urlsafe(24)
-        _SETUP_TOKEN_PATH.write_text(t, encoding="utf-8")
+        _SETUP_TOKEN_PATH.write_text(t + "\n", encoding="utf-8")  # xuống dòng → cat ra sạch, dễ copy
         return t
     except Exception:
         return None

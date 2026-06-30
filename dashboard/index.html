@@ -4,15 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jarvis OS</title>
-  <link rel="stylesheet" href="/static/style.css?v=23">
-  <link rel="stylesheet" href="/static/console.css?v=11">
+  <link rel="icon" type="image/png" href="/static/favicon.png?v=1">
+  <link rel="apple-touch-icon" href="/static/logo.png?v=1">
+  <link rel="stylesheet" href="/static/style.css?v=24">
+  <link rel="stylesheet" href="/static/console.css?v=12">
 </head>
 <body>
   <div class="hud">
 
     <!-- ===== TOP BAR ===== -->
     <header class="hud-top">
-      <div class="brand"><span class="brand-icon">⬡</span> <span class="brand-text">JARVIS OS</span></div>
+      <div class="brand"><span class="brand-icon"><img src="/static/logo.png?v=1" alt="" style="width:22px;height:22px;border-radius:5px;vertical-align:middle"></span> <span class="brand-text">JARVIS OS</span></div>
       <!-- Select Brain: dời từ góc graph lên navbar (trái) -->
       <div class="orb-graph-ctl navbar-brain">
         <select id="graphSource" class="graph-select">
@@ -247,7 +249,7 @@
   <nav class="rail" x-data x-cloak>
     <!-- ĐỈNH cố định -->
     <div class="rail-top">
-      <div class="rail-brand">⬡</div>
+      <div class="rail-brand"><img src="/static/logo.png?v=1" alt="Jarvis" style="width:30px;height:30px;border-radius:8px;display:block"></div>
     </div>
     <!-- GIỮA cuộn được — nhồi bao nhiêu tính năng cũng cuộn -->
     <div class="rail-nav">
@@ -323,19 +325,19 @@
   <!-- Bộ cài đặt lần đầu (hiện khi chưa setup_done) -->
   <div class="modal-overlay" id="setupWizard">
     <div class="settings-modal" style="max-width:460px">
-      <div class="fm-head"><span>👋 Chào mừng tới Jarvis</span></div>
+      <div class="fm-head"><img src="/static/logo.png?v=1" alt="" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:6px"><span>Chào mừng tới Jarvis</span></div>
       <div class="settings-body">
         <style>
         .wz-prov{display:flex;flex-direction:column;gap:8px;margin-top:6px}
         .wz-card{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid rgba(255,255,255,.14);border-radius:10px;cursor:pointer;transition:.15s}
         .wz-card:hover{border-color:rgba(255,138,60,.5)} .wz-card.sel{border-color:#ff8a3c;background:rgba(255,138,60,.12)}
-        .wz-card input{margin-top:3px;accent-color:#ff8a3c} .wz-card b{font-size:13px;color:#e7eefc}
-        .wz-rec{font-size:10px;background:#ff8a3c;color:#1a1a1a;border-radius:6px;padding:1px 6px;margin-left:6px;font-weight:700}
-        .wz-pdesc{font-size:11.5px;color:#9fb0cf;margin-top:3px;line-height:1.45}
-        .wz-tokhelp{border:1px solid rgba(255,138,60,.3);background:rgba(255,138,60,.06);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:12px;color:#cdd8ee;line-height:1.55}
+        .wz-card input{margin-top:3px;accent-color:#ff8a3c} .wz-card b{font-size:15px;color:#e7eefc}
+        .wz-rec{font-size:12px;background:#ff8a3c;color:#1a1a1a;border-radius:6px;padding:1px 6px;margin-left:6px;font-weight:700}
+        .wz-pdesc{font-size:15px;color:#9fb0cf;margin-top:3px;line-height:1.45}
+        .wz-tokhelp{border:1px solid rgba(255,138,60,.3);background:rgba(255,138,60,.06);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:14px;color:#cdd8ee;line-height:1.55}
         .wz-tokhelp ol{margin:6px 0 4px 18px;padding:0} .wz-tokhelp li{margin:3px 0}
-        .wz-tokhelp code,#wzProvHint code{background:rgba(0,0,0,.35);padding:1px 5px;border-radius:4px;font-size:11px}
-        #wzProvHint{margin-top:8px;font-size:11.5px;color:#8aa}
+        .wz-tokhelp code,#wzProvHint code{background:rgba(0,0,0,.35);padding:1px 5px;border-radius:4px;font-size:13px}
+        #wzProvHint{margin-top:8px;font-size:15px;color:#8aa}
         </style>
         <div class="set-note">Vài bước nhanh để bắt đầu. Mọi thứ đổi lại được sau trong ⚙ Cài đặt.</div>
         <div class="set-sec">
@@ -398,7 +400,7 @@
   <!-- Đăng nhập (chỉ hiện khi admin đã đặt mật khẩu & chưa đăng nhập) -->
   <div class="modal-overlay" id="authOverlay">
     <div class="folder-modal auth-modal">
-      <div class="fm-head"><span id="authTitle">🔒 Đăng nhập Jarvis</span></div>
+      <div class="fm-head"><img src="/static/logo.png?v=1" alt="" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:6px"><span id="authTitle">Đăng nhập Jarvis</span></div>
       <div class="auth-body">
         <input id="authUser" placeholder="Tài khoản" autocomplete="username">
         <input id="authPass" type="password" placeholder="Mật khẩu" autocomplete="current-password">

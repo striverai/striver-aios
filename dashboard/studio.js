@@ -298,7 +298,7 @@
         <div class="wf-desc">⏰ ${esc(a.schedule || "—")} · <span class="dim">${typeLabel}</span></div>
         ${a.note ? `<div class="wf-steps">${esc(a.note)}</div>` : ""}
         <div class="wf-actions">${a.builtin
-          ? `<span class="dim" style="font-size:11px">Cấu hình ở panel “Vòng lặp tự cải thiện”</span>`
+          ? `<span class="dim" style="font-size:13px">Cấu hình ở panel “Vòng lặp tự cải thiện”</span>`
           : `<button class="s-btn-ghost edit">Sửa</button><button class="s-btn-ghost del">Xoá</button>`}</div>`;
       div.querySelector(".toggle input").onchange = async () => {
         await api("/automations/toggle", { method: "POST", body: fd({ id: a.id, brain: brain() }) }); loadAutomations();
@@ -342,23 +342,23 @@
     const css = `
     .sk2{display:flex;gap:16px;align-items:flex-start}
     .sk2-side{width:210px;flex:none;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px;max-height:72vh;overflow:auto}
-    .sk2-side .sec{font-size:10px;letter-spacing:.08em;color:#6b7894;padding:8px 10px 4px;text-transform:uppercase}
-    .sk2-side .cat{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:13px;color:#cdd8ee}
+    .sk2-side .sec{font-size:12px;letter-spacing:.08em;color:#6b7894;padding:8px 10px 4px;text-transform:uppercase}
+    .sk2-side .cat{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:15px;color:#cdd8ee}
     .sk2-side .cat:hover{background:rgba(120,180,255,.08)} .sk2-side .cat.sel{background:rgba(120,180,255,.16);color:#fff}
-    .sk2-side .cat .n{color:#7d8aa6;font-size:11px;flex:none}
+    .sk2-side .cat .n{color:#7d8aa6;font-size:13px;flex:none}
     .sk2-main{flex:1;min-width:0}
     .sk2-bar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
-    .sk2-bar h4{margin:0;font-size:15px;color:#e7eefc} .sk2-bar .cnt{color:#7d8aa6;font-size:12px}
-    .sk2-bar input{flex:1;min-width:160px;max-width:340px;padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#070b16;color:#dce6fb;font-size:13px;outline:none}
+    .sk2-bar h4{margin:0;font-size:17px;color:#e7eefc} .sk2-bar .cnt{color:#7d8aa6;font-size:14px}
+    .sk2-bar input{flex:1;min-width:160px;max-width:340px;padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#070b16;color:#dce6fb;font-size:15px;outline:none}
     .sk2-list{display:flex;flex-direction:column;gap:8px}
     .sk2-card{display:flex;gap:12px;align-items:flex-start;padding:11px 13px;border:1px solid rgba(255,255,255,.08);border-radius:10px}
     .sk2-card:hover{border-color:rgba(120,180,255,.25);background:rgba(120,180,255,.04)}
     .sk2-card.off{opacity:.5} .sk2-tog{flex:none;margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:#ff8a3c}
-    .sk2-info{flex:1;min-width:0} .sk2-info .nm{color:#e7eefc;font-size:13px;font-weight:600}
-    .sk2-info .ds{color:#9fb0cf;font-size:12px;margin-top:3px;line-height:1.45}
-    .sk2-info .gp{color:#6b7894;font-size:11px;margin-top:4px}
+    .sk2-info{flex:1;min-width:0} .sk2-info .nm{color:#e7eefc;font-size:15px;font-weight:600}
+    .sk2-info .ds{color:#9fb0cf;font-size:14px;margin-top:3px;line-height:1.45}
+    .sk2-info .gp{color:#6b7894;font-size:13px;margin-top:4px}
     .sk2-act{display:flex;gap:5px;opacity:0;transition:.15s;flex:none} .sk2-card:hover .sk2-act{opacity:1}
-    .sk2-act button{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:#aebbd6;border-radius:6px;cursor:pointer;font-size:11px;padding:3px 9px} .sk2-act button:hover{color:#fff;border-color:rgba(120,180,255,.5)}
+    .sk2-act button{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:#aebbd6;border-radius:6px;cursor:pointer;font-size:13px;padding:3px 9px} .sk2-act button:hover{color:#fff;border-color:rgba(120,180,255,.5)}
     .sk2-act button.danger:hover{color:#ff9a9a;border-color:rgba(255,120,120,.5)}`;
     const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
   }

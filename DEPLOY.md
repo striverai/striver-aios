@@ -58,6 +58,22 @@ docker compose build --pull && docker compose up -d   # cập nhật
 Mọi ghi chú / vault / settings nằm trong Docker volume (`jarvis-data`, `claude-auth`) →
 **không mất** khi restart hay update.
 
+### 🔒 HTTPS tự động
+
+**Hostinger Docker Manager:** Hostinger cấp HTTPS sẵn — mở app bằng `https://...` (URL của bạn).
+Nếu chỉ có HTTP, vào phần **Domains / SSL** của Hostinger để gán tên miền (có SSL) cho app.
+(Caddy bên dưới KHÔNG chạy được trên Hostinger vì cổng 80/443 đã bị proxy của họ chiếm.)
+
+**VPS có tên miền riêng — auto Let's Encrypt (khuyên dùng):**
+1. Trỏ DNS tên miền về IP VPS (bản ghi A: `jarvis.tencuaban.com → <ip>`).
+2. `DOMAIN=jarvis.tencuaban.com docker compose -f docker-compose.yml -f docker-compose.https.yml up -d`
+
+→ Caddy **tự xin + gia hạn** chứng chỉ. Mở `https://jarvis.tencuaban.com` (tự bật cookie Secure).
+
+**Không có tên miền:** dùng Cloudflare Tunnel ngay dưới đây (cũng cho URL HTTPS).
+
+---
+
 ### 🌐 Truy cập từ xa (Hostinger / VPS bất kỳ) — Cloudflare Tunnel
 
 Mở giao diện Javis từ máy khác mà KHÔNG cần mở port / không cần tên miền — như Hermes:

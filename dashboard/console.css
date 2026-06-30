@@ -69,14 +69,14 @@ body.in-console .hud-actions { display: none; }
 }
 
 /* Form trong card (Channels / Account / provider key) */
-.js-lbl { display: block; font-size: 11px; color: var(--text2); margin: 12px 0 5px; font-family: var(--font); }
+.js-lbl { display: block; font-size: 13px; color: var(--text2); margin: 12px 0 5px; font-family: var(--font); }
 .js-lbl .dim { color: var(--green); }
 .js-input {
   width: 100%; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--glass-brd);
-  color: var(--text); border-radius: 9px; padding: 9px 11px; font-size: 13px; margin-bottom: 4px;
+  color: var(--text); border-radius: 9px; padding: 9px 11px; font-size: 15px; margin-bottom: 4px;
 }
 .js-input:focus { outline: none; border-color: var(--accent); }
-.js-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+.js-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 15px; }
 .js-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .gcard-btn.ghost { background: transparent; border-color: var(--glass-brd); }
 .gcard-btn.ghost:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); border-color: var(--text2); }
@@ -97,21 +97,21 @@ body.in-console .hud-actions { display: none; }
 .prov-shield svg { width: 22px; height: 22px; }
 .prov-shield.on { color: var(--green); filter: drop-shadow(0 0 6px rgba(34,197,94,0.45)); }
 .prov-info { flex: 1; min-width: 0; }
-.prov-name { font-family: var(--font); font-weight: 700; font-size: 14px; }
-.prov-kind { font-size: 9px; padding: 2px 6px; border-radius: 5px; background: rgba(124,58,237,0.18); color: #c4a8ff; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
-.prov-status { font-family: var(--font); font-size: 11px; color: var(--text3); margin-top: 3px; }
+.prov-name { font-family: var(--font); font-weight: 700; font-size: 16px; }
+.prov-kind { font-size: 11px; padding: 2px 6px; border-radius: 5px; background: rgba(124,58,237,0.18); color: #c4a8ff; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
+.prov-status { font-family: var(--font); font-size: 13px; color: var(--text3); margin-top: 3px; }
 .prov-status.on { color: var(--green); }
-.prov-badge { font-family: var(--font); font-size: 9px; letter-spacing: 1px; color: var(--accent); border: 1px solid var(--accent); border-radius: 5px; padding: 2px 6px; }
+.prov-badge { font-family: var(--font); font-size: 11px; letter-spacing: 1px; color: var(--accent); border: 1px solid var(--accent); border-radius: 5px; padding: 2px 6px; }
 .prov-action { display: flex; gap: 8px; margin-top: 12px; }
 .prov-action .js-input { margin-bottom: 0; flex: 1; }
 .prov-action .gcard-btn { width: auto; flex: 0 0 auto; }
-.prov-note { font-size: 11px; color: var(--text3); margin-top: 8px; opacity: 0.7; }
+.prov-note { font-size: 13px; color: var(--text3); margin-top: 8px; opacity: 0.7; }
 
 /* Auxiliary model chips */
 .aux-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .aux-chip {
   background: rgba(255,255,255,0.04); border: 1px solid var(--glass-brd); color: var(--text2);
-  border-radius: 9px; padding: 8px 14px; font-family: var(--font); font-size: 12px; cursor: pointer; transition: all 0.15s;
+  border-radius: 9px; padding: 8px 14px; font-family: var(--font); font-size: 14px; cursor: pointer; transition: all 0.15s;
 }
 .aux-chip:hover { color: var(--text); border-color: var(--text2); }
 .aux-chip.sel { background: rgba(255,107,43,0.14); border-color: var(--accent); color: var(--accent); }
@@ -129,26 +129,26 @@ body.in-console .hud-actions { display: none; }
 }
 .mp-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 20px 12px; }
 .mp-title { font-family: var(--font); font-weight: 700; font-size: 16px; letter-spacing: 1px; }
-.mp-sub { font-size: 12px; color: var(--text2); margin-top: 3px; }
+.mp-sub { font-size: 14px; color: var(--text2); margin-top: 3px; }
 .mp-x { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; }
-.mp-filter { margin: 0 20px 12px; background: rgba(0,0,0,0.25); border: 1px solid var(--glass-brd); color: var(--text); padding: 10px 12px; border-radius: 9px; font-size: 13px; }
+.mp-filter { margin: 0 20px 12px; background: rgba(0,0,0,0.25); border: 1px solid var(--glass-brd); color: var(--text); padding: 10px 12px; border-radius: 9px; font-size: 15px; }
 .mp-filter:focus { outline: none; border-color: var(--accent); }
 .mp-body { display: grid; grid-template-columns: 260px 1fr; gap: 0; flex: 1; overflow: hidden; border-top: 1px solid var(--glass-brd); }
 .mp-provs { border-right: 1px solid var(--glass-brd); overflow-y: auto; padding: 8px; }
 .mp-prov { display: block; width: 100%; text-align: left; background: transparent; border: 1px solid transparent; color: var(--text2); border-radius: 10px; padding: 9px 11px; cursor: pointer; margin-bottom: 2px; }
 .mp-prov:hover { background: rgba(255,255,255,0.04); color: var(--text); }
 .mp-prov.active { background: rgba(124,58,237,0.14); border-color: rgba(124,58,237,0.4); color: var(--text); }
-.mp-prov-l { font-size: 13px; font-weight: 600; }
-.mp-prov-c { font-family: var(--font); font-size: 10px; color: var(--text3); margin-top: 2px; }
+.mp-prov-l { font-size: 15px; font-weight: 600; }
+.mp-prov-c { font-family: var(--font); font-size: 12px; color: var(--text3); margin-top: 2px; }
 .mp-models { overflow-y: auto; padding: 8px 12px; }
-.mp-model { display: block; width: 100%; text-align: left; background: transparent; border: 1px solid transparent; color: var(--text); border-radius: 9px; padding: 11px 12px; cursor: pointer; font-family: var(--font); font-size: 13px; }
+.mp-model { display: block; width: 100%; text-align: left; background: transparent; border: 1px solid transparent; color: var(--text); border-radius: 9px; padding: 11px 12px; cursor: pointer; font-family: var(--font); font-size: 15px; }
 .mp-model:hover { background: rgba(255,255,255,0.05); }
 .mp-model.sel { background: rgba(255,107,43,0.12); border-color: var(--accent); }
-.mp-cur { float: right; font-size: 9px; color: var(--accent2); letter-spacing: 1px; }
-.mp-empty { color: var(--text3); font-size: 12px; padding: 16px; }
+.mp-cur { float: right; font-size: 11px; color: var(--accent2); letter-spacing: 1px; }
+.mp-empty { color: var(--text3); font-size: 14px; padding: 16px; }
 .mp-foot { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--glass-brd); }
-.mp-note { font-size: 11px; color: var(--text3); }
-.mp-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 9px 18px; border-radius: 9px; cursor: pointer; font-size: 13px; margin-left: 8px; }
+.mp-note { font-size: 13px; color: var(--text3); }
+.mp-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 9px 18px; border-radius: 9px; cursor: pointer; font-size: 15px; margin-left: 8px; }
 .mp-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .mp-btn.primary:disabled { opacity: 0.4; cursor: not-allowed; }
 @media (max-width: 860px) {
@@ -158,7 +158,7 @@ body.in-console .hud-actions { display: none; }
 
 /* Skills chia nhóm (trang Skills) */
 .sk-group { margin-bottom: 22px; }
-.sk-group-head { font-family: var(--font); font-size: 13px; color: var(--accent2); margin-bottom: 10px; font-weight: 700; }
+.sk-group-head { font-family: var(--font); font-size: 15px; color: var(--accent2); margin-bottom: 10px; font-weight: 700; }
 .sk-group-head .dim { color: var(--text3); font-weight: 400; margin-left: 6px; }
 
 .rail-spacer { flex: 1; }
@@ -166,7 +166,7 @@ body.in-console .hud-actions { display: none; }
   font-family: var(--font); text-align: center; line-height: 1.5; padding-top: 8px;
   border-top: 1px solid var(--glass-brd);
 }
-.rail-foot .rf-ver { font-size: 9px; color: var(--text2); }
+.rail-foot .rf-ver { font-size: 11px; color: var(--text2); }
 .rail-foot .rf-author { display: block; margin-top: 2px; font-size: 8.5px; color: var(--accent); text-decoration: none; }
 .rail-foot .rf-author:hover { text-decoration: underline; }
 
@@ -189,7 +189,7 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 }
 .cview-title { font-family: var(--font); font-size: 18px; font-weight: 700; letter-spacing: 1px; }
 .cview-title .ico { color: var(--accent); margin-right: 8px; }
-.cview-sub { font-size: 12px; color: var(--text2); }
+.cview-sub { font-size: 14px; color: var(--text2); }
 .cview-body { flex: 1; overflow-y: auto; padding: 24px 26px; }
 
 /* ===== Cards chung (Hermes-style) ===== */
@@ -203,23 +203,23 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 .gcard:hover { transform: translateY(-2px); border-color: rgba(255, 107, 43, 0.4); }
 .gcard.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 8px 30px rgba(255, 107, 43, 0.18); }
 .gcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.gcard-name { font-family: var(--font); font-weight: 700; font-size: 14px; }
+.gcard-name { font-family: var(--font); font-weight: 700; font-size: 16px; }
 .gcard-tag {
-  font-family: var(--font); font-size: 9px; padding: 3px 7px; border-radius: 6px;
+  font-family: var(--font); font-size: 11px; padding: 3px 7px; border-radius: 6px;
   background: rgba(124, 58, 237, 0.18); color: #c4a8ff; text-transform: uppercase; letter-spacing: 0.5px;
 }
-.gcard-meta { margin-top: 8px; font-size: 12px; color: var(--text2); }
+.gcard-meta { margin-top: 8px; font-size: 14px; color: var(--text2); }
 .gcard-btn {
   margin-top: 14px; width: 100%; padding: 9px; border-radius: 10px; cursor: pointer;
   background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-brd); color: var(--text);
-  font-family: var(--font); font-size: 12px; transition: all 0.18s;
+  font-family: var(--font); font-size: 14px; transition: all 0.18s;
 }
 .gcard-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
 .gcard.current .gcard-btn { background: rgba(255, 107, 43, 0.14); border-color: var(--accent); color: var(--accent); }
 
 .cview-section { margin-bottom: 28px; }
 .cview-section h3 {
-  font-family: var(--font); font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+  font-family: var(--font); font-size: 14px; letter-spacing: 1px; text-transform: uppercase;
   color: var(--text2); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
 }
 .cview-placeholder {

@@ -19,27 +19,27 @@
     box-shadow:-8px 0 40px rgba(0,0,0,.5);transform:translateX(8px);font-family:system-ui,Segoe UI,sans-serif}
   #jv-sess-head{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;
     align-items:center;justify-content:space-between}
-  #jv-sess-head h3{margin:0;font-size:14px;color:#e7eefc;font-weight:700}
+  #jv-sess-head h3{margin:0;font-size:16px;color:#e7eefc;font-weight:700}
   #jv-sess-head .x{cursor:pointer;color:#8aa;font-size:18px;background:none;border:none}
   #jv-sess-tools{padding:10px 14px;display:flex;gap:8px}
   #jv-sess-search{flex:1;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);
-    background:#070b16;color:#dce6fb;font-size:13px;outline:none}
+    background:#070b16;color:#dce6fb;font-size:15px;outline:none}
   #jv-sess-new{padding:8px 10px;border-radius:8px;border:1px solid rgba(120,255,180,.35);
-    background:rgba(20,40,30,.7);color:#bdf;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap}
+    background:rgba(20,40,30,.7);color:#bdf;cursor:pointer;font-size:14px;font-weight:600;white-space:nowrap}
   #jv-sess-list{flex:1;overflow:auto;padding:6px 10px 16px}
   .jv-sess-item{padding:10px 12px;border-radius:10px;border:1px solid transparent;cursor:pointer;
     margin-bottom:4px}
   .jv-sess-item:hover{background:rgba(120,180,255,.08);border-color:rgba(120,180,255,.2)}
-  .jv-sess-title{color:#e7eefc;font-size:13px;font-weight:600;margin-bottom:3px;
+  .jv-sess-title{color:#e7eefc;font-size:15px;font-weight:600;margin-bottom:3px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .jv-sess-meta{color:#7d8aa6;font-size:11px;display:flex;gap:8px;align-items:center}
+  .jv-sess-meta{color:#7d8aa6;font-size:13px;display:flex;gap:8px;align-items:center}
   .jv-sess-meta .act{margin-left:auto;display:flex;gap:8px;opacity:0;transition:opacity .15s}
   .jv-sess-item:hover .act{opacity:1}
   .jv-sess-meta .act span{cursor:pointer;color:#9ab}
   .jv-sess-meta .act span:hover{color:#fff}
-  .jv-sess-snip{color:#9fb0cf;font-size:11px;margin-top:3px}
+  .jv-sess-snip{color:#9fb0cf;font-size:13px;margin-top:3px}
   .jv-sess-snip b{color:#ffd47a;font-weight:700}
-  #jv-sess-empty{color:#6b7894;font-size:12px;text-align:center;padding:30px 10px}
+  #jv-sess-empty{color:#6b7894;font-size:14px;text-align:center;padding:30px 10px}
   `;
 
   function el(html) { var d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstChild; }

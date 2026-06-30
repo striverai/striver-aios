@@ -134,7 +134,7 @@
     return `<div class="cview-placeholder">
       <div class="ph-ico">${m.icon || "✦"}</div>
       <div><b>${esc(m.label || id)}</b> — đang phát triển</div>
-      <div style="max-width:380px;font-size:12px;opacity:.7">${esc(note || "Trang này là chỗ cắm chức năng mở rộng sau. Khung điều hướng đã sẵn sàng.")}</div>
+      <div style="max-width:380px;font-size:14px;opacity:.7">${esc(note || "Trang này là chỗ cắm chức năng mở rộng sau. Khung điều hướng đã sẵn sàng.")}</div>
     </div>`;
   }
 
@@ -158,37 +158,37 @@
     if (_fmCss) return; _fmCss = true;
     const css = `
     .fm-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-    .fm-crumb{flex:1;min-width:160px;font-size:13px;color:#9fb0cf}
+    .fm-crumb{flex:1;min-width:160px;font-size:15px;color:#9fb0cf}
     .fm-crumb a{color:#bcd2ff;cursor:pointer;text-decoration:none} .fm-crumb a:hover{text-decoration:underline}
     .fm-actions{display:flex;gap:6px;flex-wrap:wrap}
     .fm-uplabel{cursor:pointer}
     .fm-list{display:flex;flex-direction:column;border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden}
     .fm-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);cursor:default}
     .fm-row:last-child{border-bottom:none} .fm-row:hover{background:rgba(120,180,255,.06)}
-    .fm-ico{flex:none} .fm-name{flex:1;color:#e7eefc;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .fm-ico{flex:none} .fm-name{flex:1;color:#e7eefc;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .fm-row.is-dir .fm-ico,.fm-row.is-dir .fm-name{cursor:pointer}
-    .fm-size{color:#7d8aa6;font-size:11px;min-width:60px;text-align:right}
+    .fm-size{color:#7d8aa6;font-size:13px;min-width:60px;text-align:right}
     .fm-row-act{display:flex;gap:5px;opacity:0;transition:.15s} .fm-row:hover .fm-row-act{opacity:1}
-    .fm-row-act button{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:#aebbd6;cursor:pointer;font-size:11px;padding:3px 9px;border-radius:6px;white-space:nowrap} .fm-row-act button:hover{color:#fff;border-color:rgba(120,180,255,.5)}
+    .fm-row-act button{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:#aebbd6;cursor:pointer;font-size:13px;padding:3px 9px;border-radius:6px;white-space:nowrap} .fm-row-act button:hover{color:#fff;border-color:rgba(120,180,255,.5)}
     .fm-row-act button.danger:hover{color:#ff9a9a;border-color:rgba(255,120,120,.5)}
     .fm-modal{position:fixed;inset:0;z-index:9999;display:none;background:rgba(4,8,18,.62);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:24px}
     .fm-modal.open{display:flex}
     .fm-modal-card{width:min(920px,94vw);max-height:86vh;display:flex;flex-direction:column;background:#0a0f1c;border:1px solid rgba(120,180,255,.3);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden}
-    .fm-vhead{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.08);color:#e7eefc;font-size:14px}
+    .fm-vhead{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.08);color:#e7eefc;font-size:16px}
     .fm-vhead b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .fm-vhead button{background:none;border:1px solid rgba(255,255,255,.15);color:#cfe0ff;border-radius:6px;cursor:pointer;padding:4px 10px;margin-left:6px} .fm-vhead button:hover{border-color:rgba(120,180,255,.6)}
-    .fm-modal-card textarea{width:100%;flex:1;min-height:56vh;background:#070b16;color:#dce6fb;border:none;outline:none;padding:14px;font:13px/1.55 ui-monospace,Consolas,monospace;resize:none}
+    .fm-modal-card textarea{width:100%;flex:1;min-height:56vh;background:#070b16;color:#dce6fb;border:none;outline:none;padding:14px;font:15px/1.55 ui-monospace,Consolas,monospace;resize:none}
     .fm-readbox{padding:16px;color:#9ab;overflow:auto;max-height:70vh}
     .si-grid{display:flex;flex-direction:column;gap:14px;max-width:640px}
-    .si-field label{display:block;font-size:12px;color:#9fb0cf;margin-bottom:5px}
-    .si-field select,.si-field input,.si-field textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#070b16;color:#dce6fb;font-size:13px;outline:none}
+    .si-field label{display:block;font-size:14px;color:#9fb0cf;margin-bottom:5px}
+    .si-field select,.si-field input,.si-field textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:#070b16;color:#dce6fb;font-size:15px;outline:none}
     .si-field textarea{min-height:80px;resize:vertical;font-family:inherit}
     .si-row{display:flex;gap:10px;flex-wrap:wrap}
-    .si-chip{padding:7px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:rgba(15,22,40,.6);color:#cfe0ff;cursor:pointer;font-size:12px}
+    .si-chip{padding:7px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:rgba(15,22,40,.6);color:#cfe0ff;cursor:pointer;font-size:14px}
     .si-chip.sel{border-color:#ff8a3c;background:rgba(255,138,60,.15);color:#ffd0a8}
     .si-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
-    .si-status{margin-top:16px;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);font-size:13px;color:#cdd8ee}
-    .si-log{margin-top:16px} .si-log .le{padding:10px 12px;border-left:2px solid rgba(120,180,255,.4);background:rgba(255,255,255,.02);margin-bottom:8px;border-radius:0 8px 8px 0;font-size:12px;white-space:pre-wrap;color:#bcc8e2}`;
+    .si-status{margin-top:16px;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);font-size:15px;color:#cdd8ee}
+    .si-log{margin-top:16px} .si-log .le{padding:10px 12px;border-left:2px solid rgba(120,180,255,.4);background:rgba(255,255,255,.02);margin-bottom:8px;border-radius:0 8px 8px 0;font-size:14px;white-space:pre-wrap;color:#bcc8e2}`;
     const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
   }
 
@@ -341,12 +341,12 @@
       .map(([v, l]) => `<button class="si-chip ${cfg.mode === v ? "sel" : ""}" data-mode="${v}">${l}</button>`).join("");
     const goalDesc = (GOALS.find(g => g[0] === cfg.goal) || GOALS[0])[2];
     el.innerHTML = `<div class="cview-section">
-      <p style="color:#9fb0cf;font-size:13px;max-width:640px;margin:0 0 16px">Jarvis tự thức theo lịch, làm <b>một nhiệm vụ cụ thể</b> rồi tự kiểm chứng và ghi log. An toàn: chỉ thao tác FILE trong vault — KHÔNG tự gọi MCP tạo đơn, đốt tiền, đăng bài.</p>
+      <p style="color:#9fb0cf;font-size:15px;max-width:640px;margin:0 0 16px">Jarvis tự thức theo lịch, làm <b>một nhiệm vụ cụ thể</b> rồi tự kiểm chứng và ghi log. An toàn: chỉ thao tác FILE trong vault — KHÔNG tự gọi MCP tạo đơn, đốt tiền, đăng bài.</p>
       <div class="si-grid">
         <div class="si-field"><label>Bật chạy nền</label>
           <button class="si-chip ${cfg.enabled ? "sel" : ""}" id="siEnabled">${cfg.enabled ? "● Đang bật" : "○ Đang tắt"}</button></div>
         <div class="si-field"><label>Loại nhiệm vụ</label><div class="si-row" id="siGoals">${goalChips}</div>
-          <div class="dim" id="siGoalDesc" style="font-size:12px;margin-top:6px;color:#7d8aa6">${esc(goalDesc)}</div></div>
+          <div class="dim" id="siGoalDesc" style="font-size:14px;margin-top:6px;color:#7d8aa6">${esc(goalDesc)}</div></div>
         <div class="si-field" id="siCustomWrap" style="${cfg.goal === "custom" ? "" : "display:none"}">
           <label>Mô tả nhiệm vụ cụ thể</label>
           <textarea id="siCustom" placeholder="VD: Mỗi sáng tổng hợp số liệu bán hàng hôm qua, tìm sản phẩm bán chậm và soạn 1 caption đẩy hàng, lưu vào 05 - Projects.">${esc(cfg.custom_goal || "")}</textarea></div>
@@ -360,7 +360,7 @@
         </div>
       </div>
       <div class="si-status" id="siStatus"></div>
-      <div class="si-log"><h3 style="font-size:13px;color:#cdd8ee">Nhật ký gần đây</h3><div id="siLog">Đang tải...</div></div>
+      <div class="si-log"><h3 style="font-size:15px;color:#cdd8ee">Nhật ký gần đây</h3><div id="siLog">Đang tải...</div></div>
     </div>`;
 
     let cur = { enabled: !!cfg.enabled, goal: cfg.goal || "business", mode: cfg.mode || "suggest" };
@@ -870,7 +870,7 @@
     const keys = edit ? (server.header_keys || []).concat(server.env_keys || []) : [];
     const credPh = edit && keys.length ? "Để trống = giữ key cũ (" + esc(keys.join(", ")) + ")" : "Authorization: Bearer xxxxx";
     modal.innerHTML = `
-      <style>#mcpAddModal .mcp-lb{display:flex;flex-direction:column;gap:4px;font-size:12px;opacity:.85}#mcpAddModal .mcp-lb input,#mcpAddModal .mcp-lb select,#mcpAddModal .mcp-lb textarea{width:100%}</style>
+      <style>#mcpAddModal .mcp-lb{display:flex;flex-direction:column;gap:4px;font-size:14px;opacity:.85}#mcpAddModal .mcp-lb input,#mcpAddModal .mcp-lb select,#mcpAddModal .mcp-lb textarea{width:100%}</style>
       <div class="mp-box" style="max-width:560px">
         <div class="mp-head"><div class="mp-title">${edit ? "SỬA MCP SERVER" : "THÊM MCP SERVER"}</div><button class="mp-x" data-act="close">✕</button></div>
         <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px">
