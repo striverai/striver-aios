@@ -1,27 +1,20 @@
 # ============================================================================
-# Jarvis OS - HOSTINGER VPS (Docker Manager) - HTTPS qua Traefik CÓ SẴN của Hostinger.
+# Jarvis OS - HOSTINGER VPS (Docker Manager). Bản này DEPLOY LÀ CHẠY, không kén hạ tầng.
 #
-# Hostinger VPS cài sẵn reverse proxy Traefik (mạng "traefik-proxy") tự cấp SSL Let's Encrypt
-# và định tuyến theo TÊN MIỀN. File này gắn nhãn Traefik cho Jarvis để chạy trên tên miền riêng
-# với HTTPS, KHÔNG cần mở cổng 7777, KHÔNG cần Caddy. Đây là cách để bỏ ":7777" mà vẫn có SSL.
+# Mặc định: 1 container jarvis, vào bằng nút "Open" của Docker Manager (cổng 7777).
+# KHÔNG có Watchtower (tránh "Partially running"). KHÔNG phụ thuộc mạng/hạ tầng ngoài
+# (tránh lỗi "network ... not found" làm không deploy được).
 #
-# CÁCH DÙNG (làm đúng thứ tự):
-#   1) Trỏ DNS: tạo bản ghi  A  <tên miền của bạn>  ->  <IP VPS Hostinger>.
-#      (IP xem ở hPanel > VPS. Ví dụ:  A  javis.minhquy.vn  ->  72.62.73.98)
-#   2) Hostinger hPanel > VPS > Docker Manager > Compose > dán URL này:
+# CÁCH DÙNG:
+#   1) Docker Manager > Compose > URL > dán:
 #      https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.hostinger.yml
-#   3) Ở ô Environment (biến môi trường) của Docker Manager, đặt:
-#         DOMAIN_NAME=<tên miền của bạn>       (ví dụ DOMAIN_NAME=javis.minhquy.vn)
-#      (Không đặt biến này thì Traefik không biết định tuyến -> vẫn 404.)
-#   4) Deploy. Mở  https://<tên miền>  ->  Traefik tự xin chứng chỉ ở lần đầu (~30 giây). Xong.
-#      Không còn phải vào bằng IP:7777 nữa.
+#   2) Deploy > bấm "Open" để vào > tạo tài khoản admin.
+#   (Image GHCR phải để PUBLIC: GitHub > Packages > jarvis-os > Package settings > Public.)
 #
-# GHI CHÚ:
-#   - VPS KHÔNG phải Hostinger (DigitalOcean, Vultr...): KHÔNG dùng file này. Dùng
-#     docker-compose.yml + docker-compose.https.yml (Caddy) - xem DEPLOY.md.
-#   - Tên certresolver ("letsencrypt"), entrypoint ("websecure"), mạng ("traefik-proxy") lấy theo
-#     mặc định Traefik của Hostinger. Nếu cert không cấp: kiểm tra 3 tên này trong Traefik của bạn.
-#   - Image GHCR phải để PUBLIC (GitHub > Packages > jarvis-os > Package settings > Public).
+#   CẬP NHẬT bản mới: vào project > Redeploy/Recreate (image :latest + pull_policy: always tự kéo bản mới).
+#   Dữ liệu nằm trong volume nên không mất.
+#
+# >>> MUỐN TÊN MIỀN RIÊNG + HTTPS (bỏ :7777): xem 2 CÁCH ở CUỐI file. <<<
 # ============================================================================
 services:
   jarvis:
@@ -38,24 +31,13 @@ services:
       BRAINS_DIR: /brains
       OBSIDIAN_VAULT_PATH: /data/vault
       CLAUDE_CWD: /app
-    # KHÔNG publish 7777 ra host: Traefik vào thẳng cổng 7777 qua mạng nội bộ traefik-proxy
-    # (chỉ HTTPS 443 lộ ra Internet). An toàn hơn + để Hostinger cấp URL tên miền có SSL.
-    expose:
-      - "7777"
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=traefik-proxy
-      - traefik.http.routers.jarvis.rule=Host(`${DOMAIN_NAME}`)
-      - traefik.http.routers.jarvis.entrypoints=websecure
-      - traefik.http.routers.jarvis.tls.certresolver=letsencrypt
-      - traefik.http.services.jarvis.loadbalancer.server.port=7777
+    ports:
+      - "7777:7777"                 # vào bằng http://<ip-vps>:7777 hoặc nút Open của Hostinger
     volumes:
       - jarvis-data:/data
       - jarvis-brains:/brains
       - claude-auth:/home/jarvis/.claude
       - codex-auth:/home/jarvis/.codex
-    networks:
-      - traefik-proxy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:'+os.getenv('JARVIS_PORT','7777')+'/health',timeout=4).status==200 else 1)"]
       interval: 30s
@@ -63,19 +45,39 @@ services:
       retries: 3
       start_period: 25s
 
-# CẬP NHẬT trên Hostinger: bản này CỐ Ý bỏ Watchtower (nó cần Docker socket, hay khiến project
-# báo "Partially running" trên Docker Manager). Muốn lên bản mới: vào Docker Manager của project
-# jarvis-os bấm Redeploy / Recreate (image dùng tag :latest + pull_policy: always nên tự kéo bản mới).
-# Dữ liệu nằm trong volume nên không mất.
-
-# Mạng Traefik CÓ SẴN của Hostinger (do project Traefik tạo). Container Jarvis join vào đây để
-# Traefik thấy và định tuyến HTTPS. "external: true" = dùng mạng đã tồn tại, không tự tạo.
-networks:
-  traefik-proxy:
-    external: true
-
 volumes:
   jarvis-data:
   jarvis-brains:
   claude-auth:
   codex-auth:
+
+# ============================================================================
+# TÊN MIỀN RIÊNG + HTTPS trên Hostinger (KHÔNG bắt buộc - chọn 1 trong 2):
+#
+# CÁCH 1 (DỄ, khuyên dùng): để Hostinger gán tên miền cho project.
+#   1) Trỏ DNS: bản ghi  A  <tên miền của bạn>  ->  <IP VPS>.
+#   2) Trong hPanel > VPS > Docker Manager, mở project jarvis-os, tìm phần gán/đổi tên miền
+#      (Domain / Access) rồi nhập tên miền của bạn. Hostinger tự lo Traefik + SSL, KHÔNG cần sửa file này.
+#      (Hướng dẫn: hostinger.com > tìm "change the domain of a Docker project".)
+#
+# CÁCH 2 (THỦ CÔNG, chỉ khi VPS đã có Traefik mạng tên "traefik-proxy" - vd đang chạy app Catalog
+#         như n8n/Hermes): sửa service jarvis ở trên như sau
+#   - XOÁ khối "ports: - 7777:7777"  và THAY bằng:
+#       expose:
+#         - "7777"
+#       labels:
+#         - traefik.enable=true
+#         - traefik.docker.network=traefik-proxy
+#         - traefik.http.routers.jarvis.rule=Host(`javis.minhquy.vn`)   # đổi thành tên miền của bạn
+#         - traefik.http.routers.jarvis.entrypoints=websecure
+#         - traefik.http.routers.jarvis.tls.certresolver=letsencrypt
+#         - traefik.http.services.jarvis.loadbalancer.server.port=7777
+#       networks:
+#         - traefik-proxy
+#   - THÊM ở cuối file:
+#       networks:
+#         traefik-proxy:
+#           external: true
+#   Lưu ý: tên mạng "traefik-proxy", entrypoint "websecure", certresolver "letsencrypt" phải KHỚP
+#   Traefik trên VPS của bạn; sai tên -> deploy lỗi hoặc không cấp được chứng chỉ. Trỏ DNS trước.
+# ============================================================================

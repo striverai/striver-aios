@@ -1,12 +1,10 @@
 # ============================================================================
 # Jarvis OS - docker compose (PRODUCTION: pull image dựng sẵn từ GHCR)
 #
-# CÀI TRÊN HOSTINGER (muốn TÊN MIỀN riêng + HTTPS, bỏ ":7777"):
-#   → Dùng file có nhãn Traefik của Hostinger:  docker-compose.hostinger.yml
-#     https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.hostinger.yml
-#     (Docker Manager → Compose → URL → dán link đó + đặt DOMAIN_NAME. Xem đầu file đó / DEPLOY.md.)
-#   File NÀY vẫn chạy trên Hostinger nhưng CHỈ vào bằng http://<ip-vps>:7777 (Traefik của Hostinger
-#   không tự định tuyến vì compose này không gắn nhãn Traefik).
+# CÀI TRÊN HOSTINGER: dùng file RIÊNG cho Hostinger (1 container, deploy là chạy, không kén hạ tầng):
+#   https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.hostinger.yml
+#   (Docker Manager → Compose → URL. Cách gắn TÊN MIỀN + HTTPS ghi trong chú thích cuối file đó / DEPLOY.md.)
+#   File NÀY cũng chạy trên Hostinger nhưng kèm Watchtower (hay báo "Partially running") → nên dùng file trên.
 #
 # CÀI TRÊN VPS BẤT KỲ (DigitalOcean/Vultr... - HTTPS bằng Caddy, xem DEPLOY.md):
 #   1) docker compose run --rm jarvis claude auth login --claudeai   # ĐĂNG NHẬP CLAUDE 1 LẦN

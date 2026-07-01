@@ -75,24 +75,26 @@ Mọi ghi chú / vault / settings nằm trong Docker volume (`jarvis-data`, `cla
 > → mở URL `https://...trycloudflare.com` → mic + voice chạy. (URL đổi mỗi restart; muốn cố định →
 > *named tunnel* + `TUNNEL_TOKEN`, xem mục Cloudflare Tunnel bên dưới.)
 
-#### 🌐 Tên miền + HTTPS trên Hostinger (bỏ `:7777`)
+#### 🌐 Tên miền + HTTPS trên Hostinger
 
-Hostinger VPS cài sẵn reverse proxy **Traefik** (mạng `traefik-proxy`) tự cấp SSL Let's Encrypt. Nhưng
-Traefik chỉ định tuyến container **có gắn nhãn Traefik** - compose gốc `docker-compose.yml` KHÔNG gắn
-nhãn nên chỉ vào được bằng `http://<ip>:7777`. Để chạy trên tên miền riêng có HTTPS:
+**Trước hết, deploy cho chạy được** bằng file Hostinger (1 container, luôn deploy được, vào bằng nút Open / `:7777`):
+```
+https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.hostinger.yml
+```
 
-1. **Trỏ DNS:** tạo bản ghi `A  <tên miền của bạn> → <IP VPS>` (IP xem ở hPanel → VPS).
-2. **Deploy bằng compose có nhãn Traefik** - Docker Manager → Compose → URL:
-   ```
-   https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.hostinger.yml
-   ```
-3. **Đặt biến** `DOMAIN_NAME=<tên miền của bạn>` ở ô Environment của Docker Manager (BẮT BUỘC, không có
-   thì Traefik không định tuyến → vẫn 404).
-4. **Deploy** → mở `https://<tên miền>` → Traefik tự xin chứng chỉ lần đầu (~30 giây). Xong, hết `:7777`.
+Sau đó gắn tên miền + HTTPS bằng **1 trong 2 cách** (ghi rõ trong phần chú thích cuối file compose đó):
 
-> Nhãn dùng mặc định Hostinger: mạng `traefik-proxy`, entrypoint `websecure`, certresolver `letsencrypt`,
-> cổng nội bộ `7777`. Cert không cấp? Kiểm tra 3 tên này khớp Traefik của bạn + DNS đã trỏ đúng IP VPS.
+- **Cách 1 (dễ, khuyên dùng):** trỏ DNS `A <tên miền> → <IP VPS>`, rồi trong **Docker Manager** mở project
+  `jarvis-os` và dùng chức năng **gán/đổi tên miền** (Domain / Access). Hostinger tự cấu hình Traefik + SSL
+  cho bạn, KHÔNG cần sửa file. (Hostinger: tìm bài "change the domain of a Docker project".)
+- **Cách 2 (thủ công):** chỉ khi VPS đã có Traefik mạng `traefik-proxy` (vd đang chạy app Catalog như n8n).
+  Thêm nhãn Traefik + join mạng `traefik-proxy` cho service jarvis (khối mẫu có sẵn trong chú thích cuối
+  `docker-compose.hostinger.yml`). Tên mạng/entrypoint/certresolver phải khớp Traefik của bạn.
+
+> ⚠️ **Đừng** ép mạng `external: traefik-proxy` khi chưa chắc nó tồn tại - Docker Compose sẽ báo
+> "network ... not found" và **không deploy được**. Vì vậy bản mặc định để `:7777`, domain là bước tùy chọn.
 > **Caddy (`docker-compose.https.yml`) KHÔNG dùng trên Hostinger** vì cổng 80/443 đã bị Traefik của họ chiếm.
+> Không rành? Dùng **Cloudflare Tunnel** (mục dưới) - cho URL HTTPS mà không đụng gì tới proxy của Hostinger.
 
 **VPS có tên miền riêng - auto Let's Encrypt, đặt NGAY TRONG APP (khuyên dùng):**
 
