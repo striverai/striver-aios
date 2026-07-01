@@ -9,7 +9,7 @@
 # CÁCH DÙNG:
 #   1) Xem hostname VPS ở hPanel > VPS (vd: srv1782015.hstgr.cloud).
 #   2) Docker Manager > Compose > URL > dán:
-#      https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.hostinger.yml
+#      https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.hostinger.yml
 #   3) Ô Environment đặt (BẮT BUỘC):
 #         DOMAIN_NAME=javis.<hostname-vps>.hstgr.cloud
 #      Ví dụ:  DOMAIN_NAME=javis.srv1782015.hstgr.cloud
@@ -20,11 +20,11 @@
 #   - Không đặt DOMAIN_NAME cũng deploy được, nhưng chỉ vào tạm bằng nút Open / :7777 (chưa có domain).
 #   - Vẫn publish 7777 để có đường vào dự phòng khi cert chưa cấp xong.
 #   - VPS KHÔNG phải Hostinger: bỏ file này, dùng docker-compose.yml + docker-compose.https.yml (Caddy).
-#   - Image GHCR phải để PUBLIC (GitHub > Packages > jarvis-os > Package settings > Public).
+#   - Image GHCR phải để PUBLIC (GitHub > Packages > javis-os > Package settings > Public).
 # ============================================================================
 services:
   jarvis:
-    image: ghcr.io/blogminhquy/jarvis-os:latest
+    image: ghcr.io/blogminhquy/javis-os:latest
     container_name: jarvis
     restart: unless-stopped
     pull_policy: always

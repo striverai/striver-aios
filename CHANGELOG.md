@@ -4,9 +4,13 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.5.1] - 2026-07-01
+### Thay đổi
+- Đổi tên repo/image GitHub từ jarvis-os thành javis-os (image ghcr.io/blogminhquy/javis-os, GITHUB_REPO, link cài đặt trong README/DEPLOY). Volume jarvis-data/jarvis-brains giữ nguyên để không mất dữ liệu.
+
 ## [0.5.0] - 2026-07-01
 ### Thay đổi
-- Đổi tên toàn bộ thương hiệu Jarvis thành Javis (giao diện, tài liệu, README, system prompt). Giữ nguyên tên hạ tầng nội bộ (biến JARVIS_*, image jarvis-os, volume jarvis-data, thư mục cũ Jarvis/) để không vỡ deploy và dữ liệu hiện có.
+- Đổi tên toàn bộ thương hiệu Jarvis thành Javis (giao diện, tài liệu, README, system prompt). Giữ nguyên tên hạ tầng nội bộ (biến JARVIS_*, image javis-os, volume jarvis-data, thư mục cũ Jarvis/) để không vỡ deploy và dữ liệu hiện có.
 ### Thêm mới
 - docker-compose.hostinger.yml dùng ${COMPOSE_PROJECT_NAME} cho tên router/service Traefik: chạy được nhiều bản Javis trên cùng 1 VPS mà không đụng nhau (giống đuôi ngẫu nhiên -efxd của Hermes).
 

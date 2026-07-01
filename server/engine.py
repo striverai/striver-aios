@@ -450,7 +450,7 @@ async def openai_responses_stream(access_token, account_id, model, messages, rea
         "session_id": str(uuid.uuid4()),
         "Content-Type": "application/json",
         "Accept": "text/event-stream",
-        "User-Agent": "jarvis-os/0.3 (codex)",
+        "User-Agent": "javis-os/0.3 (codex)",
     }
     if not (account_id or ""):
         headers.pop("chatgpt-account-id", None)
@@ -597,7 +597,7 @@ async def responses_with_mcp(access_token, account_id, model, messages, reasonin
         "Authorization": f"Bearer {access_token}", "chatgpt-account-id": account_id or "",
         "OpenAI-Beta": "responses=experimental", "originator": "codex_cli_rs",
         "session_id": str(uuid.uuid4()), "Content-Type": "application/json", "Accept": "text/event-stream",
-        "User-Agent": "jarvis-os/0.3 (codex)",
+        "User-Agent": "javis-os/0.3 (codex)",
     }
     model = model or "gpt-5-codex"
     yield {"type": "meta", "model": model}

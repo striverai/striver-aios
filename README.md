@@ -56,12 +56,12 @@ Bạn đấu các **MCP** của riêng mình vào (bán hàng/POS, quảng cáo,
 
 VPS Hostinger → **Docker Manager → Compose → URL** → dán rồi **Deploy**:
 ```
-https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.yml
+https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.yml
 ```
 Hostinger tự pull image + cấp URL `https://<app>.<vps>.hstgr.cloud` + nút **Open app**.
 
 **3 việc làm 1 lần:**
-1. **Để image GHCR ở chế độ Public:** GitHub → repo → **Packages** → `jarvis-os` → *Package settings* → Visibility = **Public**.
+1. **Để image GHCR ở chế độ Public:** GitHub → repo → **Packages** → `javis-os` → *Package settings* → Visibility = **Public**.
 2. **Tạo tài khoản admin** (chọn 1):
    - *Khuyến nghị:* thêm env `JARVIS_ADMIN_USER` + `JARVIS_ADMIN_PASSWORD` trong compose Hostinger → mở app **đăng nhập luôn**.
    - *Hoặc:* mở app sẽ hỏi **MÃ THIẾT LẬP** - trong **App terminal** (vào bên trong container) chạy: `cat /data/state/.setup_token`.
@@ -72,7 +72,7 @@ Hostinger tự pull image + cấp URL `https://<app>.<vps>.hstgr.cloud` + nút *
 ```bash
 # Cần Docker (chưa có?  curl -fsSL https://get.docker.com | sh)
 mkdir jarvis && cd jarvis
-curl -fsSLO https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.yml
 
 docker compose run --rm jarvis claude auth login --claudeai   # đăng nhập Claude 1 lần
 docker compose up -d                                          # pull image + chạy
@@ -82,7 +82,7 @@ Mở `http://<ip-vps>:7777` → màn tạo tài khoản admin (xem MÃ THIẾT L
 ### Cách 3 - Cài trực tiếp lên Linux/macOS (không Docker)
 
 ```bash
-git clone https://github.com/blogminhquy/jarvis-os.git jarvis && cd jarvis
+git clone https://github.com/blogminhquy/javis-os.git jarvis && cd jarvis
 chmod +x install.sh && ./install.sh
 ```
 Script tự cài Python + Node + Claude CLI, tạo venv, đăng ký dịch vụ systemd tự chạy khi boot, in ra địa chỉ. Báo Claude chưa đăng nhập thì chạy 1 lần: `claude auth login --claudeai`.
@@ -222,7 +222,7 @@ Telegram ─────────────────┤→  FastAPI (ser
 ## 📂 Cấu trúc thư mục
 
 ```
-jarvis-os/
+javis-os/
 ├── server/              # Backend FastAPI (não, engine, sessions, MCP, self-improve…)
 ├── dashboard/           # Frontend (voice, đồ thị 3D, console, studio)
 ├── Brain Default/       # Brain mẫu (agents/workflows/wiki - dữ liệu cá nhân được .gitignore)
@@ -247,6 +247,6 @@ jarvis-os/
 
 <div align="center">
 
-Made with ☕ by **[Minh Quý](https://minhquy.vn)** · Repo: `github.com/blogminhquy/jarvis-os`
+Made with ☕ by **[Minh Quý](https://minhquy.vn)** · Repo: `github.com/blogminhquy/javis-os`
 
 </div>

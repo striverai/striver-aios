@@ -13,7 +13,7 @@ Javis OS là một AI agent cá nhân + Second Brain. "Bộ não" của nó là 
 
 VPS Hostinger → **Docker Manager → Compose → URL** → dán link rồi **Deploy**:
 ```
-https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.yml
+https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.yml
 ```
 Hostinger pull image + chạy. Mở app bằng `http://<ip-vps>:7777` (IP xem ở hPanel → VPS) → ra
 màn **tạo tài khoản admin**.
@@ -23,7 +23,7 @@ màn **tạo tài khoản admin**.
 > **"Link mặc định + HTTPS trên Hostinger"** ở phần HTTPS bên dưới. Compose gốc này chỉ vào được bằng IP:7777.
 
 **3 việc làm 1 lần:**
-1. **Để image GHCR ở chế độ Public:** GitHub → repo `jarvis-os` → **Packages** → `jarvis-os`
+1. **Để image GHCR ở chế độ Public:** GitHub → repo `javis-os` → **Packages** → `javis-os`
    → *Package settings* → Visibility = **Public** (để Hostinger pull không cần đăng nhập registry).
    Image do CI tự build mỗi lần push lên `main` (xem mục Cập nhật).
 2. **Tạo tài khoản admin an toàn** (Claude chạy full quyền nên không để ai cũng tạo được):
@@ -42,7 +42,7 @@ màn **tạo tài khoản admin**.
 Cần Docker. Chưa có? `curl -fsSL https://get.docker.com | sh`
 ```bash
 mkdir jarvis && cd jarvis
-curl -fsSLO https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.yml
 
 docker compose run --rm jarvis claude auth login --claudeai   # ĐĂNG NHẬP CLAUDE 1 LẦN (link + code)
 docker compose up -d                                          # pull image GHCR + chạy
@@ -84,7 +84,7 @@ lấy được link riêng chạy HTTPS như app Catalog (Hermes/n8n) mà không
 1. Xem **hostname VPS** ở hPanel → VPS (vd `srv1782015.hstgr.cloud`).
 2. Deploy bằng file Hostinger - Docker Manager → Compose → URL:
    ```
-   https://raw.githubusercontent.com/blogminhquy/jarvis-os/main/docker-compose.hostinger.yml
+   https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.hostinger.yml
    ```
 3. Ô **Environment** đặt: `DOMAIN_NAME=javis.<hostname-vps>.hstgr.cloud`
    (vd `DOMAIN_NAME=javis.srv1782015.hstgr.cloud`). Muốn tên miền RIÊNG thì điền tên miền đó + trỏ DNS A về IP VPS.
@@ -130,7 +130,7 @@ Mở giao diện Javis từ máy khác mà KHÔNG cần mở port / không cần
 ## Cách 2 - Cài trực tiếp lên Linux/macOS (không Docker)
 
 ```bash
-git clone https://github.com/blogminhquy/jarvis-os.git jarvis && cd jarvis
+git clone https://github.com/blogminhquy/javis-os.git jarvis && cd jarvis
 chmod +x install.sh && ./install.sh
 ```
 

@@ -66,7 +66,7 @@ class McpHttpSession:
     async def initialize(self, client):
         res = await self._rpc(client, "initialize", {
             "protocolVersion": PROTOCOL, "capabilities": {},
-            "clientInfo": {"name": "jarvis-os", "version": "0.3"},
+            "clientInfo": {"name": "javis-os", "version": "0.3"},
         })
         await self._rpc(client, "notifications/initialized", notify=True)
         return res
