@@ -91,7 +91,7 @@ link riêng chạy HTTPS mà không cần mua tên miền. **Lưu ý (đã kiể
    (vd `DOMAIN_NAME=javis.srv1782015.hstgr.cloud`). Muốn tên miền RIÊNG (vd `javisos.com`) thì đặt tên miền đó + trỏ DNS A về IP VPS.
 4. **Deploy** → đợi 1-3 phút Traefik cấp SSL → mở `https://<DOMAIN_NAME>`.
 
-> Nếu thiếu `DOMAIN_NAME`, deploy **báo lỗi rõ** (thay vì ra link cụt `javis-os.`). Không thấy ô Environment?
+> Thiếu `DOMAIN_NAME` thì vẫn deploy được (chạy tạm ở `:7777`, chưa có HTTPS). Không thấy ô Environment?
 > Bấm **Manage → sửa .yaml**, đổi thẳng dòng `Host(...)` thành `Host(\`javis.srv1782015.hstgr.cloud\`)`.
 > **Điểm mấu chốt** (rút từ compose thật của Hermes): nhãn Traefik gắn thẳng vào service, **KHÔNG khai báo
 > `networks:` / `external: traefik-proxy`** (chỗ này trước đây làm deploy báo "network not found").

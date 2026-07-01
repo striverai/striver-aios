@@ -1,24 +1,25 @@
 # ============================================================================
 # Javis OS - HOSTINGER VPS (Docker Manager). Tên miền + HTTPS qua Traefik có sẵn của Hostinger.
 #
-# Hostinger có sẵn wildcard DNS *.<hostname-vps>.hstgr.cloud + Traefik tự cấp SSL. File này gắn nhãn
-# Traefik ĐÚNG mẫu Hermes (mấu chốt: KHÔNG khai báo network). LƯU Ý: Hostinger KHÔNG tự cấp biến hostname
-# cho compose dán tay (chỉ cấp cho app Catalog), nên BẠN PHẢI ĐẶT DOMAIN_NAME (1 biến). Thiếu -> deploy báo lỗi.
+# File này LUÔN deploy được:
+#   - Chưa đặt DOMAIN_NAME  -> chạy tạm, vào bằng nút Open / http://<ip>:7777 (chưa có HTTPS).
+#   - Đặt DOMAIN_NAME       -> Traefik của Hostinger tự cấp HTTPS cho tên miền đó.
 #
 # CÁCH DÙNG:
-#   1) Xem hostname VPS ở hPanel > VPS (vd: srv1782015.hstgr.cloud).
-#   2) Docker Manager > Compose > URL > dán:
+#   1) Docker Manager > Compose > URL > dán:
 #      https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.hostinger.yml
-#   3) Ô Environment (Biến môi trường) đặt DOMAIN_NAME (BẮT BUỘC):
-#         DOMAIN_NAME=javis.<hostname-vps>.hstgr.cloud     (link miễn phí, không cần mua tên miền)
-#      Ví dụ:  DOMAIN_NAME=javis.srv1782015.hstgr.cloud
-#      Muốn tên miền RIÊNG (vd javisos.com): DOMAIN_NAME=javisos.com + trỏ DNS A về IP VPS trước.
-#   4) Deploy > đợi 1-3 phút Traefik cấp SSL > mở https://<DOMAIN_NAME>.
+#   2) Ô Environment (Biến môi trường) đặt DOMAIN_NAME (để có HTTPS):
+#        - Link miễn phí (KHÔNG cần mua tên miền):  DOMAIN_NAME=javis.<hostname-vps>.hstgr.cloud
+#          (hostname xem ở hPanel > VPS, vd: DOMAIN_NAME=javis.srv1782015.hstgr.cloud)
+#        - Hoặc tên miền riêng:  DOMAIN_NAME=tenmien.com  (trỏ DNS A về IP VPS trước).
+#   3) Deploy > đợi 1-3 phút Traefik cấp SSL > mở  https://<DOMAIN_NAME>.
+#
+# KHÔNG tìm thấy ô Environment? Bấm Manage > sửa .yaml, đổi thẳng dòng Host(...) thành tên miền:
+#      Host(`javis.srv1782015.hstgr.cloud`)   (thay bằng hostname VPS của bạn).
 #
 # GHI CHÚ:
-#   - Không thấy ô Environment? Bấm Manage > sửa file .yaml, đổi thẳng dòng Host(...) thành tên miền:
-#       Host(`javis.srv1782015.hstgr.cloud`)   (thay bằng hostname VPS của bạn).
-#   - Chỉ truy cập qua https://<DOMAIN_NAME> (Traefik lo HTTPS). Cổng 7777 publish ngẫu nhiên, không vào trực tiếp.
+#   - Mấu chốt (rút từ compose thật của Hermes): KHÔNG khai báo networks - Traefik tự thấy container qua nhãn.
+#   - Cập nhật bản mới: Redeploy trong Docker Manager (image :latest + pull_policy: always).
 #   - VPS KHÔNG phải Hostinger: bỏ file này, dùng docker-compose.yml + docker-compose.https.yml (Caddy).
 #   - Image GHCR phải để PUBLIC (GitHub > Packages > javis-os > Package settings > Public).
 # ============================================================================
@@ -38,16 +39,12 @@ services:
       OBSIDIAN_VAULT_PATH: /data/vault
       CLAUDE_CWD: /app
     ports:
-      - "7777"                      # publish cổng NGẪU NHIÊN (giống Hermes "4860"), KHÔNG cố định 7777:7777
-                                    # → nút Open trỏ thẳng domain HTTPS của Traefik, không phải http://<ip>:7777.
+      - "7777:7777"                 # đường vào dự phòng (nút Open / http://<ip>:7777)
     labels:
-      # Copy đúng mẫu Hermes: KHÔNG có traefik.docker.network, KHÔNG có networks external.
-      # Tên router/service = ${COMPOSE_PROJECT_NAME} (tên project) → chạy được nhiều bản trên cùng VPS.
-      # HOST = ${DOMAIN_NAME} BẮT BUỘC: Hostinger KHÔNG tự cấp biến TRAEFIK_HOST cho compose dán tay
-      # (chỉ cấp cho app Catalog), nên bạn phải tự đặt DOMAIN_NAME ở ô Environment. Nếu thiếu, deploy
-      # sẽ báo lỗi ngay (thay vì ra link cụt). Giá trị: javis.<hostname-vps>.hstgr.cloud hoặc tên miền riêng.
+      # Tên router/service = ${COMPOSE_PROJECT_NAME} → chạy nhiều bản trên cùng VPS không đụng nhau.
+      # Host = ${DOMAIN_NAME}; chưa đặt thì mặc định "localhost" (deploy vẫn chạy, chỉ chưa có domain/HTTPS).
       - traefik.enable=true
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME:-javis}.rule=Host(`${DOMAIN_NAME:?Thieu DOMAIN_NAME - hay dat DOMAIN_NAME = ten mien cua ban (vd javis.srv1782015.hstgr.cloud) roi deploy lai}`)
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME:-javis}.rule=Host(`${DOMAIN_NAME:-localhost}`)
       - traefik.http.routers.${COMPOSE_PROJECT_NAME:-javis}.entrypoints=websecure
       - traefik.http.routers.${COMPOSE_PROJECT_NAME:-javis}.tls.certresolver=letsencrypt
       - traefik.http.services.${COMPOSE_PROJECT_NAME:-javis}.loadbalancer.server.port=7777
