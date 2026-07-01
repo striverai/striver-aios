@@ -28,6 +28,7 @@
     files:       _svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>'),
     selfimprove: _svg('<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>'),
     learn:       _svg('<path d="M12 3v18"/><path d="M5 7h14"/><path d="M4 12h16"/><circle cx="12" cy="12" r="9"/>'),
+    kanban:      _svg('<rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/>'),
     settings:    _svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
   };
 
@@ -41,6 +42,7 @@
     { id: "files",       icon: ICON.files,       label: "Tệp tin" },
     { id: "selfimprove", icon: ICON.selfimprove, label: "Tự cải thiện" },
     { id: "learn",       icon: ICON.learn,       label: "Tự học" },
+    { id: "kanban",      icon: ICON.kanban,      label: "Việc" },
     { id: "automations", icon: ICON.automations, label: "Lịch" },
     { id: "models",      icon: ICON.models,      label: "Models" },
     { id: "channels",    icon: ICON.channels,    label: "Kênh" },
@@ -59,6 +61,7 @@
     files:       { icon: "🗂", label: "Tệp tin", sub: "Duyệt · sửa · tải file trong brain" },
     selfimprove: { icon: "♻", label: "Tự cải thiện", sub: "Nhiệm vụ tự động chạy nền" },
     learn:       { icon: "🧠", label: "Tự học", sub: "Rewire Memory · Wiki · Skill (an toàn, undo được)" },
+    kanban:      { icon: "🗂", label: "Việc (Kanban)", sub: "Backlog + dispatcher tự làm task nền" },
     automations: { icon: "⏰", label: "Lịch tự động", sub: "Cron · trigger · routine" },
     models:      { icon: "◈", label: "Models", sub: "Main model & providers" },
     channels:    { icon: "✉", label: "Kênh kết nối", sub: "Telegram & hơn nữa" },
@@ -130,6 +133,7 @@
     if (id === "files")    return renderFiles(el);
     if (id === "selfimprove") return renderSelfImprove(el);
     if (id === "learn")    return renderLearn(el);
+    if (id === "kanban")   return renderKanban(el);
     if (id === "logs")     return renderLogs(el);
     el.innerHTML = placeholder(id);
   }
@@ -645,6 +649,111 @@
     }
     function loadAll() { loadMetrics(); loadReview(); loadLog(); }
     loadAll();
+  }
+
+  // ============================================
+  // Trang Việc (Kanban) - backlog + dispatcher tự làm task nền
+  // ============================================
+  const _KCOLS = [
+    ["todo", "Chờ (todo)", "#8a97b4"], ["ready", "Sẵn sàng", "#e0b34a"],
+    ["running", "Đang chạy", "#3fdc86"], ["review", "Chờ duyệt", "#7fb0ff"],
+    ["blocked", "Bị chặn", "#e0664a"], ["done", "Xong", "#6b7894"],
+  ];
+  const _PRIO = { 1: "🔺", 2: "🔼", 3: "🔽" };
+  async function renderKanban(el) {
+    _injectExtraCss();
+    el.innerHTML = `<div class="cview-section"><div class="empty">Đang tải...</div></div>`;
+    let wfs = [];
+    try { wfs = (await (await fetch(`/workflows?brain=${encodeURIComponent(fbrain())}`)).json()).workflows || []; } catch (e) {}
+    const routeOpts = `<option value="auto">Trực tiếp (Javis tự làm, chỉ file)</option>` +
+      wfs.map(w => `<option value="wf:${esc(w.slug)}">Workflow: ${esc(w.name || w.slug)}</option>`).join("");
+
+    el.innerHTML = `<div class="cview-section">
+      <p style="color:#9fb0cf;font-size:15px;max-width:680px;margin:0 0 12px">Backlog + <b>dispatcher</b>: Javis giữ danh sách việc, tự chọn việc ưu tiên rồi điều phối xuống workflow/agent làm. <b>An toàn:</b> chạy nền chỉ thao tác FILE (không MCP tiền/đơn); việc xong dừng ở <b>Chờ duyệt</b> để bạn kiểm rồi mới tính là xong.</p>
+      <div class="si-grid" style="margin-bottom:14px">
+        <div class="si-field"><label>Điều phối tự động</label><div class="si-row" id="knOrch"></div>
+          <div class="dim" style="font-size:13px;margin-top:6px;color:#7d8aa6">off = chỉ dọn dẹp · manual = chỉ chạy khi bấm Nudge · auto = tự chạy theo lịch (30s/nhịp, 1 việc/lần).</div></div>
+        <div class="si-actions">
+          <button class="s-btn" id="knAdd">+ Thêm việc</button>
+          <button class="s-btn-ghost" id="knNudge">⚡ Nudge dispatcher</button>
+          <button class="s-btn-ghost" id="knRefresh">↻ Làm mới</button>
+          <button class="s-btn-ghost" id="knStop" style="color:#e0a04a">■ Dừng</button>
+        </div>
+      </div>
+      <div id="knForm" style="display:none;margin-bottom:14px;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.03)">
+        <div class="si-field"><label>Tiêu đề</label><input id="knTitle" placeholder="VD: Soạn 3 post từ sản phẩm bán chạy tuần này"></div>
+        <div class="si-field"><label>Mô tả việc (intent - Javis đọc để làm)</label><textarea id="knIntent" placeholder="Mô tả rõ việc cần làm + ghi kết quả nháp vào đâu (vd 05 - Projects)."></textarea></div>
+        <div class="si-row" style="gap:14px;flex-wrap:wrap">
+          <div class="si-field" style="flex:1;min-width:220px"><label>Cách làm (route)</label><select id="knRoute" class="loop-sel">${routeOpts}</select></div>
+          <div class="si-field"><label>Ưu tiên</label><select id="knPrio" class="loop-sel"><option value="1">🔺 Cao</option><option value="2" selected>🔼 Vừa</option><option value="3">🔽 Thấp</option></select></div>
+          <div class="si-field"><label>Cần duyệt trước khi xong</label><label class="auto-learn" style="margin-top:8px"><input type="checkbox" id="knApprove" checked><span>Dừng ở Chờ duyệt</span></label></div>
+        </div>
+        <div class="si-actions"><button class="s-btn" id="knSave">Lưu việc</button><button class="s-btn-ghost" id="knCancel">Huỷ</button></div>
+      </div>
+      <div id="knBoard" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;align-items:flex-start"></div>
+    </div>`;
+
+    const bf = () => { const f = new FormData(); f.append("brain", fbrain()); return f; };
+    const post = async (url, extra) => { const f = bf(); for (const k in (extra || {})) f.append(k, extra[k]); return (await fetch(url, { method: "POST", body: f })).json(); };
+
+    el.querySelector("#knAdd").onclick = () => { const b = el.querySelector("#knForm"); b.style.display = b.style.display === "none" ? "block" : "none"; };
+    el.querySelector("#knCancel").onclick = () => { el.querySelector("#knForm").style.display = "none"; };
+    el.querySelector("#knRefresh").onclick = () => load();
+    el.querySelector("#knStop").onclick = async () => { await fetch("/kanban/stop", { method: "POST" }); load(); };
+    el.querySelector("#knNudge").onclick = async () => { const b = el.querySelector("#knNudge"); b.disabled = true; b.textContent = "Đang chạy..."; await post("/kanban/nudge"); setTimeout(() => { b.disabled = false; b.textContent = "⚡ Nudge dispatcher"; load(); }, 2500); };
+    el.querySelector("#knSave").onclick = async () => {
+      const title = el.querySelector("#knTitle").value.trim();
+      if (!title) { alert("Nhập tiêu đề"); return; }
+      await post("/kanban/task", {
+        title, intent: el.querySelector("#knIntent").value.trim() || title,
+        route: el.querySelector("#knRoute").value, priority: el.querySelector("#knPrio").value,
+        needs_approval: el.querySelector("#knApprove").checked ? "1" : "0",
+      });
+      el.querySelector("#knTitle").value = ""; el.querySelector("#knIntent").value = "";
+      el.querySelector("#knForm").style.display = "none"; load();
+    };
+
+    function cardHtml(t) {
+      const acts = [];
+      if (["todo", "ready", "blocked"].includes(t.status)) acts.push(`<button data-act="run" data-id="${t.id}">▶ Chạy</button>`);
+      if (t.status === "review") { acts.push(`<button data-act="done" data-id="${t.id}">✓ Duyệt</button>`); acts.push(`<button data-act="ready" data-id="${t.id}">↩ Làm lại</button>`); }
+      if (t.status === "blocked") acts.push(`<button data-act="ready" data-id="${t.id}">↻ Bỏ chặn</button>`);
+      acts.push(`<button data-act="archive" data-id="${t.id}">🗄</button>`);
+      const res = t.result ? `<div class="dim" style="font-size:12px;color:#8aa;margin-top:6px;max-height:54px;overflow:hidden">${esc(t.result.slice(0, 180))}</div>` : "";
+      const br = t.block_reason ? ` · <span style="color:#e0664a">${esc(t.block_reason)}</span>` : "";
+      const rt = t.route && t.route !== "auto" ? esc(t.route) : "trực tiếp";
+      return `<div class="le" style="margin-bottom:8px" title="${esc(t.intent || "")}">
+        <div style="display:flex;justify-content:space-between;gap:6px"><b style="font-size:13.5px">${_PRIO[t.priority] || ""} ${esc(t.title)}</b></div>
+        <div class="dim" style="font-size:11px;color:#6b7894;margin-top:2px">${rt} · ${esc(t.created_by || "")}${br}</div>
+        ${res}
+        <div class="kn-acts" style="display:flex;gap:5px;margin-top:7px;flex-wrap:wrap">${acts.join("")}</div>
+      </div>`;
+    }
+
+    async function load() {
+      let d = { columns: {}, orchestration: "off", counts: {} };
+      try { d = await (await fetch(`/kanban?brain=${encodeURIComponent(fbrain())}`)).json(); } catch (e) {}
+      const orch = el.querySelector("#knOrch");
+      orch.innerHTML = [["off", "Tắt"], ["manual", "Thủ công"], ["auto", "Tự động"]]
+        .map(([v, l]) => `<button class="si-chip ${d.orchestration === v ? "sel" : ""}" data-orch="${v}">${l}</button>`).join("");
+      orch.querySelectorAll(".si-chip").forEach(c => c.onclick = async () => { await post("/kanban/orchestration", { mode: c.dataset.orch }); load(); });
+      const board = el.querySelector("#knBoard");
+      board.innerHTML = _KCOLS.map(([s, label, color]) => {
+        const arr = (d.columns && d.columns[s]) || [];
+        const cards = arr.length ? arr.map(cardHtml).join("") : `<div class="dim" style="font-size:12px;color:#556;text-align:center;padding:14px 0">— trống —</div>`;
+        return `<div style="min-width:210px;max-width:240px;flex:1;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px">
+          <div style="font-size:13px;font-weight:600;color:${color};margin-bottom:8px;display:flex;justify-content:space-between"><span>● ${label}</span><span>${arr.length}</span></div>
+          ${cards}</div>`;
+      }).join("");
+      board.querySelectorAll("button[data-act]").forEach(b => b.onclick = async () => {
+        const id = b.dataset.id, act = b.dataset.act;
+        if (act === "run") await post("/kanban/run", { id });
+        else if (act === "archive") await post("/kanban/task/delete", { id });
+        else await post("/kanban/task/move", { id, status: act });
+        setTimeout(load, act === "run" ? 2000 : 200);
+      });
+    }
+    load();
   }
 
   async function freshSettings() {

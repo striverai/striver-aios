@@ -1956,18 +1956,30 @@ async def delete_workflow(slug: str = Form(...), brain: str = Form("brain")):
         f.unlink()
     return {"ok": True}
 
-@app.get("/workflows/run")
-async def run_workflow(slug: str = Query(...), brain: str = Query("brain"), input: str = Query("")):
-    """Chạy workflow nhiều agent tuần tự, stream tiến độ qua SSE."""
+async def execute_workflow(brain, slug, input="", tools=None):
+    """Chạy workflow nhiều agent tuần tự, YIELD event dict (KHÔNG bọc SSE). Dùng CHUNG cho:
+      - /workflows/run  : user bấm ở Studio (full quyền, stream SSE).
+      - dispatcher Kanban: chạy nền không người xem → truyền tools=SAFE_FILE_TOOLS để agent
+        CHỈ thao tác file (không đụng MCP tiền/đơn) + cô lập MCP (strict rỗng). Task cần hành
+        động ra ngoài → dừng ở review cho người duyệt, KHÔNG tự làm.
+    tools=None → full (như cũ). list → giới hạn tool + cô lập MCP (an toàn nền)."""
     wf_file = _workflows_dir(brain) / f"{slug}.md"
     if not wf_file.exists():
-        return JSONResponse({"error": "workflow not found"}, status_code=404)
+        yield {"type": "error", "content": "workflow not found"}
+        return
     meta, _ = _read_md(wf_file)
     steps = meta.get("steps", []) or []
     vault_root = str(_brain_root(brain))
 
-    def sse(obj):
-        return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n"
+    def _mk(sysprompt):
+        c = ClaudeCLI(system_prompt=sysprompt, cwd=vault_root, tag="workflow", allowed_tools=tools)
+        if tools is not None:   # chạy nền hạn chế → cô lập MCP + chặn Bash/Web
+            _mcpf = _empty_mcp_file()
+            if _mcpf:
+                c.mcp_config = _mcpf; c.mcp_strict = True
+            c.disallowed_tools = ["Bash", "WebFetch", "WebSearch", "Task"]
+            c.max_wall_s = 300
+        return c
 
     def _agent_sysprompt(aslug):
         ameta, abody = _read_md(_agents_dir(brain) / f"{aslug}.md")
@@ -1980,87 +1992,98 @@ async def run_workflow(slug: str = Query(...), brain: str = Query("brain"), inpu
         )
         return ameta.get("name", aslug), sysprompt
 
-    async def gen():
-        yield sse({"type": "start", "workflow": meta.get("name", slug), "steps": len(steps)})
-        prev = ""
-        for i, step in enumerate(steps):
-            agent_slug = step.get("agent", "")
-            task = step.get("task", "")
-            verify_slug = (step.get("verify_agent") or "").strip()
-            max_retries = int(step.get("max_retries", 1) or 0)
-            agent_name, sysprompt = _agent_sysprompt(agent_slug)
-            task_f = task.replace("{{input}}", input or "").replace("{{prev}}", prev or "")
-            yield sse({"type": "step_start", "i": i, "agent": agent_name, "task": task_f})
+    yield {"type": "start", "workflow": meta.get("name", slug), "steps": len(steps)}
+    prev = ""
+    for i, step in enumerate(steps):
+        agent_slug = step.get("agent", "")
+        task = step.get("task", "")
+        verify_slug = (step.get("verify_agent") or "").strip()
+        max_retries = int(step.get("max_retries", 1) or 0)
+        agent_name, sysprompt = _agent_sysprompt(agent_slug)
+        task_f = task.replace("{{input}}", input or "").replace("{{prev}}", prev or "")
+        yield {"type": "step_start", "i": i, "agent": agent_name, "task": task_f}
 
-            cur_prompt = task_f
+        cur_prompt = task_f
+        out = ""
+        verified = None
+        attempt = 0
+        while True:
+            gcli = _mk(sysprompt)
             out = ""
-            verified = None
-            attempt = 0
-            while True:
-                # --- chạy GENERATOR, stream token ra UI ---
-                gcli = ClaudeCLI(system_prompt=sysprompt, cwd=vault_root, tag="workflow")
-                out = ""
-                async for ev in gcli.query(cur_prompt):
-                    if ev["type"] == "text":
-                        yield sse({"type": "step_text", "i": i, "content": ev["content"]})
-                    elif ev["type"] == "tool_call":
-                        yield sse({"type": "step_tool", "i": i, "tool": ev["name"]})
-                    elif ev["type"] == "final":
-                        out = ev.get("content") or out
-                    elif ev["type"] == "error":
-                        yield sse({"type": "step_error", "i": i, "content": ev["content"]})
+            async for ev in gcli.query(cur_prompt):
+                if ev["type"] == "text":
+                    yield {"type": "step_text", "i": i, "content": ev["content"]}
+                elif ev["type"] == "tool_call":
+                    yield {"type": "step_tool", "i": i, "tool": ev["name"]}
+                elif ev["type"] == "final":
+                    out = ev.get("content") or out
+                elif ev["type"] == "error":
+                    yield {"type": "step_error", "i": i, "content": ev["content"]}
 
-                if not verify_slug:
-                    break
+            if not verify_slug:
+                break
 
-                # --- KIỂM CHỨNG bằng agent KHÁC (giả định kết quả SAI) ---
-                v_name, v_body = _agent_sysprompt(verify_slug)
-                yield sse({"type": "step_verify", "i": i, "agent": v_name, "attempt": attempt})
-                v_sys = (
-                    v_body + "\n\nVAI TRÒ KIỂM CHỨNG: Bạn là người ĐÁNH GIÁ độc lập. "
-                    "Mặc định GIẢ ĐỊNH kết quả dưới đây ĐANG SAI và phải tự chứng minh. "
-                    "Kiểm tra thực tế (đọc file/chạy thử nếu cần), KHÔNG chỉ đọc lướt. "
-                    'CHỈ trả JSON 1 dòng: {"pass":true|false,"reason":"ngắn gọn vì sao","fixes":"cần sửa gì nếu fail"}.'
-                )
-                v_prompt = (
-                    f"NHIỆM VỤ GỐC:\n{task_f}\n\n"
-                    f"KẾT QUẢ CẦN KIỂM CHỨNG:\n{out}\n\n"
-                    "Đánh giá kết quả có ĐẠT nhiệm vụ không. Trả JSON như hướng dẫn."
-                )
-                vcli = ClaudeCLI(system_prompt=v_sys, cwd=vault_root, tag="workflow")
-                v_out = ""
-                async for ev in vcli.query(v_prompt):
-                    if ev["type"] == "final":
-                        v_out = ev.get("content") or v_out
-                    elif ev["type"] == "error":
-                        v_out = '{"pass":true,"reason":"verify lỗi, tạm chấp nhận"}'
-                vm = re.search(r"\{.*\}", v_out, re.DOTALL)
-                verdict = {}
-                if vm:
-                    try:
-                        verdict = json.loads(vm.group(0))
-                    except json.JSONDecodeError:
-                        verdict = {}
-                passed = bool(verdict.get("pass", True))
-                reason = verdict.get("reason", "")
-                fixes = verdict.get("fixes", "")
-                yield sse({"type": "step_verify_result", "i": i, "passed": passed,
-                           "reason": reason, "attempt": attempt})
-                verified = passed
-                if passed or attempt >= max_retries:
-                    break
-                attempt += 1
-                yield sse({"type": "step_retry", "i": i, "attempt": attempt})
-                cur_prompt = (
-                    f"{task_f}\n\n# KẾT QUẢ LẦN TRƯỚC CHƯA ĐẠT - sửa lại theo phản hồi kiểm chứng:\n"
-                    f"- Vấn đề: {reason}\n- Cần sửa: {fixes}\n"
-                    f"Làm lại cho ĐẠT."
-                )
+            # --- KIỂM CHỨNG bằng agent KHÁC (giả định kết quả SAI) ---
+            v_name, v_body = _agent_sysprompt(verify_slug)
+            yield {"type": "step_verify", "i": i, "agent": v_name, "attempt": attempt}
+            v_sys = (
+                v_body + "\n\nVAI TRÒ KIỂM CHỨNG: Bạn là người ĐÁNH GIÁ độc lập. "
+                "Mặc định GIẢ ĐỊNH kết quả dưới đây ĐANG SAI và phải tự chứng minh. "
+                "Kiểm tra thực tế (đọc file/chạy thử nếu cần), KHÔNG chỉ đọc lướt. "
+                'CHỈ trả JSON 1 dòng: {"pass":true|false,"reason":"ngắn gọn vì sao","fixes":"cần sửa gì nếu fail"}.'
+            )
+            v_prompt = (
+                f"NHIỆM VỤ GỐC:\n{task_f}\n\n"
+                f"KẾT QUẢ CẦN KIỂM CHỨNG:\n{out}\n\n"
+                "Đánh giá kết quả có ĐẠT nhiệm vụ không. Trả JSON như hướng dẫn."
+            )
+            vcli = _mk(v_sys)
+            v_out = ""
+            async for ev in vcli.query(v_prompt):
+                if ev["type"] == "final":
+                    v_out = ev.get("content") or v_out
+                elif ev["type"] == "error":
+                    v_out = '{"pass":true,"reason":"verify lỗi, tạm chấp nhận"}'
+            vm = re.search(r"\{.*\}", v_out, re.DOTALL)
+            verdict = {}
+            if vm:
+                try:
+                    verdict = json.loads(vm.group(0))
+                except json.JSONDecodeError:
+                    verdict = {}
+            passed = bool(verdict.get("pass", True))
+            reason = verdict.get("reason", "")
+            fixes = verdict.get("fixes", "")
+            yield {"type": "step_verify_result", "i": i, "passed": passed, "reason": reason, "attempt": attempt}
+            verified = passed
+            if passed or attempt >= max_retries:
+                break
+            attempt += 1
+            yield {"type": "step_retry", "i": i, "attempt": attempt}
+            cur_prompt = (
+                f"{task_f}\n\n# KẾT QUẢ LẦN TRƯỚC CHƯA ĐẠT - sửa lại theo phản hồi kiểm chứng:\n"
+                f"- Vấn đề: {reason}\n- Cần sửa: {fixes}\n"
+                f"Làm lại cho ĐẠT."
+            )
 
-            prev = out
-            yield sse({"type": "step_done", "i": i, "agent": agent_name, "output": out, "verified": verified})
-            _log_agent_run(brain, agent_slug, task_f, out)
-        yield sse({"type": "done", "result": prev})
+        prev = out
+        yield {"type": "step_done", "i": i, "agent": agent_name, "output": out, "verified": verified}
+        _log_agent_run(brain, agent_slug, task_f, out)
+    yield {"type": "done", "result": prev}
+
+
+@app.get("/workflows/run")
+async def run_workflow(slug: str = Query(...), brain: str = Query("brain"), input: str = Query("")):
+    """Chạy workflow (user bấm ở Studio) - stream tiến độ qua SSE, full quyền."""
+    if not (_workflows_dir(brain) / f"{slug}.md").exists():
+        return JSONResponse({"error": "workflow not found"}, status_code=404)
+
+    def sse(obj):
+        return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n"
+
+    async def gen():
+        async for ev in execute_workflow(brain, slug, input):
+            yield sse(ev)
 
     return StreamingResponse(gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
@@ -2151,6 +2174,25 @@ learn_feature = learn_mod.register(app, learn_mod.LearnDeps(
     sessions_store=get_store(),
     state_dir=cfgmod.STATE_DIR,
     readonly_tools=READONLY_TOOLS,
+))
+
+
+# ============================================================
+# KANBAN TASK BACKLOG + DISPATCHER (Loop Engineering) - tasks.py
+# Loop = bộ não (giữ backlog, điều phối) · workflow/agent = đôi tay (thực thi).
+# Dispatch nền = FILE-ONLY (an toàn), task cần hành động ra ngoài dừng ở 'review'.
+# Mặc định orchestration=off.
+# ============================================================
+import tasks as tasks_mod
+
+tasks_feature = tasks_mod.register(app, tasks_mod.TasksDeps(
+    brain_root=_brain_root,
+    atomic_write_text=_atomic_write_text,
+    execute_workflow=execute_workflow,
+    workflows_dir=_workflows_dir,
+    build_system_prompt=build_system_prompt,
+    aux_model=_aux_model,
+    safe_tools=SAFE_FILE_TOOLS,
 ))
 
 
@@ -2365,6 +2407,11 @@ async def _start_scheduler():
                     await learn_feature.curator_tick()
                 except Exception as le:
                     print(f"[learn tick] {type(le).__name__}: {le}", file=__import__('sys').stderr)
+                # 3) Kanban dispatcher: housekeeping + chạy 1 task nếu orchestration=auto
+                try:
+                    await tasks_feature.tick(["brain"])
+                except Exception as te:
+                    print(f"[kanban tick] {type(te).__name__}: {te}", file=__import__('sys').stderr)
             except Exception as e:
                 print(f"[scheduler] {type(e).__name__}: {e}", file=__import__('sys').stderr)
     asyncio.create_task(_scheduler_loop())
