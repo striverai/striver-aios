@@ -712,3 +712,46 @@ body {
 .skill-pick .sp { display: flex; align-items: center; gap: 5px; font-size: 14px; color: var(--text); width: auto; background: none; border: none; padding: 0; cursor: pointer; }
 .skill-pick input { width: auto; accent-color: var(--accent2); }
 .editor-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* ===== CÀI ĐẶT NHANH (sidebar phải) — đưa lên ĐẦU cột cho dễ thấy ===== */
+.quick-set { order: -1; border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 12px; padding: 4px 10px; background: rgba(255,122,60,0.06); flex: 0 0 auto; }
+.quick-set > summary { margin-bottom: 0; padding: 8px 0; color: var(--text2); font-size: 13px; }
+.quick-set > summary:hover { color: var(--accent); }
+.quick-set > summary::-webkit-details-marker { display: none; }
+.quick-set .qs-caret { display: inline-block; transition: transform 0.2s; }
+.quick-set[open] .qs-caret { transform: rotate(90deg); }
+.quick-set-body { display: flex; flex-direction: column; gap: 12px; padding: 12px 0 4px; }
+.qs-block { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.qs-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; color: var(--text2);
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+/* Popover giọng nói giờ hiển thị INLINE trong sidebar (không nổi/che như ở header) */
+.quick-set .voice-picker-wrap { position: static; }
+.quick-set .voice-popover { position: static; display: block; width: auto; padding: 0; border: none; background: transparent; box-shadow: none; }
+.quick-set-body .s-btn, .quick-set-body .s-btn-ghost, .quick-set-body .test-btn { width: 100%; }
+.quick-set .set-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+
+/* ===== CHAT PHÓNG TO — nổi mờ trên brain đang chuyển động ===== */
+.chat-stage {
+  position: fixed; left: 50%; top: 60px; transform: translateX(-50%);
+  width: min(920px, 78vw); height: calc(100vh - 84px); max-height: 92vh;
+  z-index: 360; display: none; flex-direction: column; gap: 10px;
+  background: rgba(18,18,28,0.55);
+  backdrop-filter: blur(10px) saturate(1.15); -webkit-backdrop-filter: blur(10px) saturate(1.15);
+  border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6); padding: 14px;
+}
+body.chat-zoomed .chat-stage { display: flex; }
+.chat-stage-head { display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--font); font-size: 12px; letter-spacing: 2px; color: var(--text3); }
+.chat-stage-close { background: none; border: 1px solid var(--border); color: var(--text2);
+  border-radius: 8px; padding: 5px 12px; cursor: pointer; font-size: 13px; }
+.chat-stage-close:hover { color: var(--accent); border-color: var(--accent); }
+.chat-stage-body { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; gap: 10px; }
+.chat-stage-body .transcript { flex: 1 1 auto; min-height: 0; max-height: none; background: transparent; }
+.chat-stage-body .hud-voice { background: rgba(24,24,34,0.6); border: 1px solid var(--border); border-radius: 12px; }
+/* xoá dải composer trống ở đáy cockpit khi đang phóng to (composer đã dời vào lớp nổi) */
+body.chat-zoomed .hud { grid-template-rows: 52px 1fr 0; }
+@media (max-width: 720px) {
+  .chat-stage { width: 94vw; top: 56px; height: calc(100vh - 72px); }
+}

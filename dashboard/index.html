@@ -6,7 +6,7 @@
   <title>Jarvis OS</title>
   <link rel="icon" type="image/png" href="/static/favicon.png?v=1">
   <link rel="apple-touch-icon" href="/static/logo.png?v=1">
-  <link rel="stylesheet" href="/static/style.css?v=24">
+  <link rel="stylesheet" href="/static/style.css?v=26">
   <link rel="stylesheet" href="/static/console.css?v=12">
 </head>
 <body>
@@ -39,51 +39,7 @@
             <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
           </svg>
         </button>
-        <div class="voice-picker-wrap">
-          <button class="hud-icon-btn" id="voicePickerBtn" title="Chọn giọng nói">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-          </button>
-          <div class="voice-popover" id="voicePopover">
-            <div class="popover-section">
-              <div class="popover-label">NGÔN NGỮ NGHE</div>
-              <div class="voice-options">
-                <label class="voice-opt">
-                  <input type="radio" name="recognitionLang" value="vi-VN" checked>
-                  <div><strong>Tiếng Việt</strong><div class="opt-sub">vi-VN · mặc định</div></div>
-                </label>
-                <label class="voice-opt">
-                  <input type="radio" name="recognitionLang" value="en-US">
-                  <div><strong>Tiếng Anh</strong><div class="opt-sub">en-US · khi nói toàn Anh</div></div>
-                </label>
-              </div>
-              <div class="opt-sub" style="margin-top:4px;opacity:.6">Nói lẫn Việt+Anh → chọn Tiếng Việt,<br>từ Anh thông dụng vẫn nhận được.</div>
-            </div>
-            <div class="popover-section">
-              <div class="popover-label">GIỌNG ĐỌC</div>
-              <div class="voice-options">
-                <label class="voice-opt">
-                  <input type="radio" name="voice" value="vi-VN-HoaiMyNeural" checked>
-                  <div><strong>HoaiMy</strong><div class="opt-sub">Nữ · tự nhiên nhất</div></div>
-                </label>
-                <label class="voice-opt">
-                  <input type="radio" name="voice" value="vi-VN-NamMinhNeural">
-                  <div><strong>NamMinh</strong><div class="opt-sub">Nam · trầm</div></div>
-                </label>
-              </div>
-            </div>
-            <div class="popover-section">
-              <div class="popover-label">TỐC ĐỘ <span id="rateLabel" style="float:right;color:var(--accent);font-family:var(--font)">1.10×</span></div>
-              <input type="range" id="rateSlider" min="0.7" max="1.8" step="0.05" value="1.1" style="width:100%">
-              <div class="rate-marks"><span>Chậm</span><span>BT</span><span>Nhanh</span></div>
-            </div>
-            <div class="popover-section">
-              <button class="test-btn" id="testVoiceBtn">▶ Nghe thử</button>
-            </div>
-          </div>
-        </div>
+        <!-- Voice/tốc độ đã dời xuống sidebar phải (mục CÀI ĐẶT NHANH). -->
         <button class="hud-icon-btn" id="ttsToggle" title="Bật/tắt giọng Jarvis">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 5L6 9H2v6h4l5 4V5z"/>
@@ -150,7 +106,10 @@
       <aside class="hud-right">
         <div class="panel-label">
           <span>HỘI THOẠI</span>
-          <span class="engine-badge" id="engineBadge" title="Engine + model THẬT đang chạy (lấy từ server — không phải tên model tự nhận)">—</span>
+          <span style="display:flex;align-items:center;gap:6px">
+            <span class="engine-badge" id="engineBadge" title="Engine + model THẬT đang chạy (lấy từ server — không phải tên model tự nhận)">—</span>
+            <button class="mini-btn" id="chatZoomBtn" title="Phóng to khung chat (Esc để thu nhỏ)">⛶</button>
+          </span>
         </div>
         <div class="transcript" id="chatArea"></div>
         <div class="tool-bar" id="toolBar" style="display:none">
@@ -217,6 +176,88 @@
         </div>
         <div class="panel-label" style="margin-top:8px">MCP ĐANG DÙNG</div>
         <div id="mcpList" class="mcp-list"><div class="mcp-item dim">Chưa có hoạt động</div></div>
+
+        <!-- ===== CÀI ĐẶT NHANH: avatar + tên miền + giọng nói + tốc độ (gộp về sidebar) ===== -->
+        <details class="quick-set" id="quickSet" open>
+          <summary class="panel-label" style="cursor:pointer;list-style:none;user-select:none">
+            ⚙ CÀI ĐẶT NHANH <span class="qs-caret">▸</span>
+          </summary>
+          <div class="quick-set-body">
+
+            <label class="qs-row">
+              <span>🔊 Đọc trả lời bằng giọng</span>
+              <span class="toggle"><input type="checkbox" id="qsTts" checked><span></span></span>
+            </label>
+
+            <!-- Giọng đọc + ngôn ngữ nghe + tốc độ (dời từ header xuống, giữ nguyên id/name) -->
+            <div class="voice-picker-wrap">
+              <button id="voicePickerBtn" style="display:none" aria-hidden="true"></button>
+              <div class="voice-popover" id="voicePopover">
+                <div class="popover-section">
+                  <div class="popover-label">NGÔN NGỮ NGHE</div>
+                  <div class="voice-options">
+                    <label class="voice-opt">
+                      <input type="radio" name="recognitionLang" value="vi-VN" checked>
+                      <div><strong>Tiếng Việt</strong><div class="opt-sub">vi-VN · mặc định</div></div>
+                    </label>
+                    <label class="voice-opt">
+                      <input type="radio" name="recognitionLang" value="en-US">
+                      <div><strong>Tiếng Anh</strong><div class="opt-sub">en-US · khi nói toàn Anh</div></div>
+                    </label>
+                  </div>
+                </div>
+                <div class="popover-section">
+                  <div class="popover-label">GIỌNG ĐỌC</div>
+                  <div class="voice-options">
+                    <label class="voice-opt">
+                      <input type="radio" name="voice" value="vi-VN-HoaiMyNeural" checked>
+                      <div><strong>HoaiMy</strong><div class="opt-sub">Nữ · tự nhiên nhất</div></div>
+                    </label>
+                    <label class="voice-opt">
+                      <input type="radio" name="voice" value="vi-VN-NamMinhNeural">
+                      <div><strong>NamMinh</strong><div class="opt-sub">Nam · trầm</div></div>
+                    </label>
+                  </div>
+                </div>
+                <div class="popover-section">
+                  <div class="popover-label">TỐC ĐỘ <span id="rateLabel" style="float:right;color:var(--accent);font-family:var(--font)">1.10×</span></div>
+                  <input type="range" id="rateSlider" min="0.7" max="1.8" step="0.05" value="1.1" style="width:100%">
+                  <div class="rate-marks"><span>Chậm</span><span>BT</span><span>Nhanh</span></div>
+                </div>
+                <div class="popover-section">
+                  <button class="test-btn" id="testVoiceBtn">▶ Nghe thử</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="qs-block">
+              <div class="popover-label">ẢNH ĐẠI DIỆN</div>
+              <div style="display:flex;align-items:center;gap:12px;margin:6px 0">
+                <img id="brandLogoPreview" src="/brand-logo" alt="logo"
+                     style="width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid var(--border)">
+                <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+                  <label class="s-btn" style="cursor:pointer;display:block;text-align:center">Tải ảnh lên
+                    <input type="file" id="brandLogoInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+                  <button class="s-btn-ghost" id="brandLogoReset">Khôi phục mặc định</button>
+                </div>
+              </div>
+              <div class="opt-sub" id="brandLogoStatus"></div>
+            </div>
+
+            <div class="qs-block">
+              <div class="popover-label">TÊN MIỀN RIÊNG (HTTPS)</div>
+              <div class="opt-sub" style="margin:4px 0 6px">Trỏ tên miền vào Jarvis, tự động có HTTPS. Chỉ chạy khi deploy Docker trên VPS (mở cổng 80/443).</div>
+              <input id="setDomain" placeholder="vd: jarvis.tencuaban.com" style="width:100%">
+              <div class="set-actions" style="margin-top:6px">
+                <button class="s-btn" id="saveDomain">Lưu</button>
+                <button class="s-btn-ghost" id="checkDomain">Kiểm tra kết nối</button>
+              </div>
+              <div id="domainGuide" style="display:none;margin-top:8px;font-size:13px;line-height:1.55;color:#cdd8ee"></div>
+              <div class="opt-sub" id="domainStatus"></div>
+            </div>
+
+          </div>
+        </details>
       </aside>
     </div>
 
@@ -474,42 +515,19 @@
           </div>
           <div class="set-note">Đặt mật khẩu để chặn người lạ khi đưa Jarvis lên VPS. Lưu ý: trên VPS nên chạy sau HTTPS (reverse proxy).</div>
         </div>
-        <div class="set-sec">
-          <h4>Ảnh đại diện / Logo</h4>
-          <div class="set-note">Ảnh hiển thị ở góc trên, thanh bên và cả màn đăng nhập. Đổi 1 chỗ, áp dụng mọi nơi.</div>
-          <div style="display:flex;align-items:center;gap:14px;margin:8px 0">
-            <img id="brandLogoPreview" src="/brand-logo" alt="logo"
-                 style="width:56px;height:56px;border-radius:12px;object-fit:cover;border:1px solid rgba(255,255,255,.15)">
-            <div class="set-actions" style="margin:0">
-              <label class="s-btn" style="cursor:pointer;display:inline-block">Tải ảnh lên
-                <input type="file" id="brandLogoInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
-              <button class="s-btn-ghost" id="brandLogoReset">Khôi phục mặc định</button>
-            </div>
-          </div>
-          <div class="set-note" id="brandLogoStatus"></div>
-        </div>
-        <div class="set-sec">
-          <h4>Tên miền riêng (HTTPS)</h4>
-          <div class="set-note">Trỏ tên miền của bạn vào Jarvis, tự động có HTTPS. Chỉ chạy khi deploy Docker trên VPS (mở cổng 80/443) — Hostinger 1-click dùng SSL sẵn của họ.</div>
-          <label>Tên miền</label>
-          <input id="setDomain" placeholder="vd: jarvis.tencuaban.com">
-          <div class="set-actions">
-            <button class="s-btn" id="saveDomain">Lưu tên miền</button>
-            <button class="s-btn-ghost" id="checkDomain">Kiểm tra kết nối</button>
-          </div>
-          <div id="domainGuide" style="display:none;margin-top:8px;font-size:14px;line-height:1.6;color:#cdd8ee"></div>
-          <div class="set-note" id="domainStatus"></div>
-        </div>
+        <div class="set-note" style="opacity:.7">Ảnh đại diện, tên miền, giọng nói &amp; tốc độ giờ nằm ở mục <b>CÀI ĐẶT NHANH</b> (thanh bên phải).</div>
       </div>
     </div>
   </div>
 
-  <script src="/static/voice.js?v=9"></script>
+  <script src="/static/voice.js?v=10"></script>
   <script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
   <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
   <script src="/static/graph3d.js?v=13"></script>
-  <script src="/static/app.js?v=45"></script>
-  <script src="/static/branding.js?v=1"></script>
+  <script src="/static/app.js?v=46"></script>
+  <script src="/static/branding.js?v=2"></script>
+  <script src="/static/quick-settings.js?v=1"></script>
+  <script src="/static/chat-zoom.js?v=1"></script>
   <script src="/static/brains-ui.js?v=2"></script>
   <script src="/static/sessions-ui.js?v=1"></script>
   <script src="/static/studio.js?v=11"></script>

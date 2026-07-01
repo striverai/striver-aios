@@ -991,13 +991,24 @@ async function uploadFile(file) {
     const fd = new FormData();
     fd.append("file", file, att.name);
     fd.append("brain", currentBrainPath());
-    const up = await (await fetch("/upload", { method: "POST", body: fd })).json();
-    if (!up.ok) { att.uploading = false; att.statusText = "lỗi upload"; renderChips(); return; }
+    // Timeout rộng (3 phút) cho file lớn/mạng chậm; báo lỗi CỤ THỂ để dễ chẩn đoán trên VPS.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 180000);
+    let resp;
+    try {
+      resp = await fetch("/upload", { method: "POST", body: fd, signal: ctrl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!resp.ok) { att.uploading = false; att.statusText = "lỗi máy chủ (" + resp.status + ")"; renderChips(); return; }
+    const up = await resp.json();
+    if (!up.ok) { att.uploading = false; att.statusText = up.error ? ("lỗi: " + up.error) : "lỗi upload"; renderChips(); return; }
     att.path = up.staged; att.name = up.name; att.size = up.size; att.kind = up.kind;
     att.sources = up.sources; att.attachments = up.attachments;
     att.uploading = false; att.statusText = "";
   } catch (e) {
-    att.uploading = false; att.statusText = "lỗi mạng";
+    att.uploading = false;
+    att.statusText = (e && e.name === "AbortError") ? "quá thời gian tải" : "lỗi mạng";
   }
   renderChips();
 }
@@ -1039,7 +1050,9 @@ window.addEventListener("drop", (e) => {
 // ============================================
 chatInput.addEventListener("input", () => {
   chatInput.style.height = "auto";
-  chatInput.style.height = Math.min(chatInput.scrollHeight, 90) + "px";
+  // Khi phóng to khung chat (chat-zoomed) cho ô nhập cao hơn để gõ dài dễ hơn.
+  const _cap = document.body.classList.contains("chat-zoomed") ? 220 : 90;
+  chatInput.style.height = Math.min(chatInput.scrollHeight, _cap) + "px";
 });
 chatInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }

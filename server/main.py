@@ -1212,6 +1212,18 @@ def _resolve_subfolder(root: str, name_regex: str, default_name: str) -> str:
     os.makedirs(dest, exist_ok=True)
     return dest
 
+async def _save_upload_stream(upload: UploadFile, dest: str, chunk: int = 1024 * 1024):
+    """Ghi file upload xuống đĩa theo từng chunk 1MB — KHÔNG nạp cả file vào RAM và nhường
+    event-loop giữa các chunk. Tránh worker treo khi file lớn → reverse proxy (Caddy/Hostinger)
+    reset kết nối, khiến client thấy 'lỗi mạng'."""
+    with open(dest, "wb") as f:
+        while True:
+            part = await upload.read(chunk)
+            if not part:
+                break
+            f.write(part)
+
+
 @app.post("/upload")
 async def upload(file: UploadFile = File(...), brain: str = Form("")):
     """Nhận file → stage tạm (chưa vào Sources). Bước /ingest-upload sẽ chuyển thành .md."""
@@ -1223,8 +1235,7 @@ async def upload(file: UploadFile = File(...), brain: str = Form("")):
     name = _sanitize_filename(raw)
     staged = _unique_path(str(STAGING), name)
     try:
-        with open(staged, "wb") as f:
-            shutil.copyfileobj(file.file, f)
+        await _save_upload_stream(file, staged)
     except Exception as e:
         return {"ok": False, "error": str(e)}
     ext = os.path.splitext(staged)[1].lower()
@@ -1876,8 +1887,10 @@ async def files_upload(file: UploadFile = File(...), brain: str = Form("brain"),
         return JSONResponse({"error": str(e)}, status_code=400)
     d.mkdir(parents=True, exist_ok=True)
     dest = _unique_path(str(d), _sanitize_filename(file.filename))
-    with open(dest, "wb") as fh:
-        fh.write(await file.read())
+    try:
+        await _save_upload_stream(file, dest)
+    except Exception as e:
+        return JSONResponse({"error": f"Ghi file thất bại: {e}"}, status_code=500)
     return {"ok": True, "name": os.path.basename(dest)}
 
 

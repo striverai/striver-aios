@@ -136,6 +136,9 @@
     if (sd) sd.addEventListener("click", saveDomain);
     var cd = $("checkDomain");
     if (cd) cd.addEventListener("click", checkDomain);
+
+    // Controls giờ nằm trong sidebar (luôn hiển thị) → nạp giá trị hiện tại ngay khi tải trang.
+    loadExtras();
   }
 
   if (document.readyState === "loading") {

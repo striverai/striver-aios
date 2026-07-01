@@ -14,7 +14,8 @@ class JarvisVoice {
     this.recognition = null;
     this.synth = window.speechSynthesis;
     this.isListening = false;
-    this.ttsEnabled = true;
+    // Nhớ lựa chọn bật/tắt đọc qua reload (khách hàng nhiều khi không muốn có voice).
+    this.ttsEnabled = (localStorage.getItem("jarvis.ttsEnabled") !== "0");
     this.vietnameseVoice = null;
 
     // Edge TTS backend (server)
@@ -341,6 +342,7 @@ class JarvisVoice {
 
   toggleTTS() {
     this.ttsEnabled = !this.ttsEnabled;
+    try { localStorage.setItem("jarvis.ttsEnabled", this.ttsEnabled ? "1" : "0"); } catch (e) {}
     if (!this.ttsEnabled) this.stopSpeaking();
     return this.ttsEnabled;
   }
