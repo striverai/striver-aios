@@ -1,22 +1,23 @@
-# Sao lưu brain lên GitHub
+# Đồng bộ brain với GitHub (2 chiều)
 
-Tính năng này đồng bộ **TẤT CẢ brain trong thư mục brains** (mọi bộ não: ghi chú, Wiki, ký ức, agent/workflow) lên một repo GitHub **riêng tư** của bạn, trong MỘT lần. Mục đích: không mất dữ liệu khi hỏng máy, mất VPS, hoặc lỡ xoá nhầm - bạn luôn có bản sao trên GitHub, xem được lịch sử, và chuyển sang máy khác chỉ bằng một `git clone`.
+Tính năng này đồng bộ **TẤT CẢ brain trong thư mục brains** (mọi bộ não: ghi chú, Wiki, ký ức, agent/workflow) với một repo GitHub **riêng tư** của bạn - theo CẢ HAI CHIỀU: đẩy thay đổi của máy này lên, đồng thời kéo thay đổi từ máy khác về. Mục đích: không mất dữ liệu khi hỏng máy/mất VPS, và **dùng được nhiều máy cùng lúc** (máy nhà + VPS) - các máy tự khớp dữ liệu với nhau qua repo.
 
-> Nên để **mọi brain nằm trong thư mục brains** (tạo brain mới qua nút ➕ là tự vào đó). Backup lấy nguyên thư mục brains làm một khối, nên brain nào nằm ngoài (chọn folder ngoài bằng nút 📁) sẽ KHÔNG được sao lưu chung - hãy chuyển nó vào brains để đồng bộ cùng.
+> Nên để **mọi brain nằm trong thư mục brains** (tạo brain mới qua nút ➕ là tự vào đó). Đồng bộ lấy nguyên thư mục brains làm một khối, nên brain nào nằm ngoài (chọn folder ngoài bằng nút 📁) sẽ KHÔNG được đồng bộ chung - hãy chuyển nó vào brains.
 
-Mở tại: trang **Tự học** (thanh bên trái), kéo xuống mục **☁ Sao lưu brain lên GitHub**.
+Mở tại: trang **Tự học** (thanh bên trái), kéo xuống mục **⇅ Đồng bộ brain với GitHub**.
 
 ## Vì sao nên bật
 
-Brain là toàn bộ tri thức Javis tích luỹ được về bạn và công việc. Nó nằm trên đĩa máy/VPS. Nếu chỉ có một bản, một sự cố là mất sạch. Đẩy lên GitHub cho bạn:
+Brain là toàn bộ tri thức Javis tích luỹ được về bạn và công việc. Nó nằm trên đĩa máy/VPS. Nếu chỉ có một bản, một sự cố là mất sạch. Đồng bộ với GitHub cho bạn:
 
 - Bản sao ngoài, an toàn khi máy hỏng.
 - Lịch sử từng lần thay đổi (xem lại, khôi phục điểm cũ).
-- Chuyển brain sang máy khác chỉ bằng `git clone`.
+- Làm việc xen kẽ nhiều máy: sửa ở máy nhà, VPS tự nhận được ở lần đồng bộ sau, và ngược lại.
+- Máy mới chỉ cần dán repo + token rồi bấm đồng bộ là toàn bộ brain về lại đủ.
 
 ## Điều kiện
 
-- Máy/VPS phải có **git** (kiểm tra: mục Sao lưu sẽ báo "máy chưa cài git" nếu thiếu). Trên Docker image chính thức đã có sẵn git.
+- Máy/VPS phải có **git** (mục Đồng bộ sẽ báo "máy chưa cài git" nếu thiếu). Trên Docker image chính thức đã có sẵn git.
 - Một tài khoản GitHub.
 
 ## Cài đặt trong 3 bước
@@ -39,36 +40,47 @@ Brain là toàn bộ tri thức Javis tích luỹ được về bạn và công 
 
 ### Bước 3 - Dán vào Javis
 
-1. Mở trang **Tự học** → mục **Sao lưu brain lên GitHub**.
+1. Mở trang **Tự học** → mục **Đồng bộ brain với GitHub**.
 2. Dán **URL repo** và **token** vào ô tương ứng.
 3. Bấm **🔌 Kiểm tra kết nối** - phải hiện "Kết nối OK".
-4. Bấm **☁ Sao lưu ngay** để đẩy lần đầu.
+4. Bấm **⇅ Đồng bộ ngay** cho lần đầu.
 5. Muốn tự động: bật công tắc **Tự động**, đặt số giờ (mặc định 6), rồi **💾 Lưu cấu hình**.
 
-Xong. Từ giờ Javis đẩy brain lên GitHub theo lịch (và bạn bấm "Sao lưu ngay" bất cứ lúc nào).
+Dùng nhiều máy: làm đúng 3 bước này trên TỪNG máy (cùng repo, cùng token hoặc token riêng đều được). Bật Tự động ở cả hai nơi - các máy sẽ tự khớp nhau theo chu kỳ.
 
 ## Cách nó hoạt động
 
-- Backup soi cả thư mục brains, tạo một bản sao sạch (bỏ file nhạy cảm + git thô của từng brain) rồi **force-push** cả khối lên repo của bạn. Bản local là gốc - GitHub luôn khớp local sau mỗi lần đẩy. Mỗi brain là một thư mục con trong repo.
+Mỗi lượt đồng bộ làm 4 việc theo thứ tự:
+
+1. **Chụp** thư mục brains vào một bản sao sạch (bỏ file nhạy cảm + git thô của từng brain) và ghi nhận thay đổi của máy này.
+2. **Kéo về** bản mới nhất trên GitHub và **hoà nhập**: file khác nhau thì tự ghép; hai máy cùng sửa MỘT file thì **bản sửa mới hơn thắng**, bản thua được giữ nguyên thành file `.conflict-<local|remote>-<thời điểm>` ngay cạnh để bạn tự quyết; một bên sửa một bên xoá thì bản sửa thắng (không âm thầm mất dữ liệu).
+3. **Áp kết quả** về thư mục brains của máy (file vừa sửa tay ngay trong lúc đồng bộ sẽ không bị đè - máy giữ bản của bạn, vòng sau tự hoà tiếp).
+4. **Đẩy lên** GitHub (đẩy thường, KHÔNG force). Nếu máy khác vừa đẩy chen ngang, Javis tự kéo về hoà tiếp rồi đẩy lại.
+
+Ghi chú an toàn của cơ chế:
+
 - Token **không** được lưu vào brain hay đẩy lên repo. Nó nằm trong `settings.json` nội bộ (đã git bỏ qua). Thông báo lỗi cũng tự che token.
-- File nhạy cảm bị loại khỏi bản đẩy: hội thoại gốc (`memory/conversations`), log loop/learn, khoá lock, file `.tmp`, và `.git` riêng của từng brain (tránh lỗi nested-repo).
-- Xoá một brain khỏi máy thì lần backup sau repo cũng bỏ brain đó (đồng bộ 2 chiều theo nội dung local).
+- File nhạy cảm bị loại khỏi đồng bộ: hội thoại gốc (`memory/conversations`), log loop/learn, khoá lock, file `.tmp`, và `.git` riêng của từng brain. Những file này chỉ nằm trên máy tạo ra chúng.
+- Máy có thư mục brains **trống** (máy mới, volume mới) được coi là KHÔI PHỤC: chỉ nhận dữ liệu về, không bao giờ đẩy "trạng thái trống" lên đè mất backup.
+- Xoá file/brain trên một máy thì lần đồng bộ sau các máy khác cũng xoá theo (đó là nghĩa của sync). Nhờ repo là git, mọi thứ vẫn nằm trong lịch sử commit - khôi phục được khi cần.
 
-## Khôi phục brain từ backup
+## Khôi phục brain trên máy mới
 
-Trên máy mới, clone repo thẳng vào thư mục brains:
+Không cần thao tác git tay: cài Javis, vào **Tự học → Đồng bộ brain với GitHub**, dán repo + token, bấm **⇅ Đồng bộ ngay** - toàn bộ brain về lại đủ. (Cách cũ `git clone` thẳng vào thư mục brains vẫn dùng được.)
 
-```
-git clone https://github.com/<tên-bạn>/javis-brain-backup.git "<đường-dẫn>/brains"
-```
+## Xử lý file .conflict-*
 
-Mỗi thư mục con trong đó là một brain; Javis sẽ tự thấy chúng trong bộ chọn brain (nút chọn brain trên thanh trên). Trên Docker, thư mục brains là volume `javis-brains`.
+Khi hai máy sửa cùng một file giữa hai lần đồng bộ, bạn sẽ thấy thêm file dạng `ten-file.conflict-local-20260702-101530.md` cạnh file gốc:
+
+- File gốc = bản THẮNG (bản có lần sửa mới hơn).
+- File `.conflict-*` = bản THUA, giữ nguyên nội dung để bạn so và gộp tay nếu cần.
+- Xem xong thì xoá file `.conflict-*` đi (nó cũng đồng bộ giữa các máy như file thường).
 
 ## Lưu ý an toàn
 
-- **Luôn dùng repo Private.** Brain có thể chứa số liệu kinh doanh, tên khách hàng, đôi khi cả khoá bạn lỡ dán trong hội thoại. Backup đẩy nội dung brain nguyên trạng.
-- Chỉ nên có **một nguồn chính** đẩy vào một repo. Vì backup force-push, nếu cả máy local lẫn VPS cùng đẩy vào một repo, chúng sẽ ghi đè lẫn nhau. Dùng repo riêng cho mỗi nguồn nếu cần.
+- **Luôn dùng repo Private.** Brain có thể chứa số liệu kinh doanh, tên khách hàng, đôi khi cả khoá bạn lỡ dán trong hội thoại.
 - Token nên đặt thời hạn và chỉ cấp quyền **Contents** cho đúng repo đó - không cấp rộng hơn.
+- Một repo dùng cho MỘT bộ brains. Đừng trỏ 2 hệ thống Javis khác mục đích (dữ liệu khác nhau hoàn toàn) vào cùng repo - chúng sẽ trộn dữ liệu vào nhau đúng như thiết kế sync.
 
 ## Sự cố thường gặp
 
@@ -76,8 +88,10 @@ Mỗi thư mục con trong đó là một brain; Javis sẽ tự thấy chúng t
 |---|---|
 | "máy chưa cài git" | Cài git trên máy/VPS. Docker image chính thức đã có sẵn. |
 | Kiểm tra kết nối báo lỗi 403 | Token thiếu quyền Contents: Read and write, hoặc chưa chọn đúng repo. |
-| Push báo "non-fast-forward" hiếm gặp | Repo remote có commit lạ. Backup vốn force-push nên thường tự xử lý; nếu vẫn lỗi, tạo repo trống mới. |
-| Muốn ngừng tự động | Tắt công tắc Tự động rồi Lưu cấu hình. Vẫn bấm "Sao lưu ngay" thủ công được. |
+| "push liên tục bị vượt" | Nhiều máy đồng bộ cùng lúc liên tục. Bấm lại sau ít phút - cơ chế tự hoà sẽ khớp. |
+| "Áp bản đồng bộ về máy lỗi N file" | Có file đang bị khoá/không ghi được trên máy (vd đang mở trong app khác). Lần này KHÔNG đẩy gì lên (an toàn), đóng app đang giữ file rồi đồng bộ lại. |
+| Thấy nhiều file `.conflict-*` | Hai máy hay sửa cùng file giữa hai lần đồng bộ. Rút ngắn chu kỳ Tự động, hoặc chia việc mỗi máy một mảng; xử lý file conflict theo mục ở trên. |
+| Muốn ngừng tự động | Tắt công tắc Tự động rồi Lưu cấu hình. Vẫn bấm "Đồng bộ ngay" thủ công được. |
 
 ---
 

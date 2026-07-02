@@ -4,6 +4,16 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.8.5] - 2026-07-02
+### Thay đổi
+- Sao lưu GitHub nâng cấp thành **đồng bộ 2 CHIỀU**: mỗi lượt vừa đẩy thay đổi của máy lên repo, vừa kéo thay đổi từ máy khác về và tự hoà nhập. Dùng được nhiều máy chung 1 repo (máy nhà + VPS làm việc xen kẽ, các máy tự khớp nhau) - hết cảnh 2 máy force-push đè mất backup của nhau.
+- Xung đột cùng 1 file sửa ở 2 nơi: bản có lần sửa MỚI HƠN thắng, bản thua giữ nguyên thành file `.conflict-<local|remote>-<thời điểm>` ngay cạnh (không âm thầm mất chữ nào); một bên sửa một bên xoá thì bản sửa thắng. Đẩy lên bằng push thường (bỏ force-push); máy khác chen ngang thì tự kéo về hoà tiếp rồi đẩy lại.
+- Khôi phục máy mới không cần git tay: dán repo + token rồi bấm Đồng bộ ngay là brain về đủ. Thư mục brains trống được coi là chế độ KHÔI PHỤC - chỉ nhận về, không bao giờ đẩy "trạng thái trống" lên đè backup. File thiếu cục bộ (wipe/volume mới) tự được vá lại từ bản đồng bộ.
+### Sửa lỗi
+- Đồng bộ truyền byte nguyên văn giữa các máy (tắt autocrlf của git trên mirror) - hết cảnh cùng 1 file lệch CRLF/LF giữa Windows và VPS Linux mãi không khớp.
+### Cải thiện
+- Trang Tự học: mục đổi tên "⇅ Đồng bộ brain với GitHub (2 chiều)", nút "Đồng bộ ngay" báo kết quả chi tiết (nhận về bao nhiêu file, có đẩy lên không, danh sách file xung đột); trạng thái lần cuối lưu kèm báo cáo. Không đẩy được về máy (file bị khoá) thì HOÃN push để giữ an toàn dữ liệu, lần sau tự thử lại.
+
 ## [0.8.4] - 2026-07-02
 ### Thay đổi
 - Tách 2 tầng rõ ràng: **tầng hệ thống** (chức năng mặc định của Javis OS - skill javis-builder / ingest-source / query-wiki / lint-wiki + loop tự-cải-tiến) giờ đi theo mã nguồn app tại `.claude/skills/` và `system/loops/`, cập nhật cùng phiên bản khi update app; **tầng brain** chỉ còn dữ liệu của bạn (ký ức, sources, wiki, agent/skill/workflow/loop tự tạo). Đổi brain không còn mất chức năng mặc định.

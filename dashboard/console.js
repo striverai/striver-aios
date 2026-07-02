@@ -643,24 +643,24 @@
       <div class="si-status" id="lnMetrics"></div>
 
       <div class="si-log" id="lnBackupBox">
-        <h3 style="font-size:15px;color:#cdd8ee">☁ Sao lưu brain lên GitHub</h3>
-        <p style="color:#9fb0cf;font-size:14px;max-width:680px;margin:2px 0 10px">Đồng bộ <b>TẤT CẢ brain trong thư mục brains</b> (mọi bộ não, ghi chú, Wiki, ký ức) lên 1 repo GitHub <b>riêng tư</b> trong một lần - không mất dữ liệu khi hỏng máy/VPS, dễ chuyển máy. Xem hướng dẫn chi tiết: <a href="https://github.com/blogminhquy/javis-os/blob/main/docs/18-sao-luu-github.md" target="_blank" style="color:#7fb0ff">docs/18-sao-luu-github.md</a>.</p>
+        <h3 style="font-size:15px;color:#cdd8ee">⇅ Đồng bộ brain với GitHub (2 chiều)</h3>
+        <p style="color:#9fb0cf;font-size:14px;max-width:680px;margin:2px 0 10px">Đồng bộ <b>TẤT CẢ brain trong thư mục brains</b> (mọi bộ não, ghi chú, Wiki, ký ức) với 1 repo GitHub <b>riêng tư</b>: vừa đẩy thay đổi của máy này lên, vừa kéo thay đổi từ máy khác về (dùng chung cho máy nhà + VPS, các máy tự khớp nhau). Sửa trùng 1 file ở 2 nơi thì bản mới hơn thắng, bản kia được giữ thành file <code>.conflict-*</code> ngay cạnh. Máy mới cấu hình repo rồi bấm đồng bộ là khôi phục được toàn bộ. Hướng dẫn: <a href="https://github.com/blogminhquy/javis-os/blob/main/docs/18-sao-luu-github.md" target="_blank" style="color:#7fb0ff">docs/18-sao-luu-github.md</a>.</p>
         <ol style="color:#9fb0cf;font-size:13.5px;line-height:1.7;max-width:680px;margin:0 0 12px;padding-left:20px">
           <li>Tạo repo GitHub <b>Private</b> (trống, KHÔNG thêm README) - vd <code>javis-brain-backup</code>.</li>
           <li>Tạo token: GitHub → Settings → Developer settings → <b>Fine-grained tokens</b> → chọn đúng repo đó → quyền <b>Contents: Read and write</b> → tạo và copy token (dạng <code>github_pat_...</code>).</li>
-          <li>Dán URL repo + token vào đây, bấm <b>Kiểm tra</b>, rồi <b>Sao lưu ngay</b>. Bật tự động nếu muốn định kỳ đẩy.</li>
+          <li>Dán URL repo + token vào đây, bấm <b>Kiểm tra</b>, rồi <b>Đồng bộ ngay</b>. Bật tự động để định kỳ tự khớp giữa các máy.</li>
         </ol>
         <div class="si-grid">
           <div class="si-field"><label>URL repo (https)</label><input id="bkRepo" placeholder="https://github.com/blogminhquy/javis-brain-backup"></div>
           <div class="si-field"><label>GitHub token (fine-grained, quyền Contents)</label><input id="bkToken" type="password" placeholder="github_pat_..."></div>
           <div class="si-row" style="gap:14px;flex-wrap:wrap">
             <div class="si-field"><label>Nhánh</label><input id="bkBranch" value="main" style="max-width:120px"></div>
-            <div class="si-field"><label>Tự sao lưu mỗi (giờ)</label><input type="number" id="bkInterval" min="1" value="6" style="max-width:120px"></div>
+            <div class="si-field"><label>Tự đồng bộ mỗi (giờ)</label><input type="number" id="bkInterval" min="1" value="6" style="max-width:120px"></div>
             <div class="si-field"><label>Tự động</label><button class="si-chip" id="bkAuto">○ Tắt</button></div>
           </div>
           <div class="si-actions">
             <button class="s-btn-ghost" id="bkTest">🔌 Kiểm tra kết nối</button>
-            <button class="s-btn" id="bkNow">☁ Sao lưu ngay</button>
+            <button class="s-btn" id="bkNow">⇅ Đồng bộ ngay</button>
             <button class="s-btn-ghost" id="bkSave">💾 Lưu cấu hình</button>
           </div>
           <div class="dim" id="bkStatus" style="font-size:13px;color:#7d8aa6"></div>
@@ -777,11 +777,21 @@
       el.querySelector("#bkStatus").innerHTML = r.ok ? `<span style="color:#3fdc86">✓ Kết nối OK - token + repo hợp lệ.</span>` : `<span style="color:#e0664a">✗ ${esc(r.error || "không kết nối được")}</span>`;
     };
     el.querySelector("#bkNow").onclick = async () => {
-      const b = el.querySelector("#bkNow"); b.disabled = true; b.textContent = "Đang đồng bộ..."; await bkSaveCfg();
+      const b = el.querySelector("#bkNow"); b.disabled = true; b.textContent = "Đang đồng bộ 2 chiều..."; await bkSaveCfg();
       let r = {}; try { r = await (await fetch("/backup/now", { method: "POST", body: brainForm() })).json(); } catch (e) { r = { error: e.message }; }
-      b.disabled = false; b.textContent = "☁ Sao lưu ngay";
-      el.querySelector("#bkStatus").innerHTML = r.ok ? `<span style="color:#3fdc86">✓ Đã đồng bộ brain lên GitHub.</span>` : `<span style="color:#e0664a">✗ ${esc(r.error || "lỗi")}</span>`;
-      loadBackup();
+      b.disabled = false; b.textContent = "⇅ Đồng bộ ngay";
+      if (r.ok) {
+        const bits = [];
+        if (r.applied) bits.push(`nhận về ${r.applied} file`);
+        if (r.deleted) bits.push(`xoá ${r.deleted} file (máy khác đã xoá)`);
+        if (r.pushed) bits.push("đã đẩy lên GitHub");
+        if (r.restored) bits.push("khôi phục từ backup");
+        const cf = (r.conflicts || []).length
+          ? ` · <span style="color:#e0a04a">⚠ ${r.conflicts.length} file sửa trùng 2 nơi - bản mới hơn thắng, bản kia lưu thành .conflict-* (xem: ${esc(r.conflicts.slice(0, 3).map(c => c.path).join(", "))}${r.conflicts.length > 3 ? "..." : ""})</span>` : "";
+        el.querySelector("#bkStatus").innerHTML = `<span style="color:#3fdc86">✓ Đồng bộ xong${bits.length ? " - " + bits.join(", ") : " - hai bên đã khớp nhau"}.</span>${cf}`;
+      } else {
+        el.querySelector("#bkStatus").innerHTML = `<span style="color:#e0664a">✗ ${esc(r.error || "lỗi")}</span>`;
+      }
     };
     async function loadBackup() {
       let s = {}; try { s = await (await fetch(`/backup/status?brain=${encodeURIComponent(fbrain())}`)).json(); } catch (e) { return; }
@@ -790,8 +800,8 @@
       el.querySelector("#bkInterval").value = s.interval_hours || 6;
       if (s.token_set && !el.querySelector("#bkToken").value) el.querySelector("#bkToken").placeholder = "•••• (đã lưu, để trống nếu giữ nguyên)";
       bkAutoOn = !!s.enabled; bkAutoBtn.classList.toggle("sel", bkAutoOn); bkAutoBtn.textContent = bkAutoOn ? "● Bật" : "○ Tắt";
-      const when = s.last_backup ? new Date(s.last_backup * 1000).toLocaleString() : "chưa sao lưu";
-      const gitNote = s.has_git ? "" : " · ⚠ máy chưa cài git (cần git để backup)";
+      const when = s.last_backup ? new Date(s.last_backup * 1000).toLocaleString() : "chưa đồng bộ";
+      const gitNote = s.has_git ? "" : " · ⚠ máy chưa cài git (cần git để đồng bộ)";
       const brainsNote = s.brains_count != null ? ` · ${s.brains_count} brain trong thư mục brains` : "";
       el.querySelector("#bkStatus").innerHTML = `Lần cuối: ${esc(when)}${s.last_status ? " · " + esc(s.last_status) : ""}${brainsNote}${gitNote}`;
     }

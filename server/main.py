@@ -870,24 +870,44 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
 
 
 # ============================================================
-# BACKUP brain lên GitHub (đồng bộ repo riêng, khôi phục khi mất máy/VPS)
+# ĐỒNG BỘ brain với GitHub - 2 CHIỀU (kéo về + hoà nhập + đẩy lên).
+# Dùng được nhiều máy (local + VPS) chung 1 repo: các máy tự khớp nhau qua repo.
 # UI + hướng dẫn ở trang Tự học (console.js renderLearn). Token lưu settings.json (gitignored).
 # ============================================================
 def _do_backup(brain: str = "") -> dict:
-    """Backup TOÀN BỘ thư mục brains (mọi brain, 1 lần) lên repo GitHub. Tham số brain giữ cho
-    tương thích chữ ký cũ nhưng KHÔNG dùng - luôn backup cả BRAINS_DIR. Cập nhật last_backup/status."""
+    """Đồng bộ 2 CHIỀU toàn bộ thư mục brains với repo GitHub. Tham số brain giữ cho
+    tương thích chữ ký cũ nhưng KHÔNG dùng - luôn đồng bộ cả BRAINS_DIR.
+    Cập nhật last_backup/last_status/last_report."""
     cfg = cfgmod.read_settings()
     b = cfg.get("backup", {}) or {}
     if not (b.get("repo_url") and b.get("token")):
         return {"ok": False, "error": "Chưa cấu hình repo URL + token"}
     mirror = str(cfgmod.STATE_DIR / "brains-backup")   # repo mirror riêng (tránh nested git từng brain)
-    res = git_brain.backup_brains(BRAINS_DIR, mirror, b["repo_url"], b["token"], b.get("branch") or "main")
+    res = git_brain.sync_brains(BRAINS_DIR, mirror, b["repo_url"], b["token"], b.get("branch") or "main")
     # Ghi lại trạng thái (đọc lại cfg mới nhất để không đè thay đổi song song)
     cfg = cfgmod.read_settings()
     cfg.setdefault("backup", {})
     cfg["backup"]["last_backup"] = time.time()
-    cfg["backup"]["last_status"] = ("✓ Đã đồng bộ " + time.strftime("%H:%M %d/%m")) if res.get("ok") \
-        else ("✗ " + (res.get("error") or "lỗi")[:150])
+    if res.get("ok"):
+        bits = []
+        if res.get("applied"):
+            bits.append(f"nhận {res['applied']} file")
+        if res.get("deleted"):
+            bits.append(f"xoá {res['deleted']}")
+        if res.get("conflicts"):
+            bits.append(f"{len(res['conflicts'])} xung đột (giữ cả 2 bản)")
+        if res.get("restored"):
+            bits.append("khôi phục từ backup")
+        detail = (" · " + ", ".join(bits)) if bits else ""
+        cfg["backup"]["last_status"] = "✓ Đồng bộ 2 chiều " + time.strftime("%H:%M %d/%m") + detail
+    else:
+        cfg["backup"]["last_status"] = "✗ " + (res.get("error") or "lỗi")[:150]
+    cfg["backup"]["last_report"] = {
+        "ts": time.time(), "ok": bool(res.get("ok")), "pushed": bool(res.get("pushed")),
+        "applied": res.get("applied", 0), "deleted": res.get("deleted", 0),
+        "conflicts": (res.get("conflicts") or [])[:20], "restored": bool(res.get("restored")),
+        "error": (res.get("error") or "")[:200],
+    }
     cfgmod.write_settings(cfg)
     return res
 
@@ -909,6 +929,7 @@ async def backup_status(brain: str = Query("brain")):
         "token_set": bool(b.get("token")),
         "last_backup": b.get("last_backup", 0.0),
         "last_status": b.get("last_status", ""),
+        "last_report": b.get("last_report") or {},
         "has_git": git_brain.has_git(),
         "brains_dir": BRAINS_DIR,
         "brains_count": n_brains,
@@ -2793,13 +2814,13 @@ async def _start_scheduler():
                     await tasks_feature.tick(["brain"])
                 except Exception as te:
                     print(f"[kanban tick] {type(te).__name__}: {te}", file=__import__('sys').stderr)
-                # 4) Backup GitHub tự động: đủ interval → đồng bộ các brain đang học
+                # 4) Đồng bộ GitHub tự động (2 CHIỀU): đủ interval → kéo về + hoà nhập + đẩy lên
                 try:
                     bcfg = cfgmod.read_settings().get("backup", {}) or {}
                     if bcfg.get("enabled") and bcfg.get("repo_url") and bcfg.get("token") and git_brain.has_git():
                         interval = max(1, int(bcfg.get("interval_hours", 6))) * 3600
                         if time.time() - float(bcfg.get("last_backup", 0)) >= interval:
-                            await asyncio.to_thread(_do_backup)   # 1 lần: toàn bộ thư mục brains
+                            await asyncio.to_thread(_do_backup)   # 1 lần: toàn bộ thư mục brains, 2 chiều
                 except Exception as be:
                     print(f"[backup tick] {type(be).__name__}: {be}", file=__import__('sys').stderr)
                 # 5) Javis index: dựng lại chỉ mục tầng vận hành (chỉ ghi khi đổi → không churn)
