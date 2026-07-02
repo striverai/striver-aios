@@ -134,17 +134,19 @@ def build_system_prompt(brain: str = "brain") -> str:
         mem = ""
     if mem.strip():
         base += "\n\n# === BỘ NHỚ DÀI HẠN (nạp sẵn) ===\n" + mem
-    # Đường dẫn lớp Agentic của vault đang làm việc (để Javis tạo agent/workflow qua chat)
+    # Đường dẫn lớp Agentic của vault đang làm việc (để Javis tạo agent/workflow/loop qua chat)
     root = _brain_root(brain)
     ag, wf = _agents_dir(brain), _workflows_dir(brain)
+    lp = Path(root) / "Javis" / "loops"
     base += (
         "\n\n# === LỚP AGENTIC (vault đang làm việc) ===\n"
         f"Vault root: {root}\n"
         f"- AGENT: tạo/sửa tại `{ag}/<slug>.md`\n"
         f"- WORKFLOW: tạo/sửa tại `{wf}/<slug>.md`\n"
-        "Khi user yêu cầu tạo/sửa agent hoặc workflow qua chat, ghi file .md đúng định dạng "
-        "(xem mục 'Tạo/sửa Agent & Workflow qua chat' trong system prompt) bằng ĐƯỜNG DẪN TUYỆT ĐỐI ở trên. "
-        "Studio sẽ tự nhận file mới."
+        f"- LOOP (nhiệm vụ lặp vô hạn): tạo/sửa tại `{lp}/<slug>.md`\n"
+        "Khi user yêu cầu tạo/sửa agent, workflow hoặc loop qua chat, ghi file .md đúng định dạng "
+        "(xem mục 'Tạo/sửa Agent & Workflow qua chat' và 'Điều phối' trong system prompt) bằng "
+        "ĐƯỜNG DẪN TUYỆT ĐỐI ở trên. Studio/trang Tự cải thiện sẽ tự nhận file mới."
     )
     return base
 
@@ -2125,10 +2127,26 @@ async def studio_seed(brain: str = Form("brain")):
 SAFE_FILE_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep", "LS"]
 READONLY_TOOLS = ["Read", "Glob", "Grep", "LS"]
 
-# Vòng tự cải thiện đã TÁCH sang module self_improve.py. main.py chỉ tiêm helper sẵn có
-# + giữ shim mỏng để automations / scheduler / Telegram gọi như cũ. Endpoints /loop/*
-# nằm trong router của self_improve.
+# Vòng tự cải thiện đã TÁCH sang module self_improve.py - giờ là MULTI-LOOP: N loop định
+# nghĩa bằng file <vault>/Javis/loops/<slug>.md, state ở <vault>/Javis/loop-state.json,
+# thực thi TUẦN TỰ (1 lock). main.py chỉ tiêm helper + giữ shim mỏng cho code cũ.
+# Endpoints /loops/* (mới) + /loop/* (shim legacy) nằm trong router của self_improve.
 import self_improve
+
+
+async def _loop_notify(text: str) -> None:
+    """Báo Telegram khi loop tự tạm dừng (nice-to-have, im lặng nếu chưa cấu hình bot)."""
+    try:
+        tg = cfgmod.read_settings().get("telegram", {})
+        if not (tg.get("enabled") and tg.get("token") and tg.get("chat_id")):
+            return
+        import httpx
+        async with httpx.AsyncClient(timeout=10) as c:
+            await c.post(f"https://api.telegram.org/bot{tg['token']}/sendMessage",
+                         json={"chat_id": tg["chat_id"], "text": text})
+    except Exception as e:
+        print(f"[loop notify] {e}", file=__import__('sys').stderr)
+
 
 loop_feature = self_improve.register(app, self_improve.LoopDeps(
     build_system_prompt=build_system_prompt,
@@ -2140,6 +2158,7 @@ loop_feature = self_improve.register(app, self_improve.LoopDeps(
     state_dir=cfgmod.STATE_DIR,
     safe_tools=SAFE_FILE_TOOLS,
     readonly_tools=READONLY_TOOLS,
+    notify=_loop_notify,
 ))
 
 _LOOP_LOCK = loop_feature.lock   # shim: giữ tên cũ cho code phía dưới (scheduler/automations)
@@ -2154,7 +2173,8 @@ def _write_loop_config(cfg):
 
 
 async def run_loop_cycle(reason="manual"):
-    return await loop_feature.run_cycle(reason)
+    # Shim: giờ = "chạy loop đến hạn nhất" (multi-loop chọn loop quá hạn lâu nhất)
+    return await loop_feature.run_due(reason)
 
 
 # ============================================================
@@ -2255,22 +2275,36 @@ def _write_automations(brain, items):
         print(f"[automations write] {e}", file=__import__('sys').stderr)
 
 
-def _loop_as_routine():
-    """Vòng lặp tự cải thiện hiện ra như 1 routine nội bộ (trạng thái thật từ loop_config)."""
-    cfg = _read_loop_config()
-    return {
-        "id": "__loop__", "builtin": True, "name": "Vòng lặp tự cải thiện",
-        "type": "routine", "schedule": f"mỗi {cfg.get('interval_min', 60)} phút",
-        "status": "active" if cfg.get("enabled") else "paused",
-        "note": f"mục tiêu: {cfg.get('goal', 'business')} · {cfg.get('mode', 'suggest')}",
-        "last_run": cfg.get("last_run", 0),
-    }
+def _loops_as_routines(brain):
+    """MỌI loop của brain hiện ra trong tab Lịch như routine builtin (id __loop__:<slug>).
+    Toggle được từ Lịch; xoá thì phải sang trang Tự cải thiện (tab Loop)."""
+    out = []
+    try:
+        loop_feature.ensure_migrated()
+        st_all = loop_feature.read_state(brain)
+        for lp in loop_feature.list_loops(brain):
+            v = loop_feature.loop_view(brain, lp, st_all)
+            paused = bool(v["auto_paused_reason"])
+            note = f"{v['goal']} · {v['mode']}"
+            if v["last_status"]:
+                note += f" · {v['last_status'][:80]}"
+            if paused:
+                note += " · ⚠ tự tạm dừng"
+            out.append({
+                "id": f"__loop__:{v['slug']}", "builtin": True, "name": f"{v['name']}",
+                "type": "routine", "schedule": f"mỗi {v['interval_min']} phút",
+                "status": "active" if (v["enabled"] and not paused) else "paused",
+                "note": note, "last_run": v["last_run"],
+            })
+    except Exception as e:
+        print(f"[automations loops] {type(e).__name__}: {e}", file=__import__('sys').stderr)
+    return out
 
 
 @app.get("/automations")
 async def automations_list(brain: str = Query("brain")):
     items = _read_automations(brain)
-    builtin = [_loop_as_routine()]
+    builtin = _loops_as_routines(brain)
     allitems = builtin + items
     running = sum(1 for a in allitems if a.get("status") == "active")
     return {"automations": items, "builtin": builtin, "running": running, "total": len(allitems)}
@@ -2297,11 +2331,17 @@ async def automations_save(
 
 @app.post("/automations/toggle")
 async def automations_toggle(id: str = Form(...), brain: str = Form("brain")):
-    if id == "__loop__":   # bật/tắt loop nội bộ qua loop_config
-        cfg = _read_loop_config()
-        cfg["enabled"] = not cfg.get("enabled")
-        _write_loop_config(cfg)
-        return {"ok": True, "status": "active" if cfg["enabled"] else "paused"}
+    if id == "__loop__" or id.startswith("__loop__:"):
+        # Toggle loop từ tab Lịch. "__loop__" trần (client cũ) = loop legacy vong-lap-goc.
+        slug = id.split(":", 1)[1] if ":" in id else self_improve.LEGACY_SLUG
+        lp = loop_feature.toggle(brain, slug)
+        if not lp and ":" not in id:
+            # client cũ có thể đang ở brain khác brain legacy → thử brain legacy
+            legacy_brain = _read_loop_config().get("brain") or "brain"
+            lp = loop_feature.toggle(legacy_brain, slug)
+        if not lp:
+            return {"ok": False, "error": "not found"}
+        return {"ok": True, "status": "active" if lp["enabled"] else "paused"}
     items = _read_automations(brain)
     for a in items:
         if a.get("id") == id:
@@ -2313,8 +2353,8 @@ async def automations_toggle(id: str = Form(...), brain: str = Form("brain")):
 
 @app.post("/automations/delete")
 async def automations_delete(id: str = Form(...), brain: str = Form("brain")):
-    if id == "__loop__":
-        return {"ok": False, "error": "Loop nội bộ chỉ tắt được, không xoá"}
+    if id == "__loop__" or id.startswith("__loop__:"):
+        return {"ok": False, "error": "Xóa loop trong tab Loop (trang Tự cải thiện), không xoá từ Lịch"}
     items = [a for a in _read_automations(brain) if a.get("id") != id]
     _write_automations(brain, items)
     return {"ok": True}
@@ -2380,6 +2420,10 @@ async def _start_scheduler():
     _migrate_legacy_brain()   # dữ liệu brain cũ → <BRAINS_DIR>/Brain Default (không mất data)
     _ensure_default_brain()   # brain mặc định có sẵn cấu trúc chuẩn (ghi được trên mount /brains)
     try:
+        loop_feature.ensure_migrated()   # loop_config.json cũ → Javis/loops/vong-lap-goc.md (1 lần)
+    except Exception as e:
+        print(f"[loops migrate] {e}", file=_sys.stderr)
+    try:
         if cfgmod.provision_admin_from_env():
             print("[auth] Đã tạo tài khoản admin từ JAVIS_ADMIN_PASSWORD (env).", file=_sys.stderr)
         if cfgmod.setup_token_required():
@@ -2398,13 +2442,12 @@ async def _start_scheduler():
         while True:
             try:
                 await asyncio.sleep(30)
-                # 1) Vòng tự cải thiện (loop cũ)
-                cfg = _read_loop_config()
-                if cfg.get("enabled") and not _LOOP_LOCK.locked():
-                    interval = max(5, int(cfg.get("interval_min", 60))) * 60
-                    if time.time() - float(cfg.get("last_run", 0)) >= interval:
-                        print("[loop] đến giờ chạy vòng tự cải thiện", file=__import__('sys').stderr)
-                        await run_loop_cycle("scheduled")
+                # 1) Multi-loop tự cải thiện: mỗi tick chọn TỐI ĐA 1 loop đến hạn
+                #    (quá hạn lâu nhất), chạy tuần tự qua lock toàn cục.
+                try:
+                    await loop_feature.tick()
+                except Exception as lpe:
+                    print(f"[loop tick] {type(lpe).__name__}: {lpe}", file=__import__('sys').stderr)
                 # 2) Engine tự học: debounce tick (rewire sau lượt) + curator định kỳ
                 try:
                     await learn_feature.tick()

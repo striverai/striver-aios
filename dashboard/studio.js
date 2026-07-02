@@ -271,7 +271,7 @@
   async function loadAutomations() {
     const panel = document.getElementById("panel-automations");
     panel.innerHTML = `<div class="panel-bar"><h3>Lịch tự động <span class="dim" id="autoRunning"></span></h3><div class="pb-actions"><button class="s-btn-ghost" id="syncAuto">↻ Đồng bộ cloud</button><button class="s-btn" id="newAuto">+ Lịch</button></div></div>`
-      + `<div class="auto-hint">Bấm <b>↻ Đồng bộ cloud</b> để Javis hỏi Claude (CronList / scheduled tasks) lấy routine THẬT đang chạy trên cloud. Mục ☁ là tự đồng bộ; mục ghi tay vẫn giữ. Vòng lặp tự cải thiện 🔁 bật/tắt ngay tại đây.</div>`
+      + `<div class="auto-hint">Bấm <b>↻ Đồng bộ cloud</b> để Javis hỏi Claude (CronList / scheduled tasks) lấy routine THẬT đang chạy trên cloud. Mục ☁ là tự đồng bộ; mục ghi tay vẫn giữ. Các loop 🔁 (trang Tự cải thiện) bật/tắt được ngay tại đây.</div>`
       + `<div class="cards" id="autoCards">Đang tải...</div>`;
     document.getElementById("newAuto").onclick = () => editAutomation(null);
     document.getElementById("syncAuto").onclick = async (e) => {
@@ -305,7 +305,7 @@
         <div class="wf-desc">⏰ ${esc(a.schedule || "-")} · <span class="dim">${typeLabel}</span></div>
         ${a.note ? `<div class="wf-steps">${esc(a.note)}</div>` : ""}
         <div class="wf-actions">${a.builtin
-          ? `<span class="dim" style="font-size:13px">Cấu hình ở panel “Vòng lặp tự cải thiện”</span>`
+          ? `<span class="dim" style="font-size:13px">Loop - cấu hình/xoá ở trang Tự cải thiện</span>`
           : `<button class="s-btn-ghost edit">Sửa</button><button class="s-btn-ghost del">Xoá</button>`}</div>`;
       div.querySelector(".toggle input").onchange = async () => {
         await api("/automations/toggle", { method: "POST", body: fd({ id: a.id, brain: brain() }) }); loadAutomations();

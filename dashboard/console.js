@@ -432,91 +432,191 @@
   // ============================================
   async function renderSelfImprove(el) {
     _injectExtraCss();
+    const myGen = _renderGen;   // chống race: đổi trang → mọi loadLoops/loadLog dở tự bỏ
+    let pollTimer = null;       // 1 chuỗi poll duy nhất (clearTimeout trước khi đặt lại)
     el.innerHTML = `<div class="cview-section"><div class="empty">Đang tải...</div></div>`;
-    let cfg = {};
-    try { cfg = await (await fetch("/loop/config")).json(); } catch (e) {}
     const GOALS = [
       ["business", "Kinh doanh", "Đọc số liệu thật → soạn nháp content/khuyến mãi/lead cần gọi lại (chỉ nháp để duyệt)"],
       ["brain", "Bộ não (Wiki)", "Ingest source mới, trả lời open-question, sửa lỗi Wiki"],
       ["product", "Cải thiện Javis", "Đọc hội thoại → đề xuất/tạo agent, workflow, cải tiến UX"],
-      ["custom", "Tự định nghĩa", "Bạn mô tả nhiệm vụ cụ thể bên dưới"],
+      ["custom", "Tự định nghĩa", "Bạn mô tả nhiệm vụ cụ thể trong thân loop"],
     ];
-    const goalChips = GOALS.map(([v, l]) => `<button class="si-chip ${cfg.goal === v ? "sel" : ""}" data-goal="${v}">${l}</button>`).join("");
-    const modeChips = [["suggest", "Đề xuất (ghi nháp)"], ["auto", "Tự làm + kiểm chứng"]]
-      .map(([v, l]) => `<button class="si-chip ${cfg.mode === v ? "sel" : ""}" data-mode="${v}">${l}</button>`).join("");
-    const goalDesc = (GOALS.find(g => g[0] === cfg.goal) || GOALS[0])[2];
+    const GNAME = {}; GOALS.forEach(g => GNAME[g[0]] = g[1]);
+    const fmtT = ts => ts ? new Date(ts * 1000).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "-";
+
     el.innerHTML = `<div class="cview-section">
-      <p style="color:#9fb0cf;font-size:15px;max-width:640px;margin:0 0 16px">Javis tự thức theo lịch, làm <b>một nhiệm vụ cụ thể</b> rồi tự kiểm chứng và ghi log. An toàn: chỉ thao tác FILE trong vault - KHÔNG tự gọi MCP tạo đơn, đốt tiền, đăng bài.</p>
-      <div class="si-grid">
-        <div class="si-field"><label>Bật chạy nền</label>
-          <button class="si-chip ${cfg.enabled ? "sel" : ""}" id="siEnabled">${cfg.enabled ? "● Đang bật" : "○ Đang tắt"}</button></div>
-        <div class="si-field"><label>Loại nhiệm vụ</label><div class="si-row" id="siGoals">${goalChips}</div>
-          <div class="dim" id="siGoalDesc" style="font-size:14px;margin-top:6px;color:#7d8aa6">${esc(goalDesc)}</div></div>
-        <div class="si-field" id="siCustomWrap" style="${cfg.goal === "custom" ? "" : "display:none"}">
-          <label>Mô tả nhiệm vụ cụ thể</label>
-          <textarea id="siCustom" placeholder="VD: Mỗi sáng tổng hợp số liệu bán hàng hôm qua, tìm sản phẩm bán chậm và soạn 1 caption đẩy hàng, lưu vào 05 - Projects.">${esc(cfg.custom_goal || "")}</textarea></div>
-        <div class="si-field"><label>Chế độ</label><div class="si-row" id="siModes">${modeChips}</div></div>
-        <div class="si-field"><label>Chu kỳ (phút)</label><input type="number" id="siInterval" min="5" value="${cfg.interval_min || 60}" style="max-width:140px"></div>
-        <div class="si-actions">
-          <button class="s-btn" id="siSave">💾 Lưu cấu hình</button>
-          <button class="s-btn-ghost" id="siRun">▶ Chạy ngay</button>
-          <button class="s-btn-ghost" id="siStop">■ Dừng</button>
-          <button class="s-btn-ghost" id="siLint">🩺 LINT Wiki</button>
+      <p style="color:#9fb0cf;font-size:15px;max-width:680px;margin:0 0 14px">Nhiều <b>loop</b> chạy ngầm: mỗi loop tự thức theo chu kỳ, làm <b>một việc cụ thể</b>, tự kiểm chứng độc lập rồi ghi log. Thực thi <b>tuần tự</b> (1 vòng/lúc). An toàn mặc định: chỉ thao tác FILE trong vault - KHÔNG MCP tiền/đơn/đăng bài. Loop bật sẽ hiện ở tab <b>Lịch</b>.</p>
+      <div class="si-actions" style="margin-bottom:14px">
+        <button class="s-btn" id="lpNew">+ Loop mới</button>
+        <button class="s-btn-ghost" id="lpStop">■ Dừng vòng đang chạy</button>
+        <button class="s-btn-ghost" id="lpLint">🩺 LINT Wiki</button>
+      </div>
+      <div id="lpForm" style="display:none;margin-bottom:14px;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.03)">
+        <input type="hidden" id="lpSlug">
+        <div class="si-grid">
+          <div class="si-field"><label>Tên loop</label><input id="lpName" placeholder="VD: Đọc source mỗi 2 tiếng"></div>
+          <div class="si-field"><label>Loại nhiệm vụ</label><div class="si-row" id="lpGoals">${GOALS.map(([v, l]) => `<button class="si-chip" data-goal="${v}">${l}</button>`).join("")}</div>
+            <div class="dim" id="lpGoalDesc" style="font-size:13px;margin-top:6px;color:#7d8aa6"></div></div>
+          <div class="si-field" id="lpBodyWrap"><label>Mô tả nhiệm vụ (thân loop - bắt buộc khi Tự định nghĩa)</label>
+            <textarea id="lpBody" placeholder="VD: Mỗi vòng đọc 1 source unprocessed trong 06 - Sources rồi đề xuất Wiki page nên tạo."></textarea></div>
+          <div class="si-field"><label>Chế độ</label><div class="si-row" id="lpModes">
+            <button class="si-chip" data-mode="suggest">Đề xuất</button>
+            <button class="si-chip" data-mode="auto">Tự làm + kiểm chứng</button></div></div>
+          <div class="si-row" style="gap:14px;flex-wrap:wrap">
+            <div class="si-field"><label>Chu kỳ (phút, tối thiểu 5)</label><input type="number" id="lpInterval" min="5" value="60" style="max-width:120px"></div>
+            <div class="si-field"><label>Giờ im lặng (vd 23-07, rỗng = chạy mọi giờ)</label><input id="lpQuiet" placeholder="23-07" style="max-width:120px"></div>
+            <div class="si-field"><label>Tối đa vòng/ngày (0 = không giới hạn)</label><input type="number" id="lpMaxRuns" min="0" value="0" style="max-width:120px"></div>
+          </div>
+          <div class="si-row" style="gap:14px;flex-wrap:wrap">
+            <div class="si-field" style="flex:1;min-width:240px"><label>Workspace ("vault" hoặc đường dẫn tuyệt đối)</label><input id="lpWorkspace" value="vault"></div>
+            <div class="si-field"><label>Quyền công cụ</label><select id="lpProfile" class="loop-sel">
+              <option value="vault-safe">vault-safe - chỉ file .md, 0 MCP (mặc định)</option>
+              <option value="code">code - thêm Bash/Web, vẫn 0 MCP (cho loop sửa code)</option></select></div>
+          </div>
+          <div class="si-actions"><button class="s-btn" id="lpSave">💾 Lưu loop</button><button class="s-btn-ghost" id="lpCancel">Huỷ</button><span class="dim" id="lpFormMsg" style="font-size:13px;color:#e0a04a"></span></div>
         </div>
       </div>
-      <div class="si-status" id="siStatus"></div>
-      <div class="si-log"><h3 style="font-size:15px;color:#cdd8ee">Nhật ký gần đây</h3><div id="siLog">Đang tải...</div></div>
+      <div id="lpCards">Đang tải...</div>
+      <div class="si-status" id="lpStatus" style="display:none"></div>
+      <div class="si-log"><h3 style="font-size:15px;color:#cdd8ee">Nhật ký gần đây · <select id="lpLogFilter" class="loop-sel" style="font-size:13px"><option value="">Tất cả loop</option></select></h3><div id="lpLog">Đang tải...</div></div>
     </div>`;
 
-    let cur = { enabled: !!cfg.enabled, goal: cfg.goal || "business", mode: cfg.mode || "suggest" };
-    const goalDescEl = el.querySelector("#siGoalDesc");
-    el.querySelectorAll("#siGoals .si-chip").forEach(c => c.onclick = () => {
-      cur.goal = c.dataset.goal;
-      el.querySelectorAll("#siGoals .si-chip").forEach(x => x.classList.toggle("sel", x === c));
-      el.querySelector("#siCustomWrap").style.display = cur.goal === "custom" ? "" : "none";
-      goalDescEl.textContent = (GOALS.find(g => g[0] === cur.goal) || GOALS[0])[2];
-    });
-    el.querySelectorAll("#siModes .si-chip").forEach(c => c.onclick = () => {
-      cur.mode = c.dataset.mode;
-      el.querySelectorAll("#siModes .si-chip").forEach(x => x.classList.toggle("sel", x === c));
-    });
-    const enBtn = el.querySelector("#siEnabled");
-    enBtn.onclick = () => { cur.enabled = !cur.enabled; enBtn.classList.toggle("sel", cur.enabled); enBtn.textContent = cur.enabled ? "● Đang bật" : "○ Đang tắt"; };
-
-    async function save() {
-      const fd = new FormData();
-      fd.append("enabled", cur.enabled ? "1" : "0");
-      fd.append("goal", cur.goal); fd.append("mode", cur.mode);
-      fd.append("interval_min", el.querySelector("#siInterval").value || "60");
-      fd.append("custom_goal", el.querySelector("#siCustom") ? el.querySelector("#siCustom").value : "");
-      fd.append("brain", fbrain());
-      return (await fetch("/loop/config", { method: "POST", body: fd })).json();
+    let fcur = { goal: "brain", mode: "suggest" };
+    const goalDescEl = el.querySelector("#lpGoalDesc");
+    function syncFormChips() {
+      el.querySelectorAll("#lpGoals .si-chip").forEach(x => x.classList.toggle("sel", x.dataset.goal === fcur.goal));
+      el.querySelectorAll("#lpModes .si-chip").forEach(x => x.classList.toggle("sel", x.dataset.mode === fcur.mode));
+      goalDescEl.textContent = (GOALS.find(g => g[0] === fcur.goal) || GOALS[0])[2];
     }
-    el.querySelector("#siSave").onclick = async () => { const b = el.querySelector("#siSave"); b.textContent = "Đang lưu..."; await save(); b.textContent = "✓ Đã lưu"; setTimeout(() => b.textContent = "💾 Lưu cấu hình", 1500); loadStatus(); };
-    el.querySelector("#siRun").onclick = async () => {
-      const b = el.querySelector("#siRun"); b.disabled = true; b.textContent = "Đang chạy...";
-      await save(); await fetch("/loop/run-now", { method: "POST" });
-      setTimeout(() => { b.disabled = false; b.textContent = "▶ Chạy ngay"; loadStatus(); loadLog(); }, 1500);
+    el.querySelectorAll("#lpGoals .si-chip").forEach(c => c.onclick = () => { fcur.goal = c.dataset.goal; syncFormChips(); });
+    el.querySelectorAll("#lpModes .si-chip").forEach(c => c.onclick = () => { fcur.mode = c.dataset.mode; syncFormChips(); });
+
+    function openForm(lp) {
+      fcur = { goal: lp ? lp.goal : "brain", mode: lp ? lp.mode : "suggest" };
+      el.querySelector("#lpSlug").value = lp ? lp.slug : "";
+      el.querySelector("#lpName").value = lp ? lp.name : "";
+      el.querySelector("#lpBody").value = lp ? (lp.body || "") : "";
+      el.querySelector("#lpInterval").value = lp ? lp.interval_min : 60;
+      el.querySelector("#lpQuiet").value = lp ? (lp.quiet_hours || "") : "";
+      el.querySelector("#lpMaxRuns").value = lp ? (lp.max_runs_per_day || 0) : 0;
+      el.querySelector("#lpWorkspace").value = lp ? (lp.workspace || "vault") : "vault";
+      el.querySelector("#lpProfile").value = lp ? (lp.tools_profile || "vault-safe") : "vault-safe";
+      el.querySelector("#lpFormMsg").textContent = "";
+      syncFormChips();
+      el.querySelector("#lpForm").style.display = "block";
+      el.querySelector("#lpName").focus();
+    }
+    el.querySelector("#lpNew").onclick = () => openForm(null);
+    el.querySelector("#lpCancel").onclick = () => { el.querySelector("#lpForm").style.display = "none"; };
+
+    el.querySelector("#lpSave").onclick = async () => {
+      const name = el.querySelector("#lpName").value.trim();
+      if (!name) { el.querySelector("#lpFormMsg").textContent = "Nhập tên loop"; return; }
+      const fd = new FormData();
+      fd.append("slug", el.querySelector("#lpSlug").value);
+      fd.append("name", name);
+      fd.append("goal", fcur.goal); fd.append("mode", fcur.mode);
+      fd.append("interval_min", el.querySelector("#lpInterval").value || "60");
+      fd.append("quiet_hours", el.querySelector("#lpQuiet").value.trim());
+      fd.append("max_runs_per_day", el.querySelector("#lpMaxRuns").value || "0");
+      fd.append("workspace", el.querySelector("#lpWorkspace").value.trim() || "vault");
+      fd.append("tools_profile", el.querySelector("#lpProfile").value);
+      fd.append("body", el.querySelector("#lpBody").value);
+      fd.append("brain", fbrain());
+      const b = el.querySelector("#lpSave"); b.textContent = "Đang lưu...";
+      let r = {}; try { r = await (await fetch("/loops", { method: "POST", body: fd })).json(); } catch (e) { r = { error: e.message }; }
+      b.textContent = "💾 Lưu loop";
+      if (!r.ok) { el.querySelector("#lpFormMsg").textContent = "⚠ " + (r.error || "Lưu lỗi"); return; }
+      el.querySelector("#lpForm").style.display = "none";
+      loadLoops(); loadLog();
     };
-    el.querySelector("#siStop").onclick = async () => { await fetch("/loop/stop", { method: "POST" }); loadStatus(); };
-    el.querySelector("#siLint").onclick = async () => {
-      const b = el.querySelector("#siLint"); b.disabled = true; b.textContent = "Đang quét Wiki...";
+
+    el.querySelector("#lpStop").onclick = async () => { await fetch("/loops/stop", { method: "POST" }); loadLoops(); };
+    el.querySelector("#lpLint").onclick = async () => {
+      const b = el.querySelector("#lpLint"); b.disabled = true; b.textContent = "Đang quét Wiki...";
       let d = {}; try { d = await (await fetch(`/lint?brain=${encodeURIComponent(fbrain())}`)).json(); } catch (e) { d = { error: e.message }; }
       b.disabled = false; b.textContent = "🩺 LINT Wiki";
-      el.querySelector("#siStatus").innerHTML = d.ok ? `<b>🩺 LINT Wiki</b><br><span class="dim" style="color:#9fb0cf;white-space:pre-wrap">${esc(d.report || "")}</span>` : `⚠ LINT lỗi: ${esc(d.error || "không rõ")}`;
+      const s = el.querySelector("#lpStatus"); s.style.display = "block";
+      s.innerHTML = d.ok ? `<b>🩺 LINT Wiki</b><br><span class="dim" style="color:#9fb0cf;white-space:pre-wrap">${esc(d.report || "")}</span>` : `⚠ LINT lỗi: ${esc(d.error || "không rõ")}`;
     };
 
-    async function loadStatus() {
-      let c = {}; try { c = await (await fetch("/loop/config")).json(); } catch (e) { }
-      const when = c.last_run ? new Date(c.last_run * 1000).toLocaleString() : "chưa chạy lần nào";
-      el.querySelector("#siStatus").innerHTML = `<b>${c.running ? "⏳ Đang chạy một vòng…" : "Trạng thái: nghỉ"}</b><br>Lần gần nhất: ${esc(when)}${c.last_status ? " · " + esc(c.last_status) : ""}${c.last_summary ? `<br><span class="dim" style="color:#8aa">${esc((c.last_summary || "").slice(0, 240))}</span>` : ""}`;
+    function loopCard(lp) {
+      const paused = !!lp.auto_paused_reason;
+      const dot = lp.running ? `<span style="color:#3fdc86">⏳ đang chạy</span>`
+        : paused ? `<span style="color:#e0a04a">⚠ tự tạm dừng</span>`
+        : lp.enabled ? `<span style="color:#3fdc86">● bật</span>` : `<span style="color:#6b7894">○ tắt</span>`;
+      const verify = lp.last_status && lp.last_status !== "ok"
+        ? ` · ${esc(lp.last_status.slice(0, 90))}` : (lp.last_status === "ok" ? " · ok" : "");
+      const last = lp.last_run ? `lần cuối ${fmtT(lp.last_run)}` : "chưa chạy";
+      const next = (lp.enabled && !paused && lp.next_run) ? ` · kế tiếp ~${fmtT(lp.next_run)}` : "";
+      const extra = [
+        `${GNAME[lp.goal] || lp.goal} · ${lp.mode === "auto" ? "tự làm" : "đề xuất"} · mỗi ${lp.interval_min} phút`,
+        lp.quiet_hours ? `im lặng ${lp.quiet_hours}` : "",
+        lp.max_runs_per_day ? `tối đa ${lp.max_runs_per_day}/ngày (đã ${lp.runs_today})` : "",
+        lp.tools_profile === "code" ? `⚙ code · ${esc(lp.workspace)}` : "",
+      ].filter(Boolean).join(" · ");
+      const div = document.createElement("div");
+      div.className = "wf-card" + (lp.enabled ? "" : " off");
+      div.innerHTML = `
+        <div class="wf-top"><div class="wf-name">🔁 ${esc(lp.name)} <span class="dim" style="font-size:12px">${esc(lp.slug)}</span></div><div>${dot}</div></div>
+        <div class="wf-desc">${extra}</div>
+        <div class="wf-steps">${last}${verify}${next}${paused ? `<br>⚠ ${esc(lp.auto_paused_reason)}` : ""}</div>
+        <div class="wf-actions">
+          <button class="s-btn-ghost tgl">${lp.enabled ? "Tắt" : "Bật"}</button>
+          <button class="s-btn-ghost run">▶ Chạy ngay</button>
+          <button class="s-btn-ghost edit">Sửa</button>
+          <button class="s-btn-ghost del" style="color:#e0664a">Xoá</button>
+        </div>`;
+      div.querySelector(".tgl").onclick = async () => {
+        await fetch("/loops/toggle", { method: "POST", body: (() => { const f = new FormData(); f.append("slug", lp.slug); f.append("brain", fbrain()); return f; })() });
+        loadLoops();
+      };
+      div.querySelector(".run").onclick = async (e) => {
+        e.target.disabled = true; e.target.textContent = "Đang chạy...";
+        await fetch("/loops/run-now", { method: "POST", body: (() => { const f = new FormData(); f.append("slug", lp.slug); f.append("brain", fbrain()); return f; })() });
+        setTimeout(() => { loadLoops(); loadLog(); }, 2500);
+      };
+      div.querySelector(".edit").onclick = () => openForm(lp);
+      div.querySelector(".del").onclick = async () => {
+        if (!confirm(`Xoá loop "${lp.name}"? File Javis/loops/${lp.slug}.md sẽ bị xoá.`)) return;
+        await fetch("/loops/delete", { method: "POST", body: (() => { const f = new FormData(); f.append("slug", lp.slug); f.append("brain", fbrain()); return f; })() });
+        loadLoops(); loadLog();
+      };
+      return div;
+    }
+
+    async function loadLoops() {
+      if (myGen !== _renderGen) return;   // đã rời trang
+      let d = { loops: [] };
+      try { d = await (await fetch(`/loops?brain=${encodeURIComponent(fbrain())}`)).json(); } catch (e) {}
+      if (myGen !== _renderGen) return;   // đổi trang trong lúc chờ fetch
+      const box = el.querySelector("#lpCards");
+      if (!box) return;
+      box.innerHTML = "";
+      if (!(d.loops || []).length) {
+        box.innerHTML = `<div class="empty">Chưa có loop nào. Bấm <b>+ Loop mới</b>, hoặc nói với Javis trong chat (vd "tạo loop mỗi 2 tiếng đọc 1 source rồi đề xuất").</div>`;
+      } else {
+        d.loops.forEach(lp => box.appendChild(loopCard(lp)));
+      }
+      const sel = el.querySelector("#lpLogFilter");
+      const cur = sel.value;
+      sel.innerHTML = `<option value="">Tất cả loop</option>` +
+        (d.loops || []).map(lp => `<option value="${esc(lp.slug)}" ${lp.slug === cur ? "selected" : ""}>${esc(lp.name)}</option>`).join("");
+      clearTimeout(pollTimer);
+      if (d.running) pollTimer = setTimeout(loadLoops, 5000);   // đang có vòng chạy → tự refresh (1 chuỗi)
     }
     async function loadLog() {
-      let d = { entries: [] }; try { d = await (await fetch(`/loop/log?brain=${encodeURIComponent(fbrain())}&limit=8`)).json(); } catch (e) { }
-      const box = el.querySelector("#siLog");
+      if (myGen !== _renderGen) return;
+      const slug = el.querySelector("#lpLogFilter").value;
+      let d = { entries: [] };
+      try { d = await (await fetch(`/loops/log?brain=${encodeURIComponent(fbrain())}&slug=${encodeURIComponent(slug)}&limit=10`)).json(); } catch (e) { }
+      if (myGen !== _renderGen) return;
+      const box = el.querySelector("#lpLog");
+      if (!box) return;
       box.innerHTML = (d.entries || []).length ? d.entries.map(e => `<div class="le">${esc(e)}</div>`).join("") : `<div class="dim" style="color:#6b7894">Chưa có nhật ký.</div>`;
     }
-    loadStatus(); loadLog();
+    el.querySelector("#lpLogFilter").onchange = loadLog;
+    loadLoops(); loadLog();
   }
 
   // ============================================
