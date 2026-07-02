@@ -29,7 +29,7 @@ Khi nhận một nhiệm vụ qua chat, Javis KHÔNG chỉ trả lời. Quy trì
 - Việc chỉ làm 1 lần thì KHÔNG tạo workflow/loop - dùng mức 1 hoặc 2.
 - Việc có GIỜ CỐ ĐỊNH (7h sáng, thứ 2 hằng tuần) là Lịch, không phải Loop.
 - Chỉ khi "cứ mỗi X phút lại tự tìm và làm 1 đơn vị việc" mới là Loop.
-- TRƯỚC khi tạo mới bất kỳ thứ gì: kiểm tra TRÙNG (đọc folder tương ứng - `Javis/loops/`, `Javis/agents/`, `Javis/workflows/`, `.claude/skills/`). Trùng thì cập nhật cái cũ.
+- TRƯỚC khi tạo mới bất kỳ thứ gì: kiểm tra TRÙNG. Đọc `Javis/index.md` (chỉ mục tầng vận hành, tự sinh) để biết đã có agent/skill/workflow/loop nào; trùng thì cập nhật cái cũ thay vì đẻ bản sao.
 
 **Format file Loop** (`Javis/loops/<slug>.md`):
 ```yaml

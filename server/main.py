@@ -148,6 +148,10 @@ def build_system_prompt(brain: str = "brain") -> str:
         "(xem mục 'Tạo/sửa Agent & Workflow qua chat' và 'Điều phối' trong system prompt) bằng "
         "ĐƯỜNG DẪN TUYỆT ĐỐI ở trên. Studio/trang Tự cải thiện sẽ tự nhận file mới."
     )
+    try:
+        base += _javis_capability_summary(brain)   # chỉ mục năng lực LIVE (mọi engine biết Javis có gì)
+    except Exception:
+        pass
     return base
 
 # Redaction patterns - port subset từ hermes-agent/agent/redact.py.
@@ -1508,6 +1512,10 @@ def _ensure_brain_scaffold(root):
         meta_tools.ensure_brain_pattern(str(root), _wd)
     except Exception as e:
         print(f"[meta tools seed] {e}", file=__import__('sys').stderr)
+    try:
+        rebuild_javis_index(str(root))   # chỉ mục tầng vận hành (Javis/index.md)
+    except Exception as e:
+        print(f"[javis index] {e}", file=__import__('sys').stderr)
 
 
 def _ensure_default_brain():
@@ -2552,6 +2560,177 @@ async def automations_sync(brain: str = Form("brain")):
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
+# ============================================================
+# JAVIS INDEX - chỉ mục tầng vận hành (agents/skills/workflows/loops/automations).
+# Song song wiki/index.md: để MỌI engine (Claude/Codex/OpenRouter) đọc 1 chỗ là hiểu Javis
+# có năng lực gì. SINH TỪ FILE (không sửa tay) → không bao giờ lệch. Ghi Javis/index.md CHỈ KHI
+# nội dung đổi (change-gated → không churn git). Bản LIVE gọn được chèn vào system prompt.
+# ============================================================
+def _gather_capabilities(brain: str) -> dict:
+    root = Path(_brain_root(brain))
+    caps = {"agents": [], "skills": [], "workflows": [], "loops": [], "automations": []}
+    ad = _agents_dir(brain)
+    if ad.is_dir():
+        for f in sorted(ad.glob("*.md")):
+            m, _ = _read_md(f)
+            caps["agents"].append({"slug": f.stem, "name": m.get("name", f.stem), "role": m.get("role", ""),
+                                   "model": m.get("model", ""), "skills": m.get("skills", []) or []})
+    wd = _workflows_dir(brain)
+    if wd.is_dir():
+        for f in sorted(wd.glob("*.md")):
+            m, _ = _read_md(f)
+            steps = m.get("steps", []) or []
+            caps["workflows"].append({"slug": f.stem, "name": m.get("name", f.stem),
+                                      "status": m.get("status", "active"), "description": m.get("description", ""),
+                                      "agents": [s.get("agent") for s in steps if isinstance(s, dict)],
+                                      "n_steps": len(steps)})
+    skb = root / ".claude" / "skills"
+    if skb.is_dir():
+        for sk in sorted(p for p in skb.iterdir() if p.is_dir() and p.name != ".disabled"):
+            smd = sk / "SKILL.md"
+            if smd.is_file():
+                m, b = _read_md(smd)
+                caps["skills"].append({"slug": sk.name, "name": m.get("name", sk.name),
+                    "description": m.get("description", "") or (b.split("\n")[0][:120] if b else ""),
+                    "group": m.get("group") or "Chung", "enabled": True})
+        dis = skb / ".disabled"
+        if dis.is_dir():
+            for sk in sorted(p for p in dis.iterdir() if p.is_dir()):
+                smd = sk / "SKILL.md"
+                if smd.is_file():
+                    m, b = _read_md(smd)
+                    caps["skills"].append({"slug": sk.name, "name": m.get("name", sk.name),
+                        "description": m.get("description", ""), "group": m.get("group") or "Chung", "enabled": False})
+    try:
+        st = loop_feature.read_state(brain)
+        for lp in loop_feature.list_loops(brain):
+            caps["loops"].append({"slug": lp["slug"], "name": lp["name"], "enabled": lp["enabled"],
+                "mode": lp["mode"], "interval_min": lp["interval_min"], "goal": lp["goal"],
+                "paused": bool(st.get(lp["slug"], {}).get("auto_paused_reason"))})
+    except Exception:
+        pass
+    for a in _read_automations(brain):
+        caps["automations"].append({"id": a.get("id"), "name": a.get("name"), "type": a.get("type"),
+            "schedule": a.get("schedule", ""), "status": a.get("status", "active")})
+    return caps
+
+
+def _render_javis_index(caps: dict) -> str:
+    n_on_loops = sum(1 for l in caps["loops"] if l["enabled"])
+    n_on_wf = sum(1 for w in caps["workflows"] if w["status"] == "active")
+    L = ["# Javis Index (tầng vận hành)", "",
+         "> Tự sinh từ file - ĐỪNG sửa tay. Chỉ mục mọi năng lực của Javis trong brain này để bất kỳ "
+         "AI/engine đọc 1 chỗ là hiểu Javis làm được gì. Song song `wiki/index.md` (tri thức).", "",
+         f"**Tổng quan:** {len(caps['agents'])} agents · {len(caps['skills'])} skills · "
+         f"{len(caps['workflows'])} workflows ({n_on_wf} bật) · {len(caps['loops'])} loops ({n_on_loops} bật) · "
+         f"{len(caps['automations'])} lịch", ""]
+    L.append("## Agents")
+    if caps["agents"]:
+        for a in caps["agents"]:
+            mdl = f" · model {a['model']}" if a["model"] else ""
+            sk = f" · skills: {', '.join(a['skills'])}" if a["skills"] else ""
+            L.append(f"- **{a['name']}** (`{a['slug']}`) - {a['role']}{mdl}{sk}")
+    else:
+        L.append("_(chưa có)_")
+    L.append("\n## Skills")
+    if caps["skills"]:
+        by_group = {}
+        for s in caps["skills"]:
+            by_group.setdefault(s["group"], []).append(s)
+        for g in sorted(by_group):
+            L.append(f"### {g}")
+            for s in by_group[g]:
+                off = "" if s["enabled"] else " · [TẮT]"
+                L.append(f"- **{s['name']}** (`{s['slug']}`){off} - {s['description']}")
+    else:
+        L.append("_(chưa có)_")
+    L.append("\n## Workflows")
+    if caps["workflows"]:
+        for w in caps["workflows"]:
+            L.append(f"- **{w['name']}** (`{w['slug']}`) - {w['status']} · {w['n_steps']} bước "
+                     f"[{' -> '.join(x for x in w['agents'] if x)}]" + (f" · {w['description']}" if w["description"] else ""))
+    else:
+        L.append("_(chưa có)_")
+    L.append("\n## Loops")
+    if caps["loops"]:
+        for l in caps["loops"]:
+            stt = "⚠ tự tạm dừng" if l["paused"] else ("bật" if l["enabled"] else "tắt")
+            L.append(f"- **{l['name']}** (`{l['slug']}`) - {stt} · {l['goal']}/{l['mode']} · mỗi {l['interval_min']} phút")
+    else:
+        L.append("_(chưa có)_")
+    if caps["automations"]:
+        L.append("\n## Lịch (automations)")
+        for a in caps["automations"]:
+            L.append(f"- **{a['name']}** - {a['type']} · {a['schedule']} · {a['status']}")
+    # Cờ sức khoẻ (mini-LINT tầng vận hành)
+    agent_slugs = {a["slug"] for a in caps["agents"]}
+    used = {ag for w in caps["workflows"] for ag in w["agents"] if ag}
+    missing = sorted({ag for w in caps["workflows"] for ag in w["agents"] if ag and ag not in agent_slugs})
+    orphan = sorted(s for s in agent_slugs if s not in used)
+    flags = []
+    if missing:
+        flags.append(f"- Workflow trỏ agent KHÔNG tồn tại: {', '.join(missing)}")
+    if orphan:
+        flags.append(f"- Agent chưa workflow nào dùng: {', '.join(orphan)}")
+    dis_sk = [s["slug"] for s in caps["skills"] if not s["enabled"]]
+    if dis_sk:
+        flags.append(f"- Skill đang tắt: {', '.join(dis_sk)}")
+    paused = [l["slug"] for l in caps["loops"] if l["paused"]]
+    if paused:
+        flags.append(f"- Loop tự tạm dừng (cần xem): {', '.join(paused)}")
+    if flags:
+        L.append("\n## Cờ sức khoẻ")
+        L.extend(flags)
+    return "\n".join(L) + "\n"
+
+
+def rebuild_javis_index(brain: str) -> dict:
+    """Dựng lại Javis/index.md từ file. Chỉ ghi KHI nội dung đổi (chống churn git)."""
+    try:
+        content = _render_javis_index(_gather_capabilities(brain))
+        idx = Path(_brain_root(brain)) / "Javis" / "index.md"
+        old = idx.read_text(encoding="utf-8") if idx.exists() else ""
+        if old != content:
+            idx.parent.mkdir(parents=True, exist_ok=True)
+            _atomic_write_text(idx, content)
+            return {"ok": True, "written": True}
+        return {"ok": True, "written": False}
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def _javis_capability_summary(brain: str) -> str:
+    """Bản LIVE gọn (capped) chèn vào system prompt: để engine nào cũng biết Javis có gì.
+    Skill nhiều -> chỉ đếm + nhóm (chi tiết ở Javis/index.md), tránh phình context."""
+    try:
+        c = _gather_capabilities(brain)
+    except Exception:
+        return ""
+    if not any(c.values()):
+        return ""
+    parts = ["\n\n# === NĂNG LỰC JAVIS HIỆN CÓ (đọc `Javis/index.md` để biết chi tiết + trigger) ==="]
+    if c["agents"]:
+        parts.append("Agents: " + ", ".join(a["name"] for a in c["agents"][:30]))
+    if c["skills"]:
+        groups = sorted({s["group"] for s in c["skills"] if s["enabled"]})
+        parts.append(f"Skills: {sum(1 for s in c['skills'] if s['enabled'])} kỹ năng (nhóm: {', '.join(groups[:12])})")
+    if c["workflows"]:
+        parts.append("Workflows: " + ", ".join(w["name"] for w in c["workflows"][:20] if w["status"] == "active"))
+    if c["loops"]:
+        parts.append("Loops: " + ", ".join(f"{l['name']}({'bật' if l['enabled'] else 'tắt'})" for l in c["loops"][:20]))
+    parts.append("Trước khi tạo năng lực mới, kiểm chỉ mục này để khỏi trùng.")
+    return "\n".join(parts)
+
+
+@app.get("/javis/index")
+async def javis_index(brain: str = Query("brain")):
+    """Dựng lại + trả nội dung Javis/index.md (chỉ mục tầng vận hành)."""
+    rebuild_javis_index(brain)
+    idx = Path(_brain_root(brain)) / "Javis" / "index.md"
+    return {"ok": True, "content": idx.read_text(encoding="utf-8") if idx.exists() else "",
+            "counts": {k: len(v) for k, v in _gather_capabilities(brain).items()}}
+
+
 @app.on_event("startup")
 async def _start_scheduler():
     # Bootstrap bảo mật cho deploy public: (1) tạo admin từ env nếu có; (2) nếu vẫn chưa có admin
@@ -2608,6 +2787,12 @@ async def _start_scheduler():
                             await asyncio.to_thread(_do_backup)   # 1 lần: toàn bộ thư mục brains
                 except Exception as be:
                     print(f"[backup tick] {type(be).__name__}: {be}", file=__import__('sys').stderr)
+                # 5) Javis index: dựng lại chỉ mục tầng vận hành (chỉ ghi khi đổi → không churn)
+                try:
+                    for _ib in loop_feature.scheduler_brains():
+                        await asyncio.to_thread(rebuild_javis_index, _ib)
+                except Exception as ie:
+                    print(f"[javis index tick] {type(ie).__name__}: {ie}", file=__import__('sys').stderr)
             except Exception as e:
                 print(f"[scheduler] {type(e).__name__}: {e}", file=__import__('sys').stderr)
     asyncio.create_task(_scheduler_loop())
