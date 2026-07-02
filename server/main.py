@@ -752,6 +752,10 @@ async def settings_get():
     safe.setdefault("voice", {})
     safe["voice"]["elevenlabs_key"] = ("••••" + vk[-4:]) if vk else ""
     safe["voice"]["elevenlabs_key_set"] = bool(vk)
+    bt = (cfg.get("backup", {}) or {}).get("token", "")
+    safe.setdefault("backup", {})
+    safe["backup"]["token"] = ("••••" + bt[-4:]) if bt else ""
+    safe["backup"]["token_set"] = bool(bt)
     safe["model"]["providers"] = _providers_view(cfg)   # danh sách provider + trạng thái + model
     safe["model"]["main"] = _effective_main(cfg)         # model chính hiệu lực (suy từ legacy nếu cần)
     return safe
@@ -837,6 +841,83 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
         except Exception as e:
             print(f"[telegram restart] {e}", file=__import__('sys').stderr)
     return {"ok": True}
+
+
+# ============================================================
+# BACKUP brain lên GitHub (đồng bộ repo riêng, khôi phục khi mất máy/VPS)
+# UI + hướng dẫn ở trang Tự học (console.js renderLearn). Token lưu settings.json (gitignored).
+# ============================================================
+def _do_backup(brain: str) -> dict:
+    """Chạy 1 lần backup (đồng bộ nghẽn - gọi trong thread). Cập nhật last_backup/last_status."""
+    cfg = cfgmod.read_settings()
+    b = cfg.get("backup", {}) or {}
+    if not (b.get("repo_url") and b.get("token")):
+        return {"ok": False, "error": "Chưa cấu hình repo URL + token"}
+    root = _brain_root(brain)
+    res = git_brain.backup_to_github(root, b["repo_url"], b["token"], b.get("branch") or "main")
+    # Ghi lại trạng thái (đọc lại cfg mới nhất để không đè thay đổi song song)
+    cfg = cfgmod.read_settings()
+    cfg.setdefault("backup", {})
+    cfg["backup"]["last_backup"] = time.time()
+    cfg["backup"]["last_status"] = ("✓ Đã đồng bộ " + time.strftime("%H:%M %d/%m")) if res.get("ok") \
+        else ("✗ " + (res.get("error") or "lỗi")[:150])
+    cfgmod.write_settings(cfg)
+    return res
+
+
+@app.get("/backup/status")
+async def backup_status(brain: str = Query("brain")):
+    cfg = cfgmod.read_settings()
+    b = cfg.get("backup", {}) or {}
+    root = _brain_root(brain)
+    return {
+        "enabled": bool(b.get("enabled")),
+        "repo_url": b.get("repo_url", ""),
+        "branch": b.get("branch", "main"),
+        "interval_hours": b.get("interval_hours", 6),
+        "token_set": bool(b.get("token")),
+        "last_backup": b.get("last_backup", 0.0),
+        "last_status": b.get("last_status", ""),
+        "has_git": git_brain.has_git(),
+        "is_git": git_brain.is_git_checkout(root),
+    }
+
+
+@app.post("/backup/config")
+async def backup_config(
+    repo_url: str = Form(None), token: str = Form(None), branch: str = Form(None),
+    enabled: str = Form(None), interval_hours: str = Form(None),
+):
+    cfg = cfgmod.read_settings()
+    b = cfg.setdefault("backup", {})
+    if repo_url is not None:
+        b["repo_url"] = repo_url.strip()
+    if token:                     # chỉ ghi khi có token MỚI (tránh xoá bằng chuỗi che ••••)
+        b["token"] = token.strip()
+    if branch:
+        b["branch"] = branch.strip() or "main"
+    if enabled is not None:
+        b["enabled"] = enabled in ("1", "true", "True", "on")
+    if interval_hours is not None:
+        try:
+            b["interval_hours"] = max(1, int(interval_hours))
+        except ValueError:
+            pass
+    cfgmod.write_settings(cfg)
+    return {"ok": True}
+
+
+@app.post("/backup/test")
+async def backup_test():
+    """Kiểm tra token + repo hợp lệ (git ls-remote) trước khi bật auto."""
+    cfg = cfgmod.read_settings()
+    b = cfg.get("backup", {}) or {}
+    return await asyncio.to_thread(git_brain.remote_reachable, b.get("repo_url", ""), b.get("token", ""))
+
+
+@app.post("/backup/now")
+async def backup_now(brain: str = Form("brain")):
+    return await asyncio.to_thread(_do_backup, brain)
 
 
 _OR_MODELS_CACHE = {"data": None, "ts": 0.0}
@@ -2472,6 +2553,18 @@ async def _start_scheduler():
                     await tasks_feature.tick(["brain"])
                 except Exception as te:
                     print(f"[kanban tick] {type(te).__name__}: {te}", file=__import__('sys').stderr)
+                # 4) Backup GitHub tự động: đủ interval → đồng bộ các brain đang học
+                try:
+                    bcfg = cfgmod.read_settings().get("backup", {}) or {}
+                    if bcfg.get("enabled") and bcfg.get("repo_url") and bcfg.get("token") and git_brain.has_git():
+                        interval = max(1, int(bcfg.get("interval_hours", 6))) * 3600
+                        if time.time() - float(bcfg.get("last_backup", 0)) >= interval:
+                            # Backup mỗi brain learn đang theo dõi (nơi có dữ liệu mới); fallback brain mặc định
+                            _bbrains = learn_feature.read_config().get("brains") or ["brain"]
+                            for _bb in _bbrains:
+                                await asyncio.to_thread(_do_backup, _bb)
+                except Exception as be:
+                    print(f"[backup tick] {type(be).__name__}: {be}", file=__import__('sys').stderr)
             except Exception as e:
                 print(f"[scheduler] {type(e).__name__}: {e}", file=__import__('sys').stderr)
     asyncio.create_task(_scheduler_loop())

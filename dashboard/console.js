@@ -641,6 +641,33 @@
         </div>
       </div>
       <div class="si-status" id="lnMetrics"></div>
+
+      <div class="si-log" id="lnBackupBox">
+        <h3 style="font-size:15px;color:#cdd8ee">☁ Sao lưu brain lên GitHub</h3>
+        <p style="color:#9fb0cf;font-size:14px;max-width:680px;margin:2px 0 10px">Đồng bộ toàn bộ brain (ghi chú, Wiki, ký ức) lên 1 repo GitHub <b>riêng tư</b> để không mất dữ liệu khi hỏng máy/VPS. Xem hướng dẫn chi tiết: <a href="https://github.com/blogminhquy/javis-os/blob/main/docs/18-sao-luu-github.md" target="_blank" style="color:#7fb0ff">docs/18-sao-luu-github.md</a>.</p>
+        <ol style="color:#9fb0cf;font-size:13.5px;line-height:1.7;max-width:680px;margin:0 0 12px;padding-left:20px">
+          <li>Tạo repo GitHub <b>Private</b> (trống, KHÔNG thêm README) - vd <code>javis-brain-backup</code>.</li>
+          <li>Tạo token: GitHub → Settings → Developer settings → <b>Fine-grained tokens</b> → chọn đúng repo đó → quyền <b>Contents: Read and write</b> → tạo và copy token (dạng <code>github_pat_...</code>).</li>
+          <li>Dán URL repo + token vào đây, bấm <b>Kiểm tra</b>, rồi <b>Sao lưu ngay</b>. Bật tự động nếu muốn định kỳ đẩy.</li>
+        </ol>
+        <div class="si-grid">
+          <div class="si-field"><label>URL repo (https)</label><input id="bkRepo" placeholder="https://github.com/blogminhquy/javis-brain-backup"></div>
+          <div class="si-field"><label>GitHub token (fine-grained, quyền Contents)</label><input id="bkToken" type="password" placeholder="github_pat_..."></div>
+          <div class="si-row" style="gap:14px;flex-wrap:wrap">
+            <div class="si-field"><label>Nhánh</label><input id="bkBranch" value="main" style="max-width:120px"></div>
+            <div class="si-field"><label>Tự sao lưu mỗi (giờ)</label><input type="number" id="bkInterval" min="1" value="6" style="max-width:120px"></div>
+            <div class="si-field"><label>Tự động</label><button class="si-chip" id="bkAuto">○ Tắt</button></div>
+          </div>
+          <div class="si-actions">
+            <button class="s-btn-ghost" id="bkTest">🔌 Kiểm tra kết nối</button>
+            <button class="s-btn" id="bkNow">☁ Sao lưu ngay</button>
+            <button class="s-btn-ghost" id="bkSave">💾 Lưu cấu hình</button>
+          </div>
+          <div class="dim" id="bkStatus" style="font-size:13px;color:#7d8aa6"></div>
+          <div class="dim" id="bkWarn" style="font-size:12px;color:#e0a04a;margin-top:2px">⚠ Brain có thể chứa số liệu/thông tin cá nhân - CHỈ dùng repo Private. Token lưu nội bộ (không đẩy lên repo).</div>
+        </div>
+      </div>
+
       <div class="si-log"><h3 style="font-size:15px;color:#cdd8ee">Javis đã tự học gì (commit gần nhất)</h3><div id="lnReview">Đang tải...</div></div>
       <div class="si-log"><h3 style="font-size:15px;color:#cdd8ee">Nhật ký học</h3><div id="lnLog">Đang tải...</div></div>
     </div>`;
@@ -728,7 +755,47 @@
       let d = { entries: [] }; try { d = await (await fetch(`/learn/log?brain=${encodeURIComponent(fbrain())}&limit=10`)).json(); } catch (e) { }
       el.querySelector("#lnLog").innerHTML = (d.entries || []).length ? d.entries.map(e => `<div class="le">${esc(e)}</div>`).join("") : `<div class="dim" style="color:#6b7894">Chưa có nhật ký học.</div>`;
     }
-    function loadAll() { loadMetrics(); loadReview(); loadLog(); }
+    // ── Backup GitHub ──
+    let bkAutoOn = false;
+    const bkAutoBtn = el.querySelector("#bkAuto");
+    bkAutoBtn.onclick = () => { bkAutoOn = !bkAutoOn; bkAutoBtn.classList.toggle("sel", bkAutoOn); bkAutoBtn.textContent = bkAutoOn ? "● Bật" : "○ Tắt"; };
+    async function bkSaveCfg() {
+      const f = new FormData();
+      f.append("repo_url", el.querySelector("#bkRepo").value.trim());
+      const tk = el.querySelector("#bkToken").value.trim();
+      if (tk && !tk.startsWith("••••")) f.append("token", tk);   // chỉ gửi token mới, không gửi chuỗi che
+      f.append("branch", el.querySelector("#bkBranch").value.trim() || "main");
+      f.append("interval_hours", el.querySelector("#bkInterval").value || "6");
+      f.append("enabled", bkAutoOn ? "1" : "0");
+      return (await fetch("/backup/config", { method: "POST", body: f })).json();
+    }
+    el.querySelector("#bkSave").onclick = async () => { const b = el.querySelector("#bkSave"); b.textContent = "Đang lưu..."; await bkSaveCfg(); b.textContent = "✓ Đã lưu"; setTimeout(() => b.textContent = "💾 Lưu cấu hình", 1500); loadBackup(); };
+    el.querySelector("#bkTest").onclick = async () => {
+      const b = el.querySelector("#bkTest"); b.disabled = true; b.textContent = "Đang kiểm tra..."; await bkSaveCfg();
+      let r = {}; try { r = await (await fetch("/backup/test", { method: "POST" })).json(); } catch (e) { r = { error: e.message }; }
+      b.disabled = false; b.textContent = "🔌 Kiểm tra kết nối";
+      el.querySelector("#bkStatus").innerHTML = r.ok ? `<span style="color:#3fdc86">✓ Kết nối OK - token + repo hợp lệ.</span>` : `<span style="color:#e0664a">✗ ${esc(r.error || "không kết nối được")}</span>`;
+    };
+    el.querySelector("#bkNow").onclick = async () => {
+      const b = el.querySelector("#bkNow"); b.disabled = true; b.textContent = "Đang đồng bộ..."; await bkSaveCfg();
+      let r = {}; try { r = await (await fetch("/backup/now", { method: "POST", body: brainForm() })).json(); } catch (e) { r = { error: e.message }; }
+      b.disabled = false; b.textContent = "☁ Sao lưu ngay";
+      el.querySelector("#bkStatus").innerHTML = r.ok ? `<span style="color:#3fdc86">✓ Đã đồng bộ brain lên GitHub.</span>` : `<span style="color:#e0664a">✗ ${esc(r.error || "lỗi")}</span>`;
+      loadBackup();
+    };
+    async function loadBackup() {
+      let s = {}; try { s = await (await fetch(`/backup/status?brain=${encodeURIComponent(fbrain())}`)).json(); } catch (e) { return; }
+      el.querySelector("#bkRepo").value = s.repo_url || "";
+      el.querySelector("#bkBranch").value = s.branch || "main";
+      el.querySelector("#bkInterval").value = s.interval_hours || 6;
+      if (s.token_set && !el.querySelector("#bkToken").value) el.querySelector("#bkToken").placeholder = "•••• (đã lưu, để trống nếu giữ nguyên)";
+      bkAutoOn = !!s.enabled; bkAutoBtn.classList.toggle("sel", bkAutoOn); bkAutoBtn.textContent = bkAutoOn ? "● Bật" : "○ Tắt";
+      const when = s.last_backup ? new Date(s.last_backup * 1000).toLocaleString() : "chưa sao lưu";
+      const gitNote = s.has_git ? "" : " · ⚠ máy chưa cài git (cần git để backup)";
+      el.querySelector("#bkStatus").innerHTML = `Lần cuối: ${esc(when)}${s.last_status ? " · " + esc(s.last_status) : ""}${gitNote}`;
+    }
+
+    function loadAll() { loadMetrics(); loadReview(); loadLog(); loadBackup(); }
     loadAll();
   }
 
