@@ -1,6 +1,11 @@
 # Keep build context small + never bake secrets/state into the image.
+# LƯU Ý: KHÔNG loại .claude/skills và system/ - đó là TẦNG HỆ THỐNG (skill/loop mặc định)
+# phải nằm trong image để update theo phiên bản.
 .git
 .venv
+.claude/worktrees/
+.claude/settings.local.json
+**/.claude/skills/.disabled/
 **/__pycache__
 *.pyc
 *.pyo

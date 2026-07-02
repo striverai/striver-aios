@@ -371,7 +371,8 @@
     .sk2-info .gp{color:#6b7894;font-size:13px;margin-top:4px}
     .sk2-act{display:flex;gap:5px;opacity:0;transition:.15s;flex:none} .sk2-card:hover .sk2-act{opacity:1}
     .sk2-act button{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:#aebbd6;border-radius:6px;cursor:pointer;font-size:13px;padding:3px 9px} .sk2-act button:hover{color:#fff;border-color:rgba(120,180,255,.5)}
-    .sk2-act button.danger:hover{color:#ff9a9a;border-color:rgba(255,120,120,.5)}`;
+    .sk2-act button.danger:hover{color:#ff9a9a;border-color:rgba(255,120,120,.5)}
+    .sysb{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em;color:#8fd0ff;background:rgba(90,170,255,.12);border:1px solid rgba(90,170,255,.35);vertical-align:2px}`;
     const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
   }
 
@@ -429,12 +430,14 @@
     list.forEach(s => {
       const on = s.enabled !== false;
       const div = document.createElement("div"); div.className = "sk2-card" + (on ? "" : " off");
+      const sysBadge = s.system ? ` <span class="sysb" title="Skill hệ thống Javis OS - có ở mọi brain, tự cập nhật theo phiên bản app. Sửa nội dung thì giữ bản của bạn (ngừng tự cập nhật). Không xoá được - chỉ tắt.">hệ thống</span>` : "";
       div.innerHTML = `<input type="checkbox" class="sk2-tog" ${on ? "checked" : ""} title="${on ? "Đang bật - bấm để tắt" : "Đang tắt - bấm để bật"}">
-        <div class="sk2-info"><div class="nm">🧩 ${esc(s.name)}</div><div class="ds">${esc(s.description || "")}</div><div class="gp">📂 ${esc(s.group || "Chung")} · ${esc(s.slug)}${s.source === ".agents" ? " · .agents" : ""}</div></div>
-        <div class="sk2-act"><button class="edit">Sửa</button><button class="del danger">Xoá</button></div>`;
+        <div class="sk2-info"><div class="nm">🧩 ${esc(s.name)}${sysBadge}</div><div class="ds">${esc(s.description || "")}</div><div class="gp">📂 ${esc(s.group || "Chung")} · ${esc(s.slug)}${s.source === ".agents" ? " · .agents" : ""}</div></div>
+        <div class="sk2-act"><button class="edit">Sửa</button>${s.system ? "" : `<button class="del danger">Xoá</button>`}</div>`;
       div.querySelector(".sk2-tog").onchange = (e) => toggleSkill(s, e.target.checked);
       div.querySelector(".edit").onclick = () => openSkillForm(s.slug);
-      div.querySelector(".del").onclick = () => deleteSkill(s.slug, s.name);
+      const delBtn = div.querySelector(".del");
+      if (delBtn) delBtn.onclick = () => deleteSkill(s.slug, s.name);
       box.appendChild(div);
     });
   }

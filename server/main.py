@@ -31,6 +31,7 @@ import engine
 import openai_oauth
 import mcp_store
 import mcp_client
+import system_sync   # tầng năng lực HỆ THỐNG (skill/loop mặc định) - update theo phiên bản app
 from telegram_bot import TelegramBot
 from sessions import get_store   # kho phiên hội thoại (sqlite + fts5): list/resume/search
 
@@ -136,6 +137,7 @@ def build_system_prompt(brain: str = "brain") -> str:
         base += "\n\n# === BỘ NHỚ DÀI HẠN (nạp sẵn) ===\n" + mem
     # Đường dẫn lớp Agentic của vault đang làm việc (để Javis tạo agent/workflow/loop qua chat)
     root = _brain_root(brain)
+    system_sync.ensure_synced(root)   # brain nào cũng có đủ năng lực hệ thống (1 lần/process, rẻ)
     ag, wf = _agents_dir(brain), _workflows_dir(brain)
     lp = Path(root) / "Javis" / "loops"
     base += (
@@ -1504,9 +1506,16 @@ def _ensure_brain_scaffold(root):
     except Exception:
         pass
     try:
+        # Năng lực HỆ THỐNG (skill javis-builder/ingest/query/lint + loop tự-cải-tiến): nguồn chuẩn
+        # nằm ở tầng app (.claude/skills + system/loops, đi theo phiên bản), mirror vào brain qua
+        # manifest - cài nếu thiếu, UPDATE khi app lên bản mới, giữ nguyên nếu user đã sửa.
+        system_sync.sync_brain(str(root))
+    except Exception as e:
+        print(f"[system sync] {e}", file=__import__('sys').stderr)
+    try:
         import meta_tools
-        meta_tools.ensure_meta_tools(str(root))   # skill javis-builder + loop tự-cải-tiến (create-if-missing)
-        # Bộ khung "compounding wiki" phổ quát: schema doc + điều hướng wiki + HANDOFF.
+        # Bộ khung "compounding wiki" phổ quát: schema doc + điều hướng wiki + HANDOFF - seed 1 LẦN
+        # (create-if-missing) vì user + AI cùng tiến hoá các file này, update app KHÔNG ghi đè.
         # Resolve đúng thư mục wiki hiện có (vd '07 - Wiki') để không tạo 'wiki' trùng.
         _wd = _resolve_subfolder(str(root), r"^(\d+\s*[-_.]\s*)?wiki$", "wiki")
         meta_tools.ensure_brain_pattern(str(root), _wd)
@@ -1525,6 +1534,22 @@ def _ensure_default_brain():
         _ensure_brain_scaffold(_default_brain_dir())
     except Exception as e:
         print(f"[brain scaffold] {e}", file=__import__('sys').stderr)
+
+
+def _sync_system_all_brains():
+    """Đồng bộ năng lực HỆ THỐNG vào MỌI brain trong BRAINS_DIR lúc khởi động - đổi brain nào
+    cũng có đủ chức năng mặc định, và app lên bản mới thì brain cũ nhận bản skill/loop mới
+    (trừ file user đã sửa). Brain ngoài (path:) được sync ở lượt dùng đầu (build_system_prompt).
+    KHÔNG scaffold cấu trúc thư mục ở đây - chỉ đụng file hệ thống, dữ liệu user để yên."""
+    try:
+        base = Path(BRAINS_DIR)
+        if not base.is_dir():
+            return
+        for p in sorted(base.iterdir()):
+            if p.is_dir() and not p.name.startswith("."):
+                system_sync.ensure_synced(p)
+    except Exception as e:
+        print(f"[system sync all] {e}", file=__import__('sys').stderr)
 
 
 def _migrate_legacy_brain():
@@ -1569,33 +1594,16 @@ async def vault_check(brain: str = Query("brain")):
 
 @app.post("/vault/init")
 async def vault_init(brain: str = Form("brain")):
-    """Tạo các mục cấu trúc còn thiếu để vault chạy với Javis."""
+    """Tạo các mục cấu trúc còn thiếu để vault chạy với Javis. Dùng CHUNG scaffold với brain
+    mới tạo (đủ bộ: cấu trúc + memory seed + schema/wiki nav + năng lực HỆ THỐNG + index) →
+    vault ngoài chọn qua path: cũng có đầy đủ chức năng mặc định, không còn bản seed thiếu."""
     root = Path(_brain_root(brain))
-    items = _check_structure(root)
-    present_keys = {i["key"] for i in items if i["present"]}
-    created = []
-    for it in STANDARD_STRUCTURE:
-        if it["key"] in present_keys:
-            continue
-        try:
-            if it["kind"] in ("dir", "exact"):
-                (root / it["create"]).mkdir(parents=True, exist_ok=True)
-                created.append(it["label"])
-            elif it["kind"] == "file_any":
-                (root / it["create"]).write_text(SCHEMA_SEED, encoding="utf-8")
-                created.append(it["label"])
-        except Exception as e:
-            print(f"[vault init error] {it['key']}: {e}", file=__import__('sys').stderr)
-    # Seed Javis/README + Memory
+    missing = [i["label"] for i in _check_structure(root) if not i["present"]]
     try:
-        jr = root / "Javis" / "README.md"
-        if not jr.exists():
-            jr.parent.mkdir(parents=True, exist_ok=True)
-            jr.write_text(JAVIS_README, encoding="utf-8")
-        _brain_memory_dir(brain)  # đảm bảo Memory seed
-    except Exception:
-        pass
-    return {"ok": True, "created": created}
+        _ensure_brain_scaffold(root)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    return {"ok": True, "created": missing}
 
 
 @app.post("/brain/migrate")
@@ -1793,6 +1801,7 @@ async def list_skills(brain: str = Query("brain")):
     # agent KHÔNG tìm thấy skill. Chia nhóm bằng metadata không ảnh hưởng việc nạp.
     root = Path(_brain_root(brain))
     out, seen = [], set()
+    sys_slugs = system_sync.system_skill_slugs()   # skill HỆ THỐNG (đi theo phiên bản app)
     def _add(sk_dir, source, enabled=True):
         if sk_dir.name in seen:
             return
@@ -1804,7 +1813,8 @@ async def list_skills(brain: str = Query("brain")):
         desc = meta.get("description", "") or (body.split("\n")[0][:140] if body else "")
         out.append({"slug": sk_dir.name, "name": meta.get("name", sk_dir.name),
                     "description": desc, "group": meta.get("group") or "Chung",
-                    "source": source, "enabled": enabled})
+                    "source": source, "enabled": enabled,
+                    "system": sk_dir.name in sys_slugs})
     # Skill BẬT = <root>/.claude/skills/<slug>; skill TẮT = <root>/.claude/skills/.disabled/<slug>
     # (Claude Code chỉ quét .claude/skills 1 cấp → skill trong .disabled không được nạp = tắt thật).
     sk_base = root / ".claude" / "skills"
@@ -1877,6 +1887,10 @@ async def save_skill(name: str = Form(...), description: str = Form(""), group: 
 
 @app.post("/skills/delete")
 async def delete_skill(slug: str = Form(...), brain: str = Form("brain")):
+    if system_sync.is_system_skill(slug):
+        return JSONResponse({"error": "Skill hệ thống của Javis OS - không xoá được (đi theo "
+                             "phiên bản app, xoá cũng tự cài lại khi cập nhật). Muốn ngừng dùng "
+                             "thì TẮT skill (bỏ tích)."}, status_code=400)
     for base in (".claude/skills", ".agents"):
         d = Path(_brain_root(brain)) / Path(base) / slug
         if d.is_dir():
@@ -2738,6 +2752,7 @@ async def _start_scheduler():
     import sys as _sys
     _migrate_legacy_brain()   # dữ liệu brain cũ → <BRAINS_DIR>/Brain Default (không mất data)
     _ensure_default_brain()   # brain mặc định có sẵn cấu trúc chuẩn (ghi được trên mount /brains)
+    _sync_system_all_brains() # năng lực hệ thống → mọi brain (update theo phiên bản app)
     try:
         loop_feature.ensure_migrated()   # loop_config.json cũ → Javis/loops/vong-lap-goc.md (1 lần)
     except Exception as e:

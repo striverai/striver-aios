@@ -24,6 +24,17 @@ Vì vậy chất lượng của một skill phụ thuộc lớn vào cách bạn
 
 Lưu ý: skill chỉ dùng được khi engine đang là Claude Code CLI (đầy đủ MCP/skill). Nếu đang chạy engine gọi API thẳng thì skill không nạp được. Xem [Models & engine](10-models-va-engine.md) để biết cách chọn engine.
 
+## Skill hệ thống và skill của bạn
+
+Javis chia skill làm 2 loại:
+
+- **Skill hệ thống** (thẻ có nhãn "hệ thống"): chức năng mặc định của Javis OS - hiện gồm `javis-builder` (dạy Javis tự tạo agent/skill/workflow/loop), `ingest-source`, `query-wiki`, `lint-wiki`. Bản gốc nằm trong thư mục cài đặt của app (không nằm trong brain), nên chúng **có mặt ở mọi brain** và **tự cập nhật khi bạn cập nhật Javis OS** lên phiên bản mới. Loại này không xoá được từ dashboard (lỡ xoá file thủ công thì lần khởi động sau tự cài lại); muốn ngừng dùng thì **tắt** như skill thường - trạng thái tắt được giữ nguyên qua mọi lần cập nhật.
+- **Skill của bạn**: tạo qua nút + Skill, qua chat, hoặc do engine tự học đề xuất. Đây là dữ liệu của brain - đổi brain thì bộ skill đổi theo, cập nhật app không đụng tới.
+
+Bạn vẫn **Sửa** được skill hệ thống. Khi đó bản trong brain trở thành bản riêng của bạn: Javis giữ đúng chỉnh sửa đó và ngừng tự cập nhật đè lên. Muốn quay về bản chuẩn (kèm tự cập nhật), xoá thư mục skill đó trong `.claude/skills` của brain (bằng trang Tệp tin) rồi khởi động lại - bản hệ thống mới nhất sẽ được cài lại sạch.
+
+Cùng cơ chế này, loop **Tự cải tiến Javis** (trang Loop) cũng là năng lực hệ thống: phần nội dung nhiệm vụ được cập nhật theo phiên bản app, còn trạng thái bạn chỉnh (bật/tắt, chế độ, chu kỳ) luôn được giữ nguyên.
+
 ## Mở ở đâu trong Javis
 
 Mở dashboard (mặc định tại cổng 7777), nhìn thanh điều hướng bên trái và bấm mục **Skills** (biểu tượng 🧩). Trang này cùng khu với Workflows và Agents, đều tách ra từ Studio.
