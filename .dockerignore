@@ -11,7 +11,7 @@
 *.pyo
 .env
 .env.*
-!.env.example
+# env.example (không chấm đầu) không khớp pattern trên nên vẫn vào image - khỏi cần negation
 .learn/
 .staging/
 Brain Default/

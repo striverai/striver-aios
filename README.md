@@ -156,7 +156,7 @@ Dashboard có thanh điều hướng bên trái:
 
 ## ⚙️ Cấu hình (`.env`)
 
-Mọi dòng để trống vẫn chạy được. Sao chép `.env.example` → `.env`.
+Mọi dòng để trống vẫn chạy được. Sao chép `env.example` → `.env` (file mẫu cố ý KHÔNG có dấu chấm đầu để Docker Manager của Hostinger không tự nhập nó vào ô Environment).
 
 | Biến | Ý nghĩa | Mặc định |
 |---|---|---|

@@ -4,7 +4,7 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Environment (cấu hình local; .env.example là bản mẫu)
+# Environment (cấu hình local; env.example là bản mẫu)
 .env
 
 # Runtime / temp
