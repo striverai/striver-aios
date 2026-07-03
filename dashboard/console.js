@@ -1548,8 +1548,8 @@
           <label class="js-row"><span>Bật bot Telegram</span><input type="checkbox" id="tgEnabled" ${tg.enabled ? "checked" : ""}></label>
           <label class="js-lbl">Bot token ${tg.token_set ? '<span class="dim">(đã đặt)</span>' : ""}</label>
           <input class="js-input" id="tgToken" type="password" placeholder="${tg.token_set ? "để trống nếu không đổi" : "123456:ABC..."}">
-          <label class="js-lbl">Chat ID được phép dùng</label>
-          <input class="js-input" id="tgChat" value="${esc(tg.chat_id || "")}" placeholder="vd 123456789">
+          <label class="js-lbl">Chat ID được phép dùng <span class="dim">(nhiều ID cách nhau dấu phẩy - mỗi người /start bot rồi thêm ID vào đây)</span></label>
+          <input class="js-input" id="tgChat" value="${esc(tg.chat_id || "")}" placeholder="vd 123456789, 987654321">
           <div class="js-actions"><button class="gcard-btn" id="tgSave">Lưu & bật</button><button class="gcard-btn ghost" id="tgTest">Gửi test</button></div>
           <div class="gcard-meta" id="tgStatus"></div>
         </div>
@@ -1561,7 +1561,10 @@
       let line;
       if (!d.enabled) line = "⚪ Bot CHƯA bật - tích 'Bật bot Telegram' rồi Lưu (test gửi được KHÔNG có nghĩa bot đang nhận tin).";
       else if (!d.token_set) line = "⚪ Chưa có bot token.";
-      else if (d.status === "polling") line = "🟢 Bot đang nhận tin - nhắn cho bot là Javis trả lời.";
+      else if (d.status === "polling") {
+        const n = (d.chat_ids || []).length;
+        line = `🟢 Bot đang nhận tin - ${n ? n + " chat ID được phép" : "MỌI NGƯỜI nhắn được (chưa giới hạn ID)"} - nhắn cho bot là Javis trả lời.`;
+      }
       else if (d.status === "conflict") line = "🔴 409: " + (d.last_error || "token bị poll nơi khác hoặc còn webhook") + " - bot tự xoá webhook khi khởi động; nếu vẫn lỗi thì có nơi khác đang poll cùng token.";
       else if (d.status === "error") line = "⚠ Lỗi bot: " + (d.last_error || "");
       else if (d.status === "starting") line = "⏳ Đang khởi động bot…";
@@ -1580,7 +1583,12 @@
     };
     document.getElementById("tgTest").onclick = async () => {
       st.textContent = "Đang gửi test...";
-      try { const r = await (await fetch("/telegram/test", { method: "POST" })).json(); st.textContent = r.ok ? "✅ Đã gửi tin test." : "⚠ " + (r.error || "Chưa cấu hình bot."); }
+      try {
+        const r = await (await fetch("/telegram/test", { method: "POST" })).json();
+        st.textContent = r.ok
+          ? (r.total > 1 ? `✅ Đã gửi tin test tới ${r.sent}/${r.total} ID.` + (r.error ? " Lỗi: " + r.error : "") : "✅ Đã gửi tin test.")
+          : "⚠ " + (r.error || "Chưa cấu hình bot.");
+      }
       catch (e) { st.textContent = "⚠ Lỗi mạng."; }
     };
   }

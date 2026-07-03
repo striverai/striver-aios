@@ -493,8 +493,8 @@
             <label class="toggle"><input type="checkbox" id="setTgEnabled"><span></span></label></label>
           <label>Bot token <span class="dim" id="setTgHint"></span></label>
           <input id="setTgToken" type="password" placeholder="123456:ABC... (để trống nếu không đổi)">
-          <label>Chat ID được phép dùng</label>
-          <input id="setTgChat" placeholder="vd 123456789">
+          <label>Chat ID được phép dùng <span class="dim">(nhiều ID cách nhau dấu phẩy)</span></label>
+          <input id="setTgChat" placeholder="vd 123456789, 987654321">
           <div class="set-note" id="setTgStatus">-</div>
           <div class="set-note">Nhắn Telegram ↔ Javis. Dùng đúng engine đang chọn (CLI thì có cả MCP để hỏi doanh thu/ads qua điện thoại). Có thể dùng lại token bot Morning Briefing.</div>
           <div class="set-actions">
@@ -526,7 +526,7 @@
   <script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
   <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
   <script src="/static/graph3d.js?v=15"></script>
-  <script src="/static/app.js?v=50"></script>
+  <script src="/static/app.js?v=51"></script>
   <script src="/static/branding.js?v=6"></script>
   <script src="/static/quick-settings.js?v=3"></script>
   <script src="/static/chat-zoom.js?v=4"></script>
@@ -534,7 +534,7 @@
   <script src="/static/sessions-ui.js?v=4"></script>
   <script src="/static/studio.js?v=17"></script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
-  <script src="/static/console.js?v=44"></script>
+  <script src="/static/console.js?v=45"></script>
   <script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </body>
 </html>

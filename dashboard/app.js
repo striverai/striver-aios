@@ -1469,7 +1469,9 @@ if (document.getElementById("settingsBtn")) {
     const btn = e.target; btn.disabled = true; const old = btn.textContent; btn.textContent = "Đang gửi...";
     try {
       const r = await (await fetch("/telegram/test", { method: "POST" })).json();
-      btn.textContent = r.ok ? "✓ Đã gửi (xem Telegram)" : ("⚠ " + (r.error || "lỗi"));
+      btn.textContent = r.ok
+        ? (r.total > 1 ? `✓ Đã gửi ${r.sent}/${r.total} ID` + (r.error ? " (có lỗi)" : "") : "✓ Đã gửi (xem Telegram)")
+        : ("⚠ " + (r.error || "lỗi"));
     } catch (e) { btn.textContent = "⚠ lỗi mạng"; }
     setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 2500);
   });

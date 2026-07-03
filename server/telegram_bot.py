@@ -1,12 +1,28 @@
 """
-Telegram bot cho Javis - long-polling getUpdates, whitelist theo chat_id.
+Telegram bot cho Javis - long-polling getUpdates, whitelist theo chat_id (MỘT hoặc NHIỀU ID).
 - Trả lời chạy ở BACKGROUND task → vẫn nhận /stop giữa chừng.
 - Lệnh /...: command_fn(cmd, arg) -> {"reply": str} | {"ask": str} | None.
 Decoupled: main.py cấp answer_fn (1 lượt chat) + command_fn (xử lý lệnh).
 """
 import asyncio
 import httpx
+import re
 import sys
+
+
+def parse_chat_ids(raw):
+    """Chuẩn hoá whitelist chat_id: nhận chuỗi 'id1, id2 id3' (phẩy/chấm phẩy/khoảng trắng)
+    hoặc list → trả list str đã strip, bỏ trùng, giữ thứ tự. RỖNG = cho phép MỌI người
+    (giữ hành vi cũ). ID nhóm Telegram là số ÂM nên không ép kiểu/không lọc dấu '-'."""
+    if raw is None:
+        return []
+    items = raw if isinstance(raw, (list, tuple)) else re.split(r"[,;\s]+", str(raw))
+    out = []
+    for x in items:
+        x = str(x).strip()
+        if x and x not in out:
+            out.append(x)
+    return out
 
 TG_API = "https://api.telegram.org/bot{token}/{method}"
 
@@ -29,7 +45,8 @@ BOT_COMMANDS = [
 class TelegramBot:
     def __init__(self, token, chat_id, answer_fn, command_fn=None, callback_fn=None):
         self.token = token
-        self.chat_id = str(chat_id).strip() if chat_id else ""
+        # chat_id nhận chuỗi "id1,id2" hoặc list → whitelist NHIỀU người dùng chung 1 bot.
+        self.chat_ids = parse_chat_ids(chat_id)
         self.answer_fn = answer_fn          # async (text) -> reply_text
         self.command_fn = command_fn        # async (cmd, arg) -> dict|None
         self.callback_fn = callback_fn      # async (data) -> dict|None (xử lý bấm nút inline)
@@ -89,7 +106,7 @@ class TelegramBot:
                 await client.post(self._url("setMyCommands"), json={"commands": BOT_COMMANDS})
             except Exception as e:
                 print(f"[telegram setMyCommands] {e}", file=sys.stderr)
-            print(f"[telegram] bot started (chat_id={self.chat_id or 'mọi người'})", file=sys.stderr)
+            print(f"[telegram] bot started (chat_id={','.join(self.chat_ids) or 'mọi người'})", file=sys.stderr)
             self.status = "polling"
             while not self._stop:
                 try:
@@ -119,7 +136,7 @@ class TelegramBot:
                         text = (msg.get("text") or "").strip()
                         if not text or not chat:
                             continue
-                        if self.chat_id and chat != self.chat_id:
+                        if self.chat_ids and chat not in self.chat_ids:
                             await self._send(client, chat, "Bạn không có quyền dùng bot Javis này.")
                             continue
                         await self._dispatch(client, chat, text)
@@ -162,7 +179,7 @@ class TelegramBot:
         msg = cq.get("message") or {}
         chat = str((msg.get("chat") or {}).get("id", ""))
         mid = msg.get("message_id")
-        if self.chat_id and chat != self.chat_id:
+        if self.chat_ids and chat not in self.chat_ids:
             try:
                 await client.post(self._url("answerCallbackQuery"),
                                   json={"callback_query_id": cq_id, "text": "Không có quyền"})

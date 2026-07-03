@@ -32,7 +32,7 @@ import openai_oauth
 import mcp_store
 import mcp_client
 import system_sync   # tầng năng lực HỆ THỐNG (skill/loop mặc định) - update theo phiên bản app
-from telegram_bot import TelegramBot
+from telegram_bot import TelegramBot, parse_chat_ids as tg_parse_ids
 from sessions import get_store   # kho phiên hội thoại (sqlite + fts5): list/resume/search
 
 app = FastAPI(title="Javis OS")
@@ -832,7 +832,8 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
         if "enabled" in patch:
             t["enabled"] = bool(patch["enabled"])
         if "chat_id" in patch:
-            t["chat_id"] = str(patch["chat_id"])
+            # Nhận MỘT hoặc NHIỀU ID ("id1, id2" / list) → chuẩn hoá lưu "id1,id2".
+            t["chat_id"] = ",".join(tg_parse_ids(patch["chat_id"]))
         if patch.get("token"):
             t["token"] = patch["token"]
     elif section == "dashboard":
@@ -2305,15 +2306,18 @@ import self_improve
 
 
 async def _loop_notify(text: str) -> None:
-    """Báo Telegram khi loop tự tạm dừng (nice-to-have, im lặng nếu chưa cấu hình bot)."""
+    """Báo Telegram khi loop tự tạm dừng (nice-to-have, im lặng nếu chưa cấu hình bot).
+    Gửi tới TẤT CẢ chat ID trong whitelist (hỗ trợ nhiều người dùng chung bot)."""
     try:
         tg = cfgmod.read_settings().get("telegram", {})
-        if not (tg.get("enabled") and tg.get("token") and tg.get("chat_id")):
+        ids = tg_parse_ids(tg.get("chat_id"))
+        if not (tg.get("enabled") and tg.get("token") and ids):
             return
         import httpx
         async with httpx.AsyncClient(timeout=10) as c:
-            await c.post(f"https://api.telegram.org/bot{tg['token']}/sendMessage",
-                         json={"chat_id": tg["chat_id"], "text": text})
+            for cid in ids:
+                await c.post(f"https://api.telegram.org/bot{tg['token']}/sendMessage",
+                             json={"chat_id": cid, "text": text})
     except Exception as e:
         print(f"[loop notify] {e}", file=__import__('sys').stderr)
 
@@ -3856,7 +3860,8 @@ async def telegram_status():
     t = cfgmod.read_settings().get("telegram", {})
     running = bool(_TG_BOT and _TG_BOT._task and not _TG_BOT._task.done())
     return {"enabled": bool(t.get("enabled")), "token_set": bool(t.get("token")),
-            "chat_id": t.get("chat_id", ""), "running": running,
+            "chat_id": t.get("chat_id", ""), "chat_ids": tg_parse_ids(t.get("chat_id")),
+            "running": running,
             "status": (_TG_BOT.status if _TG_BOT else "off"),
             "last_error": (_TG_BOT.last_error if _TG_BOT else "")}
 
@@ -3868,16 +3873,28 @@ async def telegram_restart():
 
 @app.post("/telegram/test")
 async def telegram_test():
+    """Gửi tin test tới TẤT CẢ chat ID trong whitelist - báo rõ ID nào lỗi (vd chưa bấm Start bot)."""
     t = cfgmod.read_settings().get("telegram", {})
-    if not t.get("token") or not t.get("chat_id"):
-        return {"ok": False, "error": "Thiếu token hoặc chat_id (lưu trước đã)"}
+    ids = tg_parse_ids(t.get("chat_id"))
+    if not t.get("token") or not ids:
+        return {"ok": False, "error": "Thiếu token hoặc chat ID (lưu trước đã)"}
     import httpx
+    sent, errs = 0, []
     try:
         async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.post(f"https://api.telegram.org/bot{t['token']}/sendMessage",
-                             json={"chat_id": t["chat_id"], "text": "✅ Javis Telegram đã kết nối. Nhắn câu hỏi bất kỳ nhé."})
-        d = r.json()
-        return {"ok": bool(d.get("ok")), "error": d.get("description", "")}
+            for cid in ids:
+                try:
+                    r = await c.post(f"https://api.telegram.org/bot{t['token']}/sendMessage",
+                                     json={"chat_id": cid, "text": "✅ Javis Telegram đã kết nối. Nhắn câu hỏi bất kỳ nhé."})
+                    d = r.json()
+                    if d.get("ok"):
+                        sent += 1
+                    else:
+                        errs.append(f"{cid}: {d.get('description', 'lỗi')}")
+                except Exception as e:
+                    errs.append(f"{cid}: {type(e).__name__}")
+        return {"ok": sent > 0, "sent": sent, "total": len(ids),
+                "error": "; ".join(errs)[:300]}
     except Exception as e:
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 

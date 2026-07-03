@@ -4,6 +4,12 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.8.7] - 2026-07-03
+### Thêm mới
+- Telegram hỗ trợ **NHIỀU chat ID** dùng chung 1 bot: ô "Chat ID được phép dùng" giờ nhận nhiều ID cách nhau dấu phẩy (vd `123456789, 987654321`) - thêm người thân/nhân viên nhắn với Javis mà không phải dựng bot riêng. Whitelist chặn đúng theo danh sách; ID nhóm (số âm) cũng dùng được.
+- Nút **Gửi test** gửi tin thử tới TẤT CẢ ID và báo rõ ID nào lỗi (thường do người đó chưa bấm Start bot); thông báo nền (loop tự tạm dừng...) cũng gửi tới tất cả ID; dòng trạng thái hiện số ID được phép, cảnh báo rõ khi đang để trống (mọi người nhắn được).
+- Tương thích ngược hoàn toàn: cấu hình 1 ID cũ giữ nguyên, không phải làm lại gì.
+
 ## [0.8.6] - 2026-07-02
 ### Thêm mới
 - **Chat workspace**: phóng to chat (nút ⛶ hoặc 🕘 Lịch sử) giờ mở thành không gian làm việc gần full màn hình kiểu Claude/Cowork - cột trái là **sidebar Lịch sử hội thoại** (＋ Hội thoại mới, tìm toàn văn, danh sách nhóm Hôm nay/Hôm qua/7 ngày/Cũ hơn, badge engine + số tin, đổi tên/xoá khi rê chuột, phiên đang mở tô sáng, bấm phát mở lại ngay), cột phải là nội dung chat căn giữa rộng tối đa ~980px. Sidebar ẩn/hiện được (nhớ trạng thái); màn hẹp tự chuyển thành ngăn kéo nổi, Esc đóng ngăn kéo trước rồi mới thu nhỏ chat. Panel Lịch sử trượt bên phải cũ được gỡ, nút 🕘 góc phải mở thẳng workspace.
