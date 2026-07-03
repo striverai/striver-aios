@@ -4,11 +4,30 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
-## [0.8.7] - 2026-07-03
+## [0.8.10] - 2026-07-03
 ### Thêm mới
 - Telegram hỗ trợ **NHIỀU chat ID** dùng chung 1 bot: ô "Chat ID được phép dùng" giờ nhận nhiều ID cách nhau dấu phẩy (vd `123456789, 987654321`) - thêm người thân/nhân viên nhắn với Javis mà không phải dựng bot riêng. Whitelist chặn đúng theo danh sách; ID nhóm (số âm) cũng dùng được.
-- Nút **Gửi test** gửi tin thử tới TẤT CẢ ID và báo rõ ID nào lỗi (thường do người đó chưa bấm Start bot); thông báo nền (loop tự tạm dừng...) cũng gửi tới tất cả ID; dòng trạng thái hiện số ID được phép, cảnh báo rõ khi đang để trống (mọi người nhắn được).
+- Nút **Gửi test** gửi tin thử tới TẤT CẢ ID và báo rõ ID nào lỗi (thường do người đó chưa bấm Start bot); thông báo nền (loop tự tạm dừng...) cũng gửi tới tất cả ID; dòng trạng thái hiện số ID được phép, cảnh báo rõ khi đang để trống (mọi người nhắn được). File tự gửi về Telegram không kèm chat cụ thể sẽ về ID ĐẦU TIÊN (chủ bot).
 - Tương thích ngược hoàn toàn: cấu hình 1 ID cũ giữ nguyên, không phải làm lại gì.
+
+## [0.8.9] - 2026-07-03
+### Thêm mới
+- **Trang chủ giới thiệu** (`website/index.html`): landing page 1 file HTML/CSS/JS thuần, phong cách dark nebula đồng bộ dashboard - hero gõ chữ tự động, nền đồ thị hạt sao canvas, bảng so sánh chatbot vs Javis, bento 8 tính năng, mockup Telegram có bong bóng chạy, timeline 3 bước deploy, section giới thiệu tác giả Nguyễn Minh Quý, FAQ accordion, nút copy lệnh. Mọi link tài liệu trỏ về GitHub; KHÔNG hiển thị số phiên bản trên trang. Dùng ảnh thật: screenshot đồ thị tri thức trong ô tính năng lớn (kiêm og:image khi share) + chân dung tác giả (fallback chữ MQ nếu ảnh lỗi).
+
+## [0.8.8] - 2026-07-03
+### Sửa lỗi
+- Đổi tên file mẫu `.env.example` → `env.example` (bỏ dấu chấm đầu): Docker Manager của Hostinger tự quét file `.env*` trong repo khi deploy từ URL và nhập nguyên nội dung (kể cả dòng chú thích `#`) vào ô Environment, gây một loạt biến đỏ "Invalid variable name" mỗi lần deploy. Ô Environment trên Hostinger giờ chỉ cần đúng 1 biến `DOMAIN_NAME`. Ai đã dính: xoá các dòng có dấu `#` trong ô Environment một lần là sạch vĩnh viễn. Chạy local không đổi gì ngoài lệnh copy: `cp env.example .env`.
+
+## [0.8.7] - 2026-07-03
+### Thêm mới
+- **Telegram thành kênh làm việc đầy đủ** (port ý tưởng gateway của hermes-agent):
+  - Javis giờ **biết mình đang trả lời qua kênh nào**: gateway chèn block "Kênh hội thoại hiện tại" (Telegram DM/nhóm với ai, chat_id, các nền tảng đang kết nối) vào system prompt mỗi lượt - hỏi "em đang chat với anh qua đâu" là khai đúng, không đoán.
+  - **Tự gửi file về Telegram**: file Javis tạo trong lượt (tool Write) hoặc file có đường dẫn tuyệt đối nhắc trong câu trả lời được tự động đính kèm gửi ngay sau câu trả lời (tối đa 10 file/lượt, mỗi file dưới 50MB; ảnh gửi dạng photo có preview, còn lại gửi dạng document).
+  - Endpoint nội bộ `POST /telegram/send-file` (CHỈ nhận từ localhost - bên ngoài qua proxy vẫn bị chặn đăng nhập): agent chủ động gửi file bất kỳ có sẵn trên máy giữa lượt bằng curl.
+  - **Nhận file/ảnh từ Telegram**: gửi file/ảnh (kèm caption) cho bot là Javis tự tải về `inbox/telegram/` trong brain rồi đọc như file đính kèm trong chat (trần tải 20MB của bot API). Voice/video chưa hỗ trợ - Javis sẽ nói rõ.
+  - Tin nhắn trả lời render **MarkdownV2** (đậm/nghiêng/code/link hiện đẹp), tự fallback plain text nếu Telegram từ chối parse - không mất tin.
+### Cải thiện
+- Dashboard web cũng có block kênh riêng: Javis phân biệt đang nói chuyện qua web hay Telegram, và biết cách đẩy file sang Telegram khi user yêu cầu (nếu bot đang chạy).
 
 ## [0.8.6] - 2026-07-02
 ### Thêm mới
