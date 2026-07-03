@@ -14,7 +14,7 @@ import re
 import shutil
 import time
 import yaml
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, UploadFile, File, Form, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, UploadFile, File, Form, Request, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse
@@ -33,6 +33,7 @@ import mcp_store
 import mcp_client
 import system_sync   # tầng năng lực HỆ THỐNG (skill/loop mặc định) - update theo phiên bản app
 from telegram_bot import TelegramBot
+import channel_context   # metadata kênh + gom file trả về kênh chat (port gateway hermes-agent)
 from sessions import get_store   # kho phiên hội thoại (sqlite + fts5): list/resume/search
 
 app = FastAPI(title="Javis OS")
@@ -44,6 +45,9 @@ _AUTH_PUBLIC_PREFIX = ("/static", "/health")
 # /brand-logo: hiện trên màn đăng nhập (trước session). /tls-check: Caddy gọi (không đăng nhập được).
 _AUTH_PUBLIC_EXACT = ("/", "/favicon.ico", "/auth/status", "/auth/login", "/auth/setup",
                       "/brand-logo", "/tls-check")
+# Endpoint CHỈ-LOCALHOST: agent (Claude CLI chạy cùng máy/container) curl được mà không cần
+# cookie đăng nhập; request từ ngoài (qua Traefik/Caddy/LAN) đến từ IP khác loopback → vẫn bị chặn.
+_AUTH_LOCAL_EXACT = ("/telegram/send-file",)
 
 
 @app.middleware("http")
@@ -53,7 +57,10 @@ async def _auth_guard(request: Request, call_next):
     (setup_required), tránh hở dashboard điều khiển Claude full quyền ra Internet."""
     if cfgmod.gate_active():
         path = request.url.path
-        public = path in _AUTH_PUBLIC_EXACT or any(path.startswith(p) for p in _AUTH_PUBLIC_PREFIX)
+        client_host = request.client.host if request.client else ""
+        public = (path in _AUTH_PUBLIC_EXACT
+                  or any(path.startswith(p) for p in _AUTH_PUBLIC_PREFIX)
+                  or (path in _AUTH_LOCAL_EXACT and client_host in ("127.0.0.1", "::1")))
         if not public and not cfgmod.valid_session(request.cookies.get("javis_session", "")):
             return JSONResponse({"error": "unauthorized", "auth_required": True,
                                  "setup_required": not cfgmod.auth_enabled()}, status_code=401)
@@ -3470,7 +3477,9 @@ async def websocket_endpoint(ws: WebSocket):
             }))
 
             # Nạp bộ nhớ của vault đang chọn vào system prompt (Javis luôn nhớ)
-            sysprompt = build_system_prompt(brain)
+            # + block kênh (port gateway hermes): engine biết đang trả lời qua dashboard web
+            sysprompt = build_system_prompt(brain) + channel_context.build_channel_block(
+                "dashboard", telegram_running=bool(_TG_BOT), port=_javis_port())
 
             final_text = ""
             if prov == "openai-oauth":
@@ -3616,16 +3625,28 @@ _TG_BOT = None
 _tg_cli = None
 _tg_or = None   # lịch sử hội thoại cho engine openrouter
 _tg_last_msg = None   # câu hỏi gần nhất (cho /retry)
+_tg_turn_sent = set()   # path (normcase) đã gửi qua /telegram/send-file trong LƯỢT hiện tại (chống gửi trùng)
 
 
-async def _tg_answer(text):
-    global _tg_cli, _tg_or, _tg_last_msg
+def _javis_port() -> int:
+    try:
+        return int(os.getenv("JAVIS_PORT", "7777"))
+    except ValueError:
+        return 7777
+
+
+async def _tg_answer(text, meta=None):
+    global _tg_cli, _tg_or, _tg_last_msg, _tg_turn_sent
     _tg_last_msg = text
+    _tg_turn_sent = set()   # lượt mới → reset dedupe (endpoint /telegram/send-file add vào đây)
     brain = _read_loop_config().get("brain", "brain")
     mcfg = cfgmod.read_settings().get("model", {})
     prov, kind, api_key, api_model = _chat_provider(mcfg)
     reasoning = _reasoning_level(mcfg)
-    sysprompt = build_system_prompt(brain)
+    # Block kênh (port gateway hermes-agent): engine biết đang trả lời qua Telegram,
+    # ai đang nhắn, và cách gửi file trả về (auto-attach + endpoint send-file).
+    sysprompt = build_system_prompt(brain) + channel_context.build_channel_block(
+        "telegram", meta, telegram_running=True, port=_javis_port())
     if (kind == "api" and api_key) or kind == "oauth":
         label = _api_label(prov)
         if _tg_or is None:
@@ -3641,20 +3662,29 @@ async def _tg_answer(text):
                 return "⚠ " + ev["content"]
         _tg_or.append({"role": "assistant", "content": out})
         _tg_or = _trim_history(_tg_or)   # bound history → payload không phình vô hạn
-        return out
+        return out   # engine API không có tool ghi file → không có gì để đính kèm
     else:
         if _tg_cli is None:
             _tg_cli = ClaudeCLI(system_prompt=sysprompt, cwd=CLAUDE_CWD, tag="telegram")
         _tg_cli.system_prompt = sysprompt
         _tg_cli.model = api_model or mcfg.get("claude_model") or None
         _apply_mcp(_tg_cli)
+        t0 = time.time()
+        written = []   # file agent ghi bằng tool Write trong lượt này (ứng viên auto-gửi)
         out = ""
         async for ev in _tg_cli.query(_cli_think(reasoning, text)):
             if ev["type"] == "final":
                 out = ev.get("content") or out
+            elif ev["type"] == "tool_call" and ev.get("name") in ("Write", "NotebookEdit"):
+                fp = (ev.get("input") or {}).get("file_path") or (ev.get("input") or {}).get("notebook_path")
+                if fp:
+                    written.append(str(fp))
             elif ev["type"] == "error":
                 return "⚠ " + ev["content"]
-        return out
+        # File sinh ra trong lượt → bot gửi đính kèm SAU câu trả lời (xem telegram_bot._handle_turn)
+        files = channel_context.collect_turn_files(out, written, t0,
+                                                   cwd=CLAUDE_CWD, exclude=_tg_turn_sent)
+        return {"text": out, "files": files}
 
 
 async def _tg_help_text(brain):
@@ -3670,7 +3700,8 @@ async def _tg_help_text(brain):
         "/or - engine OpenRouter (chat thuần)\n"
         "/retry - gửi lại câu gần nhất\n"
         "/reset - hội thoại mới · /stop - dừng\n\n"
-        "Gửi tin thường để hỏi Javis. Gõ /tên-skill để gọi skill (cần engine Claude CLI)."
+        "Gửi tin thường để hỏi Javis. Gõ /tên-skill để gọi skill (cần engine Claude CLI).\n"
+        "Gửi file/ảnh vào đây để Javis đọc. File Javis tạo ra sẽ tự gửi lại cho bạn ở đây."
     )
 
 
@@ -3836,6 +3867,12 @@ async def _tg_command(cmd, arg):
     return {"ask": ask}
 
 
+def _tg_inbox_dir():
+    """Nơi lưu file user gửi lên Telegram - đặt trong brain đang chọn để agent đọc được ngay."""
+    root = _brain_root(_read_loop_config().get("brain", "brain"))
+    return str(Path(root) / "inbox" / "telegram")
+
+
 def restart_telegram():
     """Bật lại bot theo cấu hình settings.telegram (tắt bot cũ nếu có)."""
     global _TG_BOT, _tg_or
@@ -3845,7 +3882,8 @@ def restart_telegram():
         _TG_BOT = None
     _tg_or = None
     if t.get("enabled") and t.get("token"):
-        _TG_BOT = TelegramBot(t["token"], t.get("chat_id", ""), _tg_answer, _tg_command, _tg_callback)
+        _TG_BOT = TelegramBot(t["token"], t.get("chat_id", ""), _tg_answer, _tg_command, _tg_callback,
+                              download_dir=_tg_inbox_dir)
         _TG_BOT.start()
         return True
     return False
@@ -3880,6 +3918,27 @@ async def telegram_test():
         return {"ok": bool(d.get("ok")), "error": d.get("description", "")}
     except Exception as e:
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+@app.post("/telegram/send-file")
+async def telegram_send_file(payload: dict = Body(...)):
+    """Gửi 1 file qua Telegram tới chat whitelist. Agent gọi bằng curl từ localhost
+    (miễn đăng nhập qua _AUTH_LOCAL_EXACT - request từ ngoài vẫn bị chặn).
+    Body: {"path": "<đường dẫn tuyệt đối>", "caption": "<mô tả ngắn, không bắt buộc>"}."""
+    path = str((payload or {}).get("path", "")).strip().strip('"')
+    caption = str((payload or {}).get("caption", "")).strip()
+    if not (_TG_BOT and _TG_BOT._task and not _TG_BOT._task.done()):
+        return {"ok": False, "error": "Bot Telegram chưa chạy (bật ở Settings → Telegram)."}
+    if not path:
+        return {"ok": False, "error": "Thiếu path"}
+    ok, err = await _TG_BOT.send_file(path, caption)
+    if ok:
+        # ghi nhận để auto-attach cuối lượt không gửi lại đúng file này lần nữa
+        try:
+            _tg_turn_sent.add(os.path.normcase(os.path.normpath(os.path.abspath(path))))
+        except Exception:
+            pass
+    return {"ok": ok, "error": err}
 
 
 if __name__ == "__main__":
