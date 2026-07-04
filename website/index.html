@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Javis OS - Trợ lý AI tự host, chạy bằng gói Claude bạn đang có</title>
-<meta name="description" content="Trợ lý AI + Second Brain trên máy của bạn: nhớ bạn, báo cáo số liệu thật, làm việc qua Telegram và giọng nói tiếng Việt. Không cần API key. Miễn phí tự host.">
+<title>Javis OS - Trợ lý AI tự host, chạy bằng gói AI bạn đang có</title>
+<meta name="description" content="Trợ lý AI + Second Brain tự host: nhớ bạn, báo số liệu thật từ kho kết nối (POS, quảng cáo, Gmail, lịch, Slack, Lark...), làm việc qua Telegram và giọng nói tiếng Việt. Chạy bằng gói Claude/ChatGPT sẵn có, không cần API key.">
 <meta name="author" content="Nguyễn Minh Quý">
-<meta property="og:title" content="Javis OS - Trợ lý AI tự host, chạy bằng gói Claude bạn đang có">
-<meta property="og:description" content="Trợ lý AI + Second Brain trên máy của bạn: nhớ bạn, báo cáo số liệu thật, làm việc qua Telegram và giọng nói tiếng Việt. Không cần API key.">
+<meta property="og:title" content="Javis OS - Trợ lý AI tự host, chạy bằng gói AI bạn đang có">
+<meta property="og:description" content="Trợ lý AI + Second Brain tự host: nhớ bạn, báo số liệu thật từ kho kết nối (POS, quảng cáo, Gmail, lịch, Slack, Lark...), làm việc qua Telegram và giọng nói. Chạy bằng gói Claude/ChatGPT sẵn có, không cần API key.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://statics.pancake.vn/web-media-263/60/16/ba/ca/94174802bcc2b133a14259b5cb9093d18da42c2a175d8bf1ae1aaa1c-w:1028-h:613-l:76335-t:image/jpeg.jpg">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
@@ -116,6 +116,19 @@ th.new{color:var(--vio);text-shadow:0 0 18px rgba(139,92,246,.8)}
 .feature.big .bento-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,6,15,.1),rgba(5,6,15,.93) 76%);pointer-events:none}
 .feature.big>*{position:relative}
 
+/* ===== connectors (kho kết nối) ===== */
+.conns{display:flex;flex-wrap:wrap;justify-content:center;gap:13px;max-width:940px;margin:0 auto}
+.conn-logo{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:11px 17px;transition:transform .25s,border-color .25s,box-shadow .25s}
+.conn-logo:hover{transform:translateY(-4px);border-color:rgba(139,92,246,.55);box-shadow:0 0 30px rgba(139,92,246,.2)}
+.conn-logo img{width:28px;height:28px;object-fit:contain;border-radius:7px;flex-shrink:0}
+.conn-logo span{font-size:14.5px;font-weight:600;white-space:nowrap}
+.conn-more{color:var(--mut);max-width:760px;margin:30px auto 0;font-size:15px}
+.perm-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:16px}
+.perm-tag{font-size:13px;font-weight:700;padding:6px 14px;border-radius:99px;border:1px solid var(--line)}
+.perm-tag.r{color:var(--cyan)}
+.perm-tag.w{color:#febc2e;border-color:rgba(254,188,46,.35)}
+.perm-tag.f{color:#ff6b8a;border-color:rgba(255,107,138,.35)}
+
 /* ===== telegram ===== */
 .split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
 .checks{list-style:none;display:flex;flex-direction:column;gap:14px;margin-top:22px}
@@ -196,7 +209,7 @@ blockquote footer{margin-top:8px;font-style:normal;font-size:14px;color:var(--mu
 .qa.open .faq-q .ar{transform:rotate(180deg)}
 .faq-a{max-height:0;overflow:hidden;transition:max-height .4s ease}
 .faq-a p{padding:0 20px 18px;color:var(--mut);font-size:15px}
-.qa.open .faq-a{max-height:220px}
+.qa.open .faq-a{max-height:360px}
 
 /* ===== final cta ===== */
 .final{position:relative;background:linear-gradient(135deg,rgba(109,40,217,.35),rgba(34,211,238,.12)),var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;text-align:center}
@@ -247,6 +260,7 @@ footer a:hover{color:var(--tx)}
     <button id="burger" aria-label="Menu">☰</button>
     <div class="links" id="navLinks">
       <a href="#features">Tính năng</a>
+      <a href="#connect">Kết nối</a>
       <a href="#how">Cách hoạt động</a>
       <a href="#security">Bảo mật</a>
       <a href="#author">Tác giả</a>
@@ -263,8 +277,8 @@ footer a:hover{color:var(--tx)}
   <div class="wrap">
     <div class="hero-grid">
       <div>
-        <span class="badge">Public trên GitHub · 100% tiếng Việt · Tự host</span>
-        <h1>Trợ lý AI của riêng bạn. <em>Chạy bằng gói Claude bạn đang có.</em></h1>
+        <span class="badge">Hơn 15 kết nối cài sẵn · 100% tiếng Việt · Tự host</span>
+        <h1>Trợ lý AI của riêng bạn. <em>Chạy bằng gói AI bạn đang có.</em></h1>
         <p class="hero-sub">Javis OS biến gói Claude/ChatGPT bạn đang trả tiền hàng tháng thành một trợ lý toàn quyền trên máy của bạn: nhớ bạn, biết số liệu thật của bạn, làm việc cả khi bạn ngủ. Không cần API key. Không phí phần mềm.</p>
         <div class="cta-row">
           <a class="btn btn-p" href="https://github.com/blogminhquy/javis-os/blob/main/DEPLOY.md" target="_blank" rel="noopener">Deploy 5 phút ↗</a>
@@ -308,7 +322,7 @@ footer a:hover{color:var(--tx)}
     <div class="grid3">
       <div class="card rv" style="--d:.05s"><span class="ico">💰</span><h3>0đ tiền API</h3><p>Bộ não chạy bằng gói Claude/ChatGPT bạn đang trả. Đổi engine tự do: Claude Code, Codex, OpenRouter, OpenAI.</p></div>
       <div class="card rv" style="--d:.15s"><span class="ico">🧠</span><h3>Nhớ bạn vĩnh viễn</h3><p>Second Brain tích luỹ: bộ nhớ sống + Wiki có liên kết. Càng dùng càng hiểu bạn, không tái phát hiện lại từ đầu.</p></div>
-      <div class="card rv" style="--d:.25s"><span class="ico">📈</span><h3>Số liệu thật, không bịa</h3><p>Đấu MCP vào POS, quảng cáo, lịch... Javis trả lời bằng số thật của bạn, so kỳ trước, kèm đề xuất.</p></div>
+      <div class="card rv" style="--d:.25s"><span class="ico">📈</span><h3>Số liệu thật, không bịa</h3><p>Kho Kết nối đấu vào POS, quảng cáo, email, lịch... Javis trả lời bằng số thật của bạn, so kỳ trước, kèm đề xuất.</p></div>
     </div>
   </div>
 </section>
@@ -317,14 +331,15 @@ footer a:hover{color:var(--tx)}
 <section id="compare" class="alt">
   <div class="wrap">
     <h2 class="rv center">Chatbot thường vs Javis OS</h2>
-    <p class="lead rv center">Cùng một gói Claude, hai đẳng cấp trợ lý.</p>
+    <p class="lead rv center">Cùng một gói AI, hai đẳng cấp trợ lý.</p>
     <div class="tbl-wrap rv">
       <table>
         <thead><tr><th></th><th>Chatbot thường</th><th class="new">Javis OS</th></tr></thead>
         <tbody>
-          <tr class="rv" style="--d:.05s"><td>Bộ não</td><td class="old">API gọi rời từng câu</td><td class="new">Claude Code CLI toàn quyền: file, lệnh, MCP, skill</td></tr>
+          <tr class="rv" style="--d:.05s"><td>Bộ não</td><td class="old">API gọi rời từng câu</td><td class="new">Claude Code, ChatGPT hay API - toàn quyền file, lệnh, MCP, skill</td></tr>
           <tr class="rv" style="--d:.1s"><td>Trí nhớ</td><td class="old">Quên sau mỗi phiên</td><td class="new">Second Brain sống, dày lên qua từng hội thoại</td></tr>
-          <tr class="rv" style="--d:.15s"><td>Dữ liệu</td><td class="old">Bịa hoặc không có</td><td class="new">Số thật từ MCP: POS, Ads, Lịch...</td></tr>
+          <tr class="rv" style="--d:.15s"><td>Dữ liệu</td><td class="old">Bịa hoặc không có</td><td class="new">Số thật từ Kho Kết nối: POS, Ads, Gmail, Lịch...</td></tr>
+          <tr class="rv" style="--d:.18s"><td>Kết nối nguồn</td><td class="old">Không, hoặc gõ config tay</td><td class="new">Kho Kết nối bấm 1 nút, đa tài khoản, phân quyền cứng</td></tr>
           <tr class="rv" style="--d:.2s"><td>Tự làm việc</td><td class="old">Không</td><td class="new">Vòng lặp chạy nền theo lịch, tự kiểm chứng</td></tr>
           <tr class="rv" style="--d:.25s"><td>Giao diện</td><td class="old">Khung chat</td><td class="new">Dashboard 3D + giọng nói + Telegram</td></tr>
           <tr class="rv" style="--d:.3s"><td>Dữ liệu của ai</td><td class="old">Nằm trên server họ</td><td class="new">Tự host: máy bạn, VPS bạn, file markdown mở</td></tr>
@@ -342,6 +357,7 @@ footer a:hover{color:var(--tx)}
     <p class="lead rv">Mọi thứ dưới đây có sẵn ngay sau khi deploy, không cài thêm gì.</p>
     <div class="bento">
       <div class="feature big rv"><img class="bento-img" src="https://statics.pancake.vn/web-media-263/60/16/ba/ca/94174802bcc2b133a14259b5cb9093d18da42c2a175d8bf1ae1aaa1c-w:1028-h:613-l:76335-t:image/jpeg.jpg" alt="Đồ thị tri thức 3D trong Javis OS" loading="lazy"><span class="bento-shade"></span><span class="ico">🌌</span><h3>Đồ thị tri thức 3D</h3><p>Bộ não hiện thành nebula 3D, node nối nhau bằng wikilink, phản ứng theo giọng nói.</p><a href="https://github.com/blogminhquy/javis-os/blob/main/docs/03-do-thi-tri-thuc-3d.md" target="_blank" rel="noopener">Docs ↗</a></div>
+      <div class="feature rv" style="--d:.03s"><span class="ico">🔌</span><h3>Kho Kết nối</h3><p>Hơn 15 dịch vụ cài sẵn: POS, quảng cáo, email, lịch, chat. Bấm là nối, không gõ config.</p><a href="#connect">Xem kho ↗</a></div>
       <div class="feature rv" style="--d:.05s"><span class="ico">🎙️</span><h3>Giọng nói rảnh tay</h3><p>Giữ phím Cách để nói, Javis trả lời bằng giọng tiếng Việt.</p><a href="https://github.com/blogminhquy/javis-os/blob/main/docs/02-tro-chuyen-va-giong-noi.md" target="_blank" rel="noopener">Docs ↗</a></div>
       <div class="feature rv" style="--d:.1s"><span class="ico">📱</span><h3>Telegram 2 chiều</h3><p>Giao việc từ điện thoại, gửi ảnh nó đọc, làm xong nó gửi file về.</p><a href="https://github.com/blogminhquy/javis-os/blob/main/docs/11-telegram.md" target="_blank" rel="noopener">Docs ↗</a></div>
       <div class="feature rv" style="--d:.15s"><span class="ico">🤖</span><h3>Agents &amp; Workflows</h3><p>Tạo trợ lý chuyên biệt + chuỗi tự động nhiều bước trong Studio.</p><a href="https://github.com/blogminhquy/javis-os/blob/main/docs/07-agents-va-workflows.md" target="_blank" rel="noopener">Docs ↗</a></div>
@@ -350,6 +366,40 @@ footer a:hover{color:var(--tx)}
       <div class="feature rv" style="--d:.3s"><span class="ico">📊</span><h3>Panel số liệu</h3><p>Card doanh thu, đơn, xu hướng tự cập nhật sau mỗi báo cáo.</p><a href="https://github.com/blogminhquy/javis-os/blob/main/docs/09-mcp-va-so-lieu.md" target="_blank" rel="noopener">Docs ↗</a></div>
       <div class="feature rv" style="--d:.35s"><span class="ico">🔎</span><h3>Phiên hội thoại</h3><p>Lưu hết, tìm kiếm toàn văn, mở lại kể cả khi đổi máy.</p><a href="https://github.com/blogminhquy/javis-os/blob/main/docs/04-phien-hoi-thoai.md" target="_blank" rel="noopener">Docs ↗</a></div>
     </div>
+  </div>
+</section>
+
+<!-- 5b. KHO KẾT NỐI -->
+<section id="connect">
+  <div class="wrap center">
+    <p class="kicker rv">Kho Kết nối</p>
+    <h2 class="rv">Đấu Javis vào công cụ của bạn trong 1 phút</h2>
+    <p class="lead rv">Không còn gõ URL hay cấu hình kỹ thuật. Chọn dịch vụ trong kho, dán key, quét QR hoặc đăng nhập, xong. Javis tự kiểm tra và tự đặt tên tài khoản cho bạn.</p>
+    <div class="conns rv">
+      <div class="conn-logo"><img src="https://statics.pancake.vn/web-media-263/3c/01/7c/4b/eb5e58bb7bbe9db359b89e738c8df1bfe728b3fe06d1d3caedf61e65-w:512-h:512-l:10567-t:image/png.png" alt="Pancake POS" loading="lazy"><span>Pancake POS</span></div>
+      <div class="conn-logo"><img src="https://statics.pancake.vn/web-media-263/7c/5e/22/b4/f86962835fbffe9cea2a4b9d7596c4a02ed8ef73ceb617081c56e94a-w:1280-h:1280-l:15535-t:image/webp.webp" alt="Meta Ads" loading="lazy"><span>Meta Ads</span></div>
+      <div class="conn-logo"><img src="https://statics.pancake.vn/web-media-263/e7/7a/af/7d/0a6245dc8780cbd43ff0aa606af81e548e74816890ee30b8abe87d22-w:1197-h:980-l:14003-t:image/webp.webp" alt="Gmail" loading="lazy"><span>Gmail</span></div>
+      <div class="conn-logo"><img src="https://statics.pancake.vn/web-media-263/6d/6a/c5/54/f157cfec71e9f6bad0d3ed6de0dfb289440d588b60f9934f0d332de7-w:512-h:512-l:10678-t:image/png.png" alt="Google Calendar" loading="lazy"><span>Google Calendar</span></div>
+      <div class="conn-logo"><img src="https://statics.pancake.vn/web-media-263/31/95/79/33/965343b19226191c68d130c15a804bc28b8826810807ea9498be859b-w:256-h:256-l:6550-t:image/png.png" alt="Google Sheets" loading="lazy"><span>Google Sheets</span></div>
+      <div class="conn-logo"><img src="https://statics.pancake.vn/web-media-263/b2/56/23/33/d35dae3b8721a54280b6d888c9d4665d033b519cb045836669adb845-w:980-h:980-l:24569-t:image/webp.webp" alt="Slack" loading="lazy"><span>Slack</span></div>
+      <div class="conn-logo"><img src="https://statics.pancake.vn/web-media-263/21/35/f8/9f/52418b5fe6155f2366a16e29ba0b6d121f8bc3d732a84829cb261f63-w:792-h:792-l:56559-t:image/png.png" alt="Lark" loading="lazy"><span>Lark</span></div>
+      <div class="conn-logo"><img src="https://statics.pancake.vn/web-media-263/54/08/45/84/75a1165797d56ae674a8ef85e30264f40f906b88997d4193c1c63280-w:447-h:447-l:9150-t:image/png.png" alt="Zalo" loading="lazy"><span>Zalo</span></div>
+      <div class="conn-logo"><img src="https://statics.pancake.vn/web-media-263/35/2d/aa/77/3044125e5fd2528c02085388bb11cbe4b4df945cbe0e1c0d9ca1c14a-w:447-h:447-l:9477-t:image/png.png" alt="Botcake" loading="lazy"><span>Botcake</span></div>
+      <div class="conn-logo"><img src="https://statics.pancake.vn/web-media-263/99/89/96/cb/22d35e78df04d12f6995e76efd1e8343908258ba0f23186c8bb6a018-w:447-h:447-l:9801-t:image/jpeg.jpg" alt="Webcake" loading="lazy"><span>Webcake</span></div>
+      <div class="conn-logo"><img src="https://statics.pancake.vn/web-media-263/47/d0/4f/92/d29425f34f1c04e99aee495fa2e75bc56c6364ce1dd9c28e60832a67-w:447-h:447-l:11661-t:image/png.png" alt="Systeme.io" loading="lazy"><span>Systeme.io</span></div>
+    </div>
+    <p class="conn-more rv">Cùng Google Ads, TikTok Ads, Google Workspace, Search Console và ô "Tự thêm" cho mọi MCP khác. Một dịch vụ nối được nhiều tài khoản - 3 shop POS, 2 số Zalo, nhiều tài khoản quảng cáo, mỗi cái phân quyền riêng.</p>
+    <div class="perm-row rv">
+      <span class="perm-tag r">Chỉ đọc</span>
+      <span class="perm-tag w">Ghi nháp</span>
+      <span class="perm-tag f">Toàn quyền</span>
+    </div>
+    <div class="grid3" style="margin-top:44px;text-align:left">
+      <div class="card rv" style="--d:.05s"><span class="ico">🔑</span><h3>Bấm là kết nối</h3><p>Dán key, quét QR (Zalo) hoặc đăng nhập OAuth (Google, Slack, Meta). Javis validate ngay và tự lấy tên cửa hàng/tài khoản.</p></div>
+      <div class="card rv" style="--d:.15s"><span class="ico">🛡️</span><h3>Phân quyền cứng 3 mức</h3><p>Chỉ đọc, Ghi nháp hay Toàn quyền, chặn THẬT tại hub theo từng lời gọi. Loop chạy nền không bao giờ tự tiêu tiền hay gửi tin.</p></div>
+      <div class="card rv" style="--d:.25s"><span class="ico">🔀</span><h3>Mọi bộ não dùng chung</h3><p>Claude Code, ChatGPT, OpenRouter, OpenAI hay Anthropic API đều đấu qua một hub. Đổi engine thoải mái, kết nối giữ nguyên.</p></div>
+    </div>
+    <p style="margin-top:34px"><a class="btn btn-o" href="https://github.com/blogminhquy/javis-os/blob/main/docs/09-mcp-va-so-lieu.md" target="_blank" rel="noopener">Docs Kho Kết nối ↗</a></p>
   </div>
 </section>
 
@@ -435,7 +485,7 @@ footer a:hover{color:var(--tx)}
       <li>
         <span class="stepnum">3</span>
         <h3>Giao việc</h3>
-        <p>Đấu MCP cửa hàng của bạn, bật Telegram, đặt lịch chạy nền. Xong.</p>
+        <p>Vào Kho Kết nối đấu cửa hàng của bạn, bật Telegram, đặt lịch chạy nền. Xong.</p>
       </li>
     </ol>
     <p style="margin-top:34px"><a class="btn btn-o" href="https://github.com/blogminhquy/javis-os/blob/main/DEPLOY.md" target="_blank" rel="noopener">Hướng dẫn chi tiết từng bước ↗</a></p>
@@ -478,7 +528,7 @@ footer a:hover{color:var(--tx)}
     <p class="lead rv center">Không phí tháng, không giới hạn tin nhắn, không upsell.</p>
     <div class="stats">
       <div class="stat rv" style="--d:.05s"><span class="num">0đ</span><p>phí phần mềm, public trên GitHub</p></div>
-      <div class="stat rv" style="--d:.15s"><span class="num">0đ</span><p>phí API, dùng gói Claude sẵn có</p></div>
+      <div class="stat rv" style="--d:.15s"><span class="num">0đ</span><p>phí API, dùng gói AI sẵn có</p></div>
       <div class="stat rv" style="--d:.25s"><span class="num">~<span class="count" data-to="100">0</span>k<small style="font-size:20px">/tháng</small></span><p>một VPS nhỏ là đủ chạy</p></div>
     </div>
     <p class="cost-end rv">Rẻ hơn một ly cà phê mỗi tuần, cho một trợ lý làm việc 24/7.</p>
@@ -515,6 +565,7 @@ footer a:hover{color:var(--tx)}
     <p class="lead rv center">Còn thắc mắc khác? Mở issue trên <a href="https://github.com/blogminhquy/javis-os" target="_blank" rel="noopener">GitHub ↗</a>.</p>
     <div class="faq rv">
       <div class="qa"><button class="faq-q">Có cần API key không?<span class="ar">▾</span></button><div class="faq-a"><p>Không. Javis dùng gói subscription Claude/ChatGPT bạn đang có. Chỉ đăng nhập 1 lần.</p></div></div>
+      <div class="qa"><button class="faq-q">Javis kết nối được với những gì?<span class="ar">▾</span></button><div class="faq-a"><p>Hơn 15 dịch vụ cài sẵn trong Kho Kết nối: Pancake POS, Meta/Google/TikTok Ads, Gmail, Google Calendar, Sheets, Slack, Lark, Zalo, Botcake, Webcake, Systeme.io... Bấm kết nối rồi dán key hoặc đăng nhập là xong, mỗi kết nối phân quyền riêng. Dịch vụ chưa có thì tự thêm bằng MCP.</p></div></div>
       <div class="qa"><button class="faq-q">Không biết code có dùng được không?<span class="ar">▾</span></button><div class="faq-a"><p>Được. Deploy bằng cách dán 1 URL vào Hostinger, mọi thao tác còn lại làm trên giao diện.</p></div></div>
       <div class="qa"><button class="faq-q">Chạy trên Windows được không?<span class="ar">▾</span></button><div class="faq-a"><p>Được: Windows, macOS, Linux, Docker, VPS đều được.</p></div></div>
       <div class="qa"><button class="faq-q">Update có mất dữ liệu không?<span class="ar">▾</span></button><div class="faq-a"><p>Không. Dữ liệu nằm trong volume/thư mục riêng, update chỉ thay code.</p></div></div>
