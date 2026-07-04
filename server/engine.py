@@ -667,3 +667,63 @@ async def responses_with_mcp(access_token, account_id, model, messages, reasonin
                 yield {"type": "error", "content": "ChatGPT trả về rỗng (backend Codex có thể chưa hỗ trợ tool)."}
             return
         yield {"type": "text", "content": "\n\n⚠ Đã đạt giới hạn 8 vòng gọi tool MCP."}
+
+
+async def anthropic_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):
+    """Anthropic Messages API + vòng tool-calling MCP - gỡ hạn chế 'anthropic-api = chat thuần'.
+    Non-stream từng vòng (như _cc_tool_loop); yield meta/tool_call/text/error thống nhất."""
+    import mcp_client
+    sys_txt = "\n\n".join(m.get("content", "") for m in messages if m.get("role") == "system")
+    conv = [{"role": m["role"], "content": m.get("content", "")}
+            for m in messages if m.get("role") in ("user", "assistant")]
+    headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"}
+    tools = [{"name": t["fn"], "description": (t.get("description") or t["fn"])[:1024],
+              "input_schema": t.get("schema") or {"type": "object", "properties": {}}} for t in mcp_tools]
+    yield {"type": "meta", "model": model}
+    extras = _anthropic_reasoning(model, reasoning)
+    timeout = httpx.Timeout(180, connect=15)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        for _ in range(8):
+            payload = {"model": model or "claude-sonnet-4-6", "max_tokens": 4096,
+                       "messages": conv, "tools": tools, "stream": False}
+            payload.update(extras or {})
+            if sys_txt:
+                payload["system"] = sys_txt
+            # KHÔNG dùng _apply_anthropic_cache ở đây: hàm này mutate messages in-place,
+            # marker cache_control TÍCH LUỸ qua các vòng tool → quá 4 block → API 400 giữa chừng.
+            try:
+                r = await client.post(ANTHROPIC_URL, headers=headers, json=payload)
+            except Exception as e:
+                yield {"type": "error", "content": f"Anthropic lỗi: {_describe_exc(e)}"}
+                return
+            if r.status_code == 400 and extras and "thinking" in (r.text or "").lower():
+                extras = {}   # thinking không tương thích payload/tool này → bỏ thinking, thử lại
+                continue
+            if r.status_code != 200:
+                yield {"type": "error", "content": f"Anthropic {r.status_code}: {(r.text or '')[:300]}"}
+                return
+            try:
+                data = r.json()
+            except Exception:
+                yield {"type": "error", "content": "Anthropic trả về không phải JSON."}
+                return
+            blocks = data.get("content") or []
+            tool_uses = [b for b in blocks if b.get("type") == "tool_use"]
+            if tool_uses and data.get("stop_reason") == "tool_use":
+                # Giữ NGUYÊN blocks (kể cả thinking) - API yêu cầu khi tiếp tục sau tool_use
+                conv.append({"role": "assistant", "content": blocks})
+                results = []
+                for tu in tool_uses:
+                    yield {"type": "tool_call", "name": tu.get("name")}
+                    res = await mcp_client.call_route(mcp_route, tu.get("name"), tu.get("input") or {})
+                    results.append({"type": "tool_result", "tool_use_id": tu.get("id"),
+                                    "content": _clip_tool_result(res)})
+                conv.append({"role": "user", "content": results})
+                continue
+            text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
+            if text:
+                yield {"type": "text", "content": text}
+            else:
+                yield {"type": "error", "content": "Anthropic trả về rỗng. Thử model khác trong Models."}
+            return
+        yield {"type": "text", "content": "\n\n⚠ Đã đạt giới hạn 8 vòng gọi tool MCP."}

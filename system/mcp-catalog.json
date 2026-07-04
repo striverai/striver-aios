@@ -1,0 +1,262 @@
+{
+  "version": 1,
+  "_doc": "Kho connector MCP mẫu của Javis OS. Connector = MẪU (url/command + cách đăng nhập + phân loại tool). Tài khoản cụ thể user đấu = connection, lưu ở mcp_servers.json (xem server/mcp_store.py). status: ready | beta | soon. Đã xác minh chi tiết 2026-07-04 (research notes: docs/dev/2026-07-ke-hoach-ket-noi-hub.md).",
+  "connectors": [
+    {
+      "id": "pancake-pos",
+      "name": "Pancake POS",
+      "icon": "🛒",
+      "category": "Bán hàng",
+      "description": "Đơn hàng, doanh thu, khách hàng, tồn kho, quảng cáo từ Pancake POS. Mỗi cửa hàng 1 API key - thêm nhiều tài khoản cho nhiều shop.",
+      "status": "ready",
+      "transport": "http",
+      "url": "https://mcp-pos.pancake.biz/mcp",
+      "auth": {
+        "type": "apikey",
+        "fields": [
+          {
+            "key": "api_key",
+            "label": "API key của cửa hàng",
+            "placeholder": "dán API key Pancake POS...",
+            "header": "Authorization: Bearer {api_key}"
+          }
+        ],
+        "guide": "Mở Pancake POS > Cấu hình cửa hàng > Ứng dụng & API > tạo API key, rồi dán vào đây. Javis sẽ tự kiểm tra và lấy tên cửa hàng.",
+        "guide_url": "https://docs.pancake.biz/pos/st-f13/st-p2?lang=vi"
+      },
+      "validate": {
+        "tool": "pos_shop",
+        "args": { "action": "list" },
+        "label_paths": ["name", "shop.name", "data.name", "shops.0.name", "data.shops.0.name", "data.0.name"]
+      },
+      "arg_rules": {
+        "param": "action",
+        "read_prefixes": ["list", "get", "search", "describe", "count", "stat", "read", "history", "export"],
+        "read_values": [
+          "create_orders_get_tracking_url",
+          "create_products_get_logistics_shipping_document",
+          "create_orders_get_promotion_advance_active"
+        ]
+      },
+      "tool_meta": {
+        "read": ["pos_describe", "pos_statistics", "pos_statistics_inventory_analytics", "pos_export"],
+        "danger": ["pos_order", "pos_purchase", "pos_transaction", "pos_debt", "pos_e_invoice",
+                   "pos_ads_manager", "pos_voucher", "pos_promotion"]
+      },
+      "default_perm": "readonly"
+    },
+    {
+      "id": "zalo",
+      "name": "Zalo (tài khoản cá nhân)",
+      "icon": "💬",
+      "category": "Nhắn tin",
+      "description": "Đọc và gửi tin nhắn Zalo bằng tài khoản cá nhân (qua zalo-agent-cli, đăng nhập quét QR). Nối được nhiều tài khoản - mỗi tài khoản chạy cô lập.",
+      "status": "beta",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "zalo-agent-cli", "mcp", "start"],
+      "requires": { "node": ">=20" },
+      "isolate_home": true,
+      "auth": {
+        "type": "qr",
+        "fields": [],
+        "guide": "Bấm Kết nối rồi quét mã QR bằng app Zalo trên điện thoại (Zalo > biểu tượng QR góc trên). Cần Node.js 20+ trên máy chạy Javis.",
+        "guide_url": "https://github.com/PhucMPham/zalo-agent-cli"
+      },
+      "tool_meta": {
+        "write": ["*send*", "*mark*"],
+        "danger": ["*send*"]
+      },
+      "default_perm": "full",
+      "risk": "Zalo KHÔNG hỗ trợ chính thức công cụ này (API không chính thức qua zca-js). Tài khoản của bạn CÓ THỂ bị Zalo hạn chế hoặc KHOÁ, nhất là khi gửi tin tự động số lượng lớn. Khuyến nghị dùng tài khoản phụ. Quyền GỬI TIN đang bật - Javis chỉ gửi khi bạn yêu cầu trực tiếp trong chat; loop chạy nền không bao giờ được tự gửi.",
+      "rate_limit": { "calls_per_min": 20 }
+    },
+    {
+      "id": "webcake-landing",
+      "name": "Webcake Landing",
+      "icon": "📄",
+      "category": "Marketing",
+      "description": "Để AI tự thiết kế và sửa landing page Webcake bằng lời nói (tạo trang, sửa section, publish...). Chạy local qua npx, mỗi tài khoản 1 JWT.",
+      "status": "ready",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "webcake-landing-mcp"],
+      "requires": { "node": ">=18" },
+      "auth": {
+        "type": "apikey",
+        "fields": [
+          {
+            "key": "api_key",
+            "label": "JWT / API key Webcake",
+            "placeholder": "dán JWT từ webcake.io...",
+            "env": "WEBCAKE_JWT"
+          },
+          {
+            "key": "org_id",
+            "label": "Org ID (tuỳ chọn - khi tài khoản có nhiều tổ chức)",
+            "placeholder": "để trống nếu chỉ có 1 tổ chức",
+            "env": "WEBCAKE_ORG_ID",
+            "optional": true
+          }
+        ],
+        "guide": "Vào webcake.io > Cài đặt > Mã truy cập > Tạo API keys (JWT), dán vào đây. Coi JWT như mật khẩu.",
+        "guide_url": "https://docs.pancake.biz/landing/st-f7/st-p3?lang=vi"
+      },
+      "validate": {
+        "tool": "list_organizations",
+        "args": {},
+        "label_paths": ["organizations.0.name", "data.0.name", "0.name", "name"]
+      },
+      "tool_meta": {
+        "write": ["create_page", "update_page", "patch_page", "add_section", "new_element", "new_page_skeleton", "layout", "ingest_html", "ingest_url", "upload_images"],
+        "danger": ["publish_page"]
+      },
+      "default_perm": "safe"
+    },
+    {
+      "id": "botcake",
+      "name": "Botcake",
+      "icon": "🤖",
+      "category": "Nhắn tin",
+      "description": "Khách hàng, tag, flow và gửi tin từ chatbot Botcake (qua Public API - Javis tự dựng cầu nối, không cần cài gì thêm).",
+      "status": "beta",
+      "transport": "internal",
+      "internal": "botcake",
+      "auth": {
+        "type": "apikey",
+        "fields": [
+          {
+            "key": "page_id",
+            "label": "Page ID (trang Facebook gắn với Botcake)",
+            "placeholder": "vd 1021326246..."
+          },
+          {
+            "key": "api_key",
+            "label": "API Key của page",
+            "placeholder": "dán API key Botcake..."
+          }
+        ],
+        "guide": "Mở Botcake > Cấu hình > Tích hợp > Public API > Tạo API Key. Lưu ý: làm mới/xoá key sẽ vô hiệu các kết nối cũ.",
+        "guide_url": "https://docs.pancake.biz/botcake/st-f2/st-p10/st-s2?lang=vi"
+      },
+      "validate": {
+        "tool": "botcake_tags",
+        "args": {},
+        "label_paths": ["page.name", "data.page_name", "page_name", "name"]
+      },
+      "tool_meta": {
+        "write": ["botcake_send_flow", "botcake_send_content", "botcake_keyword_create", "botcake_keyword_update", "botcake_customer_fields_set", "botcake_upload_media"],
+        "danger": ["botcake_send_flow", "botcake_send_content"]
+      },
+      "default_perm": "readonly"
+    },
+    {
+      "id": "google-sheets",
+      "name": "Google Sheets",
+      "icon": "📊",
+      "category": "Văn phòng",
+      "description": "Đọc/ghi bảng tính Google: đổ báo cáo doanh thu, tồn kho, công nợ ra Sheets tự động. Đấu bằng service account - không cần đăng nhập.",
+      "status": "beta",
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["mcp-google-sheets@latest"],
+      "auth": {
+        "type": "apikey",
+        "fields": [
+          {
+            "key": "service_account",
+            "label": "Service account JSON (dán TOÀN BỘ nội dung file key)",
+            "placeholder": "{ \"type\": \"service_account\", \"project_id\": ... }",
+            "file": true,
+            "env": "SERVICE_ACCOUNT_PATH",
+            "multiline": true
+          },
+          {
+            "key": "folder_id",
+            "label": "ID thư mục Drive làm việc (đã share cho email service account)",
+            "placeholder": "lấy từ URL thư mục, vd 1AbCdEf...",
+            "env": "DRIVE_FOLDER_ID"
+          }
+        ],
+        "guide": "Làm 1 lần: vào console.cloud.google.com > tạo project > bật Google Sheets API + Google Drive API > IAM > Service Accounts > tạo tài khoản + tạo key JSON. Share thư mục Drive cho email của service account (quyền Editor), rồi dán nội dung file JSON + ID thư mục vào đây. Thêm xong bấm Test để chắc chắn chạy.",
+        "guide_url": "https://github.com/xing5/mcp-google-sheets"
+      },
+      "tool_meta": {
+        "write": ["*create*", "*update*", "*add*", "*write*", "*batch*", "*share*", "*copy*"],
+        "danger": []
+      },
+      "default_perm": "safe"
+    },
+    {
+      "id": "google-search-console",
+      "name": "Google Search Console",
+      "icon": "🔍",
+      "category": "Marketing",
+      "description": "Số liệu SEO website: khách tìm từ khoá gì ra trang của bạn, lượt hiển thị, lượt bấm, trang top.",
+      "status": "beta",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "mcp-server-gsc"],
+      "requires": { "node": ">=18" },
+      "auth": {
+        "type": "apikey",
+        "fields": [
+          {
+            "key": "service_account",
+            "label": "Service account JSON (dán TOÀN BỘ nội dung file key)",
+            "placeholder": "{ \"type\": \"service_account\", ... }",
+            "file": true,
+            "env": "GOOGLE_APPLICATION_CREDENTIALS",
+            "multiline": true
+          }
+        ],
+        "guide": "Tạo service account + key JSON trong Google Cloud Console (bật Search Console API), rồi vào Search Console > Cài đặt > Người dùng và quyền > thêm email của service account. Dán nội dung file JSON vào đây.",
+        "guide_url": "https://github.com/ahonn/mcp-server-gsc"
+      },
+      "default_perm": "readonly"
+    },
+    {
+      "id": "google-workspace",
+      "name": "Google Workspace (Gmail, Lịch, Drive, Docs)",
+      "icon": "📧",
+      "category": "Văn phòng",
+      "description": "Gmail, Calendar, Drive, Docs, Forms, Tasks... trong MỘT kết nối. Đăng nhập Google 1 lần bằng OAuth client tự tạo (~10 phút, có hướng dẫn).",
+      "status": "beta",
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tool-tier", "core"],
+      "auth": {
+        "type": "apikey",
+        "fields": [
+          {
+            "key": "client_id",
+            "label": "OAuth Client ID",
+            "placeholder": "xxxx.apps.googleusercontent.com",
+            "env": "GOOGLE_OAUTH_CLIENT_ID"
+          },
+          {
+            "key": "client_secret",
+            "label": "OAuth Client Secret",
+            "placeholder": "GOCSPX-...",
+            "env": "GOOGLE_OAUTH_CLIENT_SECRET"
+          },
+          {
+            "key": "user_email",
+            "label": "Email Google của bạn (tuỳ chọn)",
+            "placeholder": "vd ten@gmail.com",
+            "env": "USER_GOOGLE_EMAIL",
+            "optional": true
+          }
+        ],
+        "guide": "Làm 1 lần (~10 phút): console.cloud.google.com > tạo project > bật Gmail API, Calendar API, Drive API, Docs API > OAuth consent screen (External, thêm email mình vào Test users) > Credentials > Create OAuth client ID (Desktop app) > copy Client ID + Secret vào đây. LẦN ĐẦU Javis gọi tool Google, trình duyệt trên máy chạy Javis sẽ mở để bạn bấm đồng ý quyền - làm trên máy có màn hình.",
+        "guide_url": "https://github.com/taylorwilsdon/google_workspace_mcp"
+      },
+      "tool_meta": {
+        "write": ["*create*", "*update*", "*upload*", "*draft*", "*modify*", "*move*", "*add*", "*set*"],
+        "danger": ["*send*", "*delete*"]
+      },
+      "default_perm": "safe",
+      "risk": "Mức Toàn quyền cho phép Javis GỬI EMAIL THẬT và XOÁ file/thư/lịch bằng tài khoản Google của bạn. Mức Ghi nháp (mặc định) chỉ soạn nháp, tạo lịch, tạo tài liệu - an toàn hơn."
+    }
+  ]
+}

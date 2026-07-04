@@ -620,7 +620,10 @@ class LoopFeature:
             # deny_tools per-server (apply_mcp đặt --disallowedTools) - chặn user đã chủ ý.
             cli = ClaudeCLI(system_prompt=sysprompt, cwd=cwd, tag="loop", allowed_tools=None)
             if self.deps.apply_mcp:
-                self.deps.apply_mcp(cli)
+                try:
+                    self.deps.apply_mcp(cli, mode="full")   # hub nhận mode qua header X-Javis-Mode
+                except TypeError:
+                    self.deps.apply_mcp(cli)
             # KHÔNG _isolate: full mode chủ đích mở MCP + Bash. Không có apply_mcp (test) → vẫn None allowlist.
         else:
             base = self.deps.readonly_tools if for_verify else (
@@ -634,7 +637,13 @@ class LoopFeature:
                     pass
             cli = ClaudeCLI(system_prompt=sysprompt, cwd=cwd, tag="loop", allowed_tools=tools)
             if self.deps.apply_mcp:
-                self.deps.apply_mcp(cli)   # gắn --mcp-config + strict + deny_tools per-server
+                # Hub ENFORCE quyền theo mode: suggest → chỉ đọc, auto → chặn danger (lớp cứng,
+                # cộng thêm allowlist + prompt sẵn có). for_verify luôn coi như suggest.
+                hub_mode = "suggest" if (for_verify or mode not in ("auto",)) else "auto"
+                try:
+                    self.deps.apply_mcp(cli, mode=hub_mode)
+                except TypeError:
+                    self.deps.apply_mcp(cli)   # deps cũ (test) không nhận mode
             else:
                 _isolate(cli)              # không có hook (vd unit test) → giữ 0-MCP như cũ
         cli.model = self.deps.aux_model() or None

@@ -81,9 +81,11 @@ _DEFAULT = {
         # Frontend cũng tự ép lite-mode khi màn hình hẹp dù cờ này bật.
         "graph_enabled": True,
     },
-    # MCP do Javis quản lý (danh sách server ở mcp_servers.json). strict=True → CHỈ dùng
-    # server của Javis (--strict-mcp-config), bỏ qua config MCP sẵn có của máy.
-    "mcp": {"strict": False},
+    # MCP do Javis quản lý (registry connection ở mcp_servers.json). strict=True → CHỈ dùng
+    # kết nối của Javis (--strict-mcp-config), bỏ qua config MCP sẵn có của máy.
+    # hub=True (mặc định): mọi engine đấu qua MCP HUB (1 entry "javis" - đa tài khoản, quyền,
+    # audit tại hub). Đặt false để về chế độ cũ (per-server) nếu gặp sự cố.
+    "mcp": {"strict": False, "hub": True},
 }
 
 

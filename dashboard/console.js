@@ -46,7 +46,7 @@
     { id: "automations", icon: ICON.automations, label: "Lịch" },
     { id: "models",      icon: ICON.models,      label: "Models" },
     { id: "channels",    icon: ICON.channels,    label: "Kênh" },
-    { id: "mcp",         icon: ICON.mcp,         label: "MCP" },
+    { id: "mcp",         icon: ICON.mcp,         label: "Kết nối" },
     { id: "logs",        icon: ICON.logs,        label: "Cập nhật" },
     { id: "account",     icon: ICON.account,     label: "Tài khoản" },
   ];
@@ -65,7 +65,7 @@
     automations: { icon: "⏰", label: "Lịch tự động", sub: "Cron · trigger · routine" },
     models:      { icon: "◈", label: "Models", sub: "Main model & providers" },
     channels:    { icon: "✉", label: "Kênh kết nối", sub: "Telegram & hơn nữa" },
-    mcp:         { icon: "🔌", label: "MCP", sub: "Công cụ ngoài" },
+    mcp:         { icon: "🔌", label: "Kết nối", sub: "Nguồn dữ liệu & công cụ" },
     logs:        { icon: "🗒", label: "Nhật ký cập nhật", sub: "Phiên bản & tính năng mới" },
     account:     { icon: "⚙", label: "Tài khoản", sub: "Đăng nhập & workspace" },
   };
@@ -127,7 +127,7 @@
     if (id === "overview") return renderOverview(el);
     if (id === "settings") return renderSettings(el);
     if (id === "models")   return renderModels(el);
-    if (id === "mcp")      return renderMcp(el);
+    if (id === "mcp")      return renderConnect(el);
     if (id === "channels") return renderChannels(el);
     if (id === "account")  return renderAccount(el);
     if (id === "files")    return renderFiles(el);
@@ -1396,24 +1396,236 @@
     });
     return o;
   }
-  function mcpCard(s) {
-    const on = s.enabled;
-    const keys = (s.header_keys || []).concat(s.env_keys || []);
-    return `<div class="prov-card">
-      <div class="prov-head">
-        <span class="prov-shield ${on ? "on" : ""}">${_shield(on)}</span>
-        <div class="prov-info">
-          <div class="prov-name">${esc(s.name)} <span class="prov-kind">${esc(s.transport)}</span>${s.perm === "readonly" ? ' <span class="prov-kind">chỉ đọc</span>' : ""}</div>
-          <div class="prov-status ${on ? "on" : ""}">${on ? "● Bật" : "○ Tắt"}${s.url ? " · " + esc(s.url) : ""}${keys.length ? " · key: " + esc(keys.join(", ")) : ""}${(s.deny_tools || []).length ? " · chặn " + s.deny_tools.length + " tool" : ""}</div>
-        </div>
-      </div>
-      <div class="prov-action">
-        <button class="gcard-btn" data-mcp-toggle="${s.id}" style="background:transparent">${on ? "Tắt" : "Bật"}</button>
-        <button class="gcard-btn" data-mcp-edit="${s.id}" style="background:transparent;opacity:.85">Sửa</button>
-        <button class="gcard-btn" data-mcp-deny="${s.id}" style="background:transparent;opacity:.8">Chặn tool</button>
-        <button class="gcard-btn" data-mcp-del="${s.id}" style="background:transparent;opacity:.65">Xoá</button>
-      </div>
-    </div>`;
+  // ==== Trang Kết nối: kho connector + đa tài khoản (qua MCP hub) ====
+  const PERM_META = {
+    readonly: { label: "Chỉ đọc", color: "#4da3ff" },
+    safe: { label: "Ghi nháp", color: "#d9a521" },
+    full: { label: "Toàn quyền", color: "#e06c5a" },
+  };
+  const AUTH_BADGE = { apikey: "API key", qr: "QR Zalo", oauth: "OAuth", none: "Tự do" };
+  let _connPoll = null;
+
+  function closeConnModal() {
+    const m = document.getElementById("connectModal");
+    if (m) m.classList.remove("open");
+    if (_connPoll) { clearInterval(_connPoll); _connPoll = null; }
+  }
+  function connModal(html, maxw) {
+    let m = document.getElementById("connectModal");
+    if (!m) { m = document.createElement("div"); m.id = "connectModal"; m.className = "mp-overlay"; document.body.appendChild(m); }
+    m.innerHTML = '<div class="mp-box" style="max-width:' + (maxw || 520) + 'px">' + html + '</div>';
+    m.classList.add("open");
+    m.querySelectorAll('[data-act="close"]').forEach(b => b.onclick = closeConnModal);
+    return m;
+  }
+  function mHead(title) {
+    return '<div class="mp-head"><div class="mp-title">' + title + '</div><button class="mp-x" data-act="close">✕</button></div>';
+  }
+  function permChip(p) {
+    const m = PERM_META[p] || PERM_META.full;
+    return '<span class="perm-chip" style="color:' + m.color + ';border-color:' + m.color + '55">' + m.label + '</span>';
+  }
+  function connChip(c) {
+    return '<button class="conn-chip' + (c.enabled ? "" : " off") + '" data-conn="' + c.id + '">'
+      + '<span class="cdot' + (c.enabled ? " on" : "") + '">●</span> ' + esc(c.label || c.name || "?")
+      + (c.is_default ? ' <span class="cstar">★</span>' : "") + " " + permChip(c.perm) + '</button>';
+  }
+  function connectorCard(con, conns) {
+    const chips = conns.map(connChip).join("")
+      + '<button class="conn-chip add" data-addacc="' + esc(con.id) + '">＋ Thêm tài khoản</button>';
+    return '<div class="prov-card conn-card">'
+      + '<div class="prov-head"><span class="conn-ico">' + (con.icon || "🔌") + '</span>'
+      + '<div class="prov-info"><div class="prov-name">' + esc(con.name || con.id) + '</div>'
+      + '<div class="prov-status">' + esc(con.description || "") + '</div></div></div>'
+      + '<div class="conn-accounts">' + chips + '</div></div>';
+  }
+  function catalogCard(con) {
+    const soon = con.status === "soon";
+    const badge = '<span class="prov-kind">' + (AUTH_BADGE[con.auth_type] || con.auth_type || "") + '</span>'
+      + (con.status === "beta" ? ' <span class="prov-kind" style="color:#d9a521">beta</span>' : "")
+      + (soon ? ' <span class="prov-kind">sắp có</span>' : "");
+    return '<div class="cat-card' + (soon ? " soon" : "") + '" data-cat="' + esc(con.category || "Khác") + '">'
+      + '<div class="cat-ico">' + (con.icon || "🔌") + '</div>'
+      + '<div class="cat-name">' + esc(con.name) + ' ' + badge + '</div>'
+      + '<div class="cat-desc">' + esc(con.description || "") + '</div>'
+      + (soon
+        ? '<button class="gcard-btn" disabled style="opacity:.5">Sắp có</button>'
+          + (con.guide_url ? ' <a class="cat-doc" href="' + esc(con.guide_url) + '" target="_blank">docs ↗</a>' : "")
+        : '<button class="gcard-btn" data-connect="' + esc(con.id) + '">Kết nối</button>')
+      + '</div>';
+  }
+
+  function openAddFlow(el, con, isFirst) {
+    if (!con) return;
+    if (con.id === "custom") return openMcpForm(el);
+    if (con.auth_type === "qr") return openQrFlow(el, con, isFirst);
+    if (con.auth_type === "oauth") return openOauthFlow(el, con);
+    openApikeyFlow(el, con, isFirst);
+  }
+
+  function openApikeyFlow(el, con, isFirst) {
+    const fields = (con.fields || []).map(f =>
+      '<label class="mcp-lb">' + esc(f.label || f.key)
+      + (f.multiline
+        ? '<textarea class="js-input" data-f="' + esc(f.key) + '" rows="5" placeholder="' + esc(f.placeholder || "") + '"></textarea>'
+        : '<input class="js-input" data-f="' + esc(f.key) + '" placeholder="' + esc(f.placeholder || "") + '">')
+      + '</label>').join("");
+    const m = connModal(mHead("KẾT NỐI " + esc((con.name || "").toUpperCase()))
+      + '<div class="conn-form">'
+      + (con.guide ? '<div class="conn-guide">' + esc(con.guide) + (con.guide_url ? ' <a href="' + esc(con.guide_url) + '" target="_blank">Hướng dẫn ↗</a>' : "") + '</div>' : "")
+      + fields
+      + '<label class="mcp-lb">Tên gợi nhớ (tuỳ chọn - bỏ trống sẽ tự lấy tên tài khoản/shop)<input class="js-input" id="cLabel"></label>'
+      + '</div>'
+      + '<div class="mp-foot"><span class="mp-note" id="cErr"></span><div><button class="mp-btn" data-act="close">Huỷ</button><button class="mp-btn primary" id="cGo">Kết nối</button></div></div>');
+    m.querySelector("#cGo").onclick = async () => {
+      const fieldsVal = {};
+      let missing = "";
+      m.querySelectorAll("[data-f]").forEach(inp => {
+        const k = inp.dataset.f, v = inp.value.trim();
+        fieldsVal[k] = v;
+        const fd = (con.fields || []).find(x => x.key === k) || {};
+        if (!v && !fd.optional) missing = fd.label || k;
+      });
+      const err = m.querySelector("#cErr"), go = m.querySelector("#cGo");
+      if (missing) { err.textContent = "Thiếu: " + missing; return; }
+      go.disabled = true; go.textContent = "Đang kiểm tra key…"; err.textContent = "";
+      const r = await postJson("/connect/add", { connector_id: con.id, fields: fieldsVal, label: m.querySelector("#cLabel").value.trim() });
+      if (!r.ok) { err.textContent = r.error || "Lỗi"; go.disabled = false; go.textContent = "Kết nối"; return; }
+      m.querySelector(".conn-form").innerHTML = '<div class="conn-ok">✓ Đã kết nối: <b>' + esc(r.label || con.name) + '</b> (' + (r.tools || 0) + ' công cụ)'
+        + (isFirst ? '<div class="conn-hint">Sang trang Javis hỏi thử: "Hôm nay bán được bao nhiêu?"</div>' : "") + '</div>';
+      go.style.display = "none";
+      setTimeout(() => { closeConnModal(); renderConnect(el); }, 1600);
+    };
+  }
+
+  function openQrFlow(el, con, isFirst) {
+    const risk = con.risk ? '<div class="conn-risk">⚠ ' + esc(con.risk) + '</div>' : "";
+    const m = connModal(mHead("KẾT NỐI " + esc((con.name || "").toUpperCase()))
+      + '<div class="conn-form">' + risk
+      + '<label class="mcp-lb">Tên gợi nhớ (tuỳ chọn)<input class="js-input" id="qLabel"></label>'
+      + '<button class="mp-btn primary" id="qGo">' + (con.risk ? "Tôi hiểu rủi ro, hiện mã QR" : "Hiện mã QR") + '</button>'
+      + '<div id="qrZone"></div></div>'
+      + '<div class="mp-foot"><span class="mp-note" id="qErr"></span><button class="mp-btn" data-act="close">Đóng</button></div>');
+    m.querySelector("#qGo").onclick = async () => {
+      const err = m.querySelector("#qErr");
+      err.textContent = "";
+      const r = await postJson("/connect/zalo/start", { label: m.querySelector("#qLabel").value.trim() });
+      if (!r.ok) { err.textContent = r.error || "Lỗi"; return; }
+      m.querySelector("#qGo").style.display = "none";
+      const zone = m.querySelector("#qrZone");
+      zone.innerHTML = '<div class="mp-note" style="margin-top:8px">Đang khởi động… (lần đầu hơi lâu do phải tải công cụ)</div>';
+      _connPoll = setInterval(async () => {
+        let st;
+        try { st = await (await fetch("/connect/zalo/status?sid=" + encodeURIComponent(r.sid))).json(); } catch (e) { return; }
+        if (st.state === "qr" && st.qr) {
+          zone.innerHTML = '<img class="qr-img" src="' + st.qr + '"><div class="mp-note">Mở Zalo trên điện thoại > biểu tượng QR góc trên > quét mã này</div>';
+        } else if (st.state === "done") {
+          clearInterval(_connPoll); _connPoll = null;
+          zone.innerHTML = '<div class="conn-ok">✓ Đã đăng nhập: <b>' + esc(st.label || "Zalo") + '</b>'
+            + (isFirst ? '<div class="conn-hint">Sang trang Javis nhắn thử: "Đọc tin nhắn Zalo mới nhất"</div>' : "") + '</div>';
+          setTimeout(() => { closeConnModal(); renderConnect(el); }, 1800);
+        } else if (st.state === "error") {
+          clearInterval(_connPoll); _connPoll = null;
+          zone.innerHTML = "";
+          err.textContent = st.error || "Lỗi đăng nhập";
+          m.querySelector("#qGo").style.display = "";
+        }
+      }, 1500);
+    };
+  }
+
+  function openOauthFlow(el, con) {
+    const m = connModal(mHead("KẾT NỐI " + esc((con.name || "").toUpperCase()))
+      + '<div class="conn-form"><div class="conn-guide">' + esc(con.guide || "Đăng nhập bằng tài khoản của nhà cung cấp.") + '</div>'
+      + '<button class="mp-btn primary" id="oGo">Mở trang đăng nhập</button></div>'
+      + '<div class="mp-foot"><span class="mp-note" id="oErr"></span><button class="mp-btn" data-act="close">Đóng</button></div>');
+    m.querySelector("#oGo").onclick = async () => {
+      const r = await postJson("/connect/oauth/start", { connector_id: con.id });
+      if (!r.ok) { m.querySelector("#oErr").textContent = r.error || "Lỗi"; return; }
+      window.open(r.url, "_blank");
+      m.querySelector("#oErr").textContent = "Hoàn tất đăng nhập ở tab mới, xong quay lại bấm Làm mới trang này.";
+    };
+  }
+
+  function openPermPicker(el, c, con) {
+    const DESC = { readonly: "chỉ xem số liệu, không đụng dữ liệu thật", safe: "được ghi nháp, CHẶN hành động tiền/đơn/gửi tin", full: "thao tác THẬT: tạo đơn, gửi tin, publish…" };
+    const opts = ["readonly", "safe", "full"].map(p =>
+      '<button class="conn-menu-btn" data-p="' + p + '">' + permChip(p) + ' <span class="mp-note">' + DESC[p] + '</span></button>').join("");
+    const m = connModal(mHead("QUYỀN: " + esc(c.label || "")) + '<div class="conn-menu">' + opts + '</div>'
+      + '<div class="mp-foot"><button class="mp-btn" data-act="close">Huỷ</button></div>');
+    m.querySelectorAll("[data-p]").forEach(b => b.onclick = async () => {
+      const p = b.dataset.p;
+      if (p === "full") return openFullAck(el, c, con);
+      await postJson("/connect/update", { id: c.id, perm: p });
+      closeConnModal(); renderConnect(el);
+    });
+  }
+  function openFullAck(el, c, con) {
+    const text = (con && con.risk) ? con.risk
+      : "Mức này cho phép Javis thao tác THẬT ra ngoài qua kết nối này: tạo đơn, gửi tin, chạy quảng cáo, publish… Hành động có thể KHÔNG hoàn tác được.";
+    const m = connModal(mHead("⚠ BẬT TOÀN QUYỀN")
+      + '<div class="conn-form"><div class="conn-risk">' + esc(text) + '</div>'
+      + '<label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:14px"><input type="checkbox" id="ackChk"> Tôi hiểu rủi ro và tự chịu trách nhiệm</label></div>'
+      + '<div class="mp-foot"><button class="mp-btn" data-act="close">Huỷ</button><button class="mp-btn primary" id="ackGo" disabled>Bật Toàn quyền</button></div>');
+    m.querySelector("#ackChk").onchange = (e) => { m.querySelector("#ackGo").disabled = !e.target.checked; };
+    m.querySelector("#ackGo").onclick = async () => {
+      await postJson("/connect/update", { id: c.id, perm: "full" });
+      closeConnModal(); renderConnect(el);
+    };
+  }
+
+  function openAccountMenu(el, c, con) {
+    const m = connModal(mHead(esc(c.label || "Tài khoản"))
+      + '<div class="conn-menu">'
+      + '<button class="conn-menu-btn" data-m="test">🔄 Test kết nối</button>'
+      + '<button class="conn-menu-btn" data-m="default"' + (c.is_default ? " disabled" : "") + '>★ Đặt làm mặc định</button>'
+      + '<button class="conn-menu-btn" data-m="rename">✏ Đổi tên</button>'
+      + '<button class="conn-menu-btn" data-m="perm">🛡 Đổi quyền (' + ((PERM_META[c.perm] || {}).label || c.perm) + ')</button>'
+      + '<button class="conn-menu-btn" data-m="deny">⛔ Chặn tool cụ thể' + ((c.deny_tools || []).length ? " (" + c.deny_tools.length + ")" : "") + '</button>'
+      + '<button class="conn-menu-btn" data-m="audit">📜 Nhật ký gọi tool</button>'
+      + '<button class="conn-menu-btn" data-m="toggle">' + (c.enabled ? "○ Tắt tạm" : "● Bật lại") + '</button>'
+      + '<button class="conn-menu-btn danger" data-m="del">🗑 Xoá kết nối</button>'
+      + '</div><div class="mp-foot"><span class="mp-note" id="cmNote"></span><button class="mp-btn" data-act="close">Đóng</button></div>');
+    const note = m.querySelector("#cmNote");
+    m.querySelectorAll("[data-m]").forEach(b => b.onclick = async () => {
+      const act = b.dataset.m;
+      if (act === "test") {
+        note.textContent = "Đang test…";
+        const r = await postJson("/connect/test", { id: c.id });
+        note.textContent = r.ok ? "✓ OK - " + (r.tools || 0) + " công cụ" + (r.label ? " (" + r.label + ")" : "") : "⚠ " + (r.error || "lỗi");
+      } else if (act === "default") {
+        await postJson("/connect/default", { id: c.id }); closeConnModal(); renderConnect(el);
+      } else if (act === "rename") {
+        const v = prompt("Tên mới:", c.label || ""); if (v === null) return;
+        await postJson("/connect/update", { id: c.id, label: v.trim() }); closeConnModal(); renderConnect(el);
+      } else if (act === "perm") {
+        openPermPicker(el, c, con);
+      } else if (act === "deny") {
+        const v = prompt("Tên tool cần CHẶN riêng cho kết nối này, cách nhau dấu phẩy.\nVD: pos_order, pos_transaction\n(Để trống = bỏ chặn)", (c.deny_tools || []).join(", "));
+        if (v === null) return;
+        await postJson("/connect/update", { id: c.id, deny_tools: v.split(",").map(x => x.trim()).filter(Boolean) });
+        closeConnModal(); renderConnect(el);
+      } else if (act === "audit") {
+        openAuditModal(c);
+      } else if (act === "toggle") {
+        await postJson("/connect/toggle", { id: c.id }); closeConnModal(); renderConnect(el);
+      } else if (act === "del") {
+        if (!confirm('Xoá kết nối "' + (c.label || "") + '"?')) return;
+        await postJson("/connect/delete", { id: c.id }); closeConnModal(); renderConnect(el);
+      }
+    });
+  }
+
+  async function openAuditModal(c) {
+    const m = connModal(mHead("NHẬT KÝ: " + esc(c.label || "")) + '<div class="conn-audit" id="audBody">Đang tải…</div>'
+      + '<div class="mp-foot"><button class="mp-btn" data-act="close">Đóng</button></div>', 640);
+    let d;
+    try { d = await (await fetch("/connect/audit?limit=80&id=" + encodeURIComponent(c.id))).json(); } catch (e) { d = { entries: [] }; }
+    const rows = (d.entries || []).map(e =>
+      '<div class="aud-row' + (e.ok ? "" : " bad") + '"><span class="aud-ts">' + esc((e.ts || "").replace("T", " ")) + '</span> '
+      + esc(e.tool || "") + ' <span class="mp-note">' + esc(e.mode || "") + "/" + esc(e.cls || "") + " · " + (e.ms || 0) + "ms</span>"
+      + (e.ok ? "" : '<div class="aud-err">' + esc(e.err || "") + '</div>') + '</div>').join("");
+    m.querySelector("#audBody").innerHTML = rows || '<div class="mp-note">Chưa có lượt gọi nào.</div>';
   }
   function ambientCard(s) {   // MCP sẵn trong Claude Code - chỉ hiển thị
     const ok = s.connected;
@@ -1427,55 +1639,69 @@
       </div>
     </div>`;
   }
-  async function renderMcp(el) {
+  async function renderConnect(el) {
     el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">🔌</div><div>Đang tải...</div></div>`;
     let d;
-    try { d = await (await fetch("/mcp/list")).json(); } catch (e) { el.innerHTML = placeholder("mcp", "Không tải được."); return; }
-    const servers = d.servers || [];
+    try { d = await (await fetch("/connect/catalog")).json(); } catch (e) { el.innerHTML = placeholder("mcp", "Không tải được."); return; }
+    const cat = d.catalog || [];
+    const conns = d.connections || [];
+    const byId = {};
+    cat.forEach(c => byId[c.id] = c);
+    byId.custom = { id: "custom", name: "Tự thêm (nâng cao)", icon: "🧩", category: "Khác",
+                    description: "Server MCP tự khai URL/lệnh/header - dành cho người rành kỹ thuật.", auth_type: "apikey" };
     const st = await freshSettings();
     const main = (st.model && st.model.main) || {};
     const provs = (st.model && st.model.providers) || [];
-    const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai"];
-    const mainHasMcp = MCP_PROVIDERS.includes(main.provider);
+    const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api"];
     const mainLabel = (provs.find(p => p.id === main.provider) || {}).label || main.provider || "-";
     let warn = "";
-    if (!mainHasMcp) {
-      const oauth = main.provider === "openai-oauth";
-      if (oauth) {
-        warn = `<div class="gcard" style="border:1px solid #2c7a4b;background:rgba(44,122,75,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">✓ <b>ChatGPT (gói subscription)</b> chạy qua <b>Codex CLI</b> - Javis tự đẩy MCP của bạn (các server bên dưới) sang Codex, nên <b>dùng được MCP của Javis</b> luôn. Lần đầu mỗi tin nhắn kết nối MCP nên hơi chậm.</div></div>`;
-      } else {
-        warn = `<div class="gcard" style="border:1px solid #b9821f;background:rgba(185,130,31,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">⚠ Main Model đang là <b>${esc(mainLabel)}</b> - <b>chưa hỗ trợ MCP</b>. Dùng MCP qua <b>Claude Code</b>, <b>OpenRouter</b> hoặc <b>OpenAI</b>. Đổi ở trang <b>Models</b>.</div></div>`;
-      }
+    if (main.provider === "openai-oauth") {
+      warn = `<div class="gcard" style="border:1px solid #2c7a4b;background:rgba(44,122,75,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">✓ <b>ChatGPT (gói subscription)</b> chạy qua <b>Codex CLI</b> - Javis tự đẩy kho Kết nối sang Codex qua hub, nên vẫn dùng được đầy đủ.</div></div>`;
+    } else if (!MCP_PROVIDERS.includes(main.provider)) {
+      warn = `<div class="gcard" style="border:1px solid #b9821f;background:rgba(185,130,31,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">⚠ Main Model đang là <b>${esc(mainLabel)}</b> - chưa hỗ trợ gọi công cụ. Đổi ở trang <b>Models</b>.</div></div>`;
     } else if (main.provider !== "anthropic-cli") {
-      warn = `<div class="gcard" style="border:1px solid #2c7a4b;background:rgba(44,122,75,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">✓ <b>${esc(mainLabel)}</b> dùng được MCP của Javis (qua vòng gọi tool). Mỗi tin nhắn kết nối MCP nên hơi chậm hơn.</div></div>`;
+      warn = `<div class="gcard" style="border:1px solid #2c7a4b;background:rgba(44,122,75,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">✓ <b>${esc(mainLabel)}</b> dùng được kho Kết nối (qua vòng gọi tool + hub), kèm cả tool file và skill.</div></div>`;
     }
-    el.innerHTML = `
-      ${warn}
-      <div class="cview-section">
-        <h3>◆ MCP của Javis <span style="opacity:.5">Claude Code · OpenRouter · OpenAI dùng được</span>
-          <button class="gcard-btn" id="mcpAdd" style="float:right">+ Thêm server</button></h3>
-        <div class="gcard-meta" style="max-width:740px">Nhiều shop chung 1 link, khác key → thêm nhiều server cùng URL khác token. Bật/tắt từng cái.
-          <label style="margin-left:8px;cursor:pointer"><input type="checkbox" id="mcpStrict" ${d.strict ? "checked" : ""}> Chỉ dùng MCP của Javis (bỏ MCP sẵn của máy)</label></div>
-        <div class="prov-list" style="margin-top:12px">${servers.length ? servers.map(mcpCard).join("") : '<div class="mp-empty">Chưa có server. Bấm "+ Thêm server".</div>'}</div>
-      </div>
-      <div class="cview-section">
-        <h3>◆ MCP từ Claude Code <span style="opacity:.5">tài khoản - chỉ hiển thị</span></h3>
-        <div class="gcard-meta" style="max-width:740px">Các MCP anh đã kết nối sẵn trong Claude Code (đồng bộ từ claude.ai). Engine Claude Code tự dùng các cái "Connected". Đăng nhập/quản lý các cái này trong app Claude, không sửa ở đây.</div>
-        <div class="prov-list" id="mcpAmbient" style="margin-top:12px"><div class="mp-empty">Đang tải… (kiểm tra sức khoẻ MCP, hơi lâu)</div></div>
-      </div>`;
-    document.getElementById("mcpAdd").onclick = () => openMcpForm(el);
+    const groups = {};
+    conns.forEach(c => { const k = c.connector_id || "custom"; (groups[k] = groups[k] || []).push(c); });
+    const connectedHtml = Object.keys(groups).map(cid =>
+      connectorCard(byId[cid] || { id: cid, name: cid, icon: "🔌" }, groups[cid])).join("");
+    const cats = Array.from(new Set(cat.map(c => c.category || "Khác")));
+    el.innerHTML = warn
+      + '<div class="cview-section"><h3>◆ Đã kết nối <span style="opacity:.5">' + conns.length + ' tài khoản</span></h3>'
+      + '<div class="gcard-meta" style="max-width:740px">Một dịch vụ nối được NHIỀU tài khoản (nhiều shop, nhiều số Zalo…). Mọi bộ não - Claude Code, ChatGPT/Codex, OpenRouter, API - dùng chung kho này qua MCP hub, kèm phân quyền và nhật ký.'
+      + '<label style="margin-left:8px;cursor:pointer"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của Javis (bỏ MCP sẵn của máy)</label></div>'
+      + '<div class="prov-list" style="margin-top:12px">' + (connectedHtml || '<div class="mp-empty">Chưa đấu nguồn nào - chọn một dịch vụ trong Kho bên dưới để bắt đầu.</div>') + '</div></div>'
+      + '<div class="cview-section"><h3>◆ Kho kết nối</h3>'
+      + '<div class="cat-tools"><input class="js-input" id="catQ" placeholder="Tìm dịch vụ…" style="max-width:220px">'
+      + '<span class="cat-filter"><button class="cat-chip on" data-catf="">Tất cả</button>' + cats.map(x => '<button class="cat-chip" data-catf="' + esc(x) + '">' + esc(x) + '</button>').join("") + '</span></div>'
+      + '<div class="cat-grid" id="catGrid">' + cat.map(catalogCard).join("") + catalogCard(byId.custom) + '</div></div>'
+      + '<div class="cview-section"><h3>◆ MCP từ Claude Code <span style="opacity:.5">tài khoản - chỉ hiển thị</span></h3>'
+      + '<div class="gcard-meta" style="max-width:740px">Các MCP anh đã kết nối sẵn trong Claude Code (đồng bộ từ claude.ai). Engine Claude Code tự dùng các cái "Connected". Đăng nhập/quản lý trong app Claude, không sửa ở đây.</div>'
+      + '<div class="prov-list" id="mcpAmbient" style="margin-top:12px"><div class="mp-empty">Đang tải… (kiểm tra sức khoẻ MCP, hơi lâu)</div></div></div>';
     document.getElementById("mcpStrict").onchange = (e) => postJson("/mcp/strict", { strict: e.target.checked });
-    el.querySelectorAll("[data-mcp-toggle]").forEach(b => b.onclick = async () => { await postJson("/mcp/toggle", { id: b.dataset.mcpToggle }); renderMcp(el); });
-    el.querySelectorAll("[data-mcp-edit]").forEach(b => b.onclick = () => { const s = servers.find(x => x.id === b.dataset.mcpEdit); if (s) openMcpForm(el, s); });
-    el.querySelectorAll("[data-mcp-del]").forEach(b => b.onclick = async () => { if (!confirm("Xoá server này?")) return; await postJson("/mcp/delete", { id: b.dataset.mcpDel }); renderMcp(el); });
-    el.querySelectorAll("[data-mcp-deny]").forEach(b => b.onclick = async () => {
-      const s = servers.find(x => x.id === b.dataset.mcpDeny) || {};
-      const cur = (s.deny_tools || []).join(", ");
-      const v = prompt("Tên các tool CẦN CHẶN (server này), cách nhau dấu phẩy.\nVD: pos_order, pos_purchase, pos_transaction\n(Để trống = không chặn gì)", cur);
-      if (v === null) return;
-      const deny = v.split(",").map(x => x.trim()).filter(Boolean);
-      await postJson("/mcp/update", { id: s.id, deny_tools: deny, perm: deny.length ? "readonly" : "full" });
-      renderMcp(el);
+    const isFirst = conns.length === 0;
+    el.querySelectorAll("[data-connect]").forEach(b => b.onclick = () => openAddFlow(el, byId[b.dataset.connect], isFirst));
+    el.querySelectorAll("[data-addacc]").forEach(b => b.onclick = () => openAddFlow(el, byId[b.dataset.addacc], false));
+    el.querySelectorAll("[data-conn]").forEach(b => b.onclick = () => {
+      const c = conns.find(x => x.id === b.dataset.conn);
+      if (c) openAccountMenu(el, c, byId[c.connector_id]);
+    });
+    const applyFilter = () => {
+      const q = (document.getElementById("catQ").value || "").toLowerCase();
+      const onChip = el.querySelector(".cat-chip.on");
+      const cf = onChip ? (onChip.dataset.catf || "") : "";
+      el.querySelectorAll("#catGrid .cat-card").forEach(card => {
+        const okQ = !q || card.textContent.toLowerCase().includes(q);
+        const okC = !cf || card.dataset.cat === cf;
+        card.style.display = (okQ && okC) ? "" : "none";
+      });
+    };
+    document.getElementById("catQ").oninput = applyFilter;
+    el.querySelectorAll(".cat-chip").forEach(ch => ch.onclick = () => {
+      el.querySelectorAll(".cat-chip").forEach(x => x.classList.remove("on"));
+      ch.classList.add("on");
+      applyFilter();
     });
     fetch("/mcp/ambient").then(r => r.json()).then(a => {
       const box = document.getElementById("mcpAmbient"); if (!box) return;
@@ -1531,7 +1757,7 @@
       else r = await postJson("/mcp/add", body);
       if (!r.ok) { $("#mErr").textContent = r.error || "Lỗi"; $("#mSave").disabled = false; $("#mSave").textContent = edit ? "Lưu" : "Thêm"; return; }
       modal.classList.remove("open");
-      renderMcp(el);
+      renderConnect(el);
     };
     modal.classList.add("open");
   }

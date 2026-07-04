@@ -32,6 +32,10 @@ import engine
 import openai_oauth
 import mcp_store
 import mcp_client
+import mcp_catalog
+import mcp_hub
+import zalo_login
+import oauth_mcp
 import system_sync   # tầng năng lực HỆ THỐNG (skill/loop mặc định) - update theo phiên bản app
 from telegram_bot import TelegramBot, parse_chat_ids as tg_parse_ids
 import channel_context   # metadata kênh + gom file trả về kênh chat (port gateway hermes-agent)
@@ -45,7 +49,10 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 _AUTH_PUBLIC_PREFIX = ("/static", "/health")
 # /brand-logo: hiện trên màn đăng nhập (trước session). /tls-check: Caddy gọi (không đăng nhập được).
 _AUTH_PUBLIC_EXACT = ("/", "/favicon.ico", "/auth/status", "/auth/login", "/auth/setup",
-                      "/brand-logo", "/tls-check")
+                      "/brand-logo", "/tls-check",
+                      # /hub/mcp: Claude CLI/Codex gọi bằng Bearer hub_token riêng (không có cookie).
+                      # /connect/oauth/callback: browser redirect từ provider OAuth về.
+                      "/hub/mcp", "/connect/oauth/callback")
 # Endpoint CHỈ-LOCALHOST: agent (Claude CLI chạy cùng máy/container) curl được mà không cần
 # cookie đăng nhập; request từ ngoài (qua Traefik/Caddy/LAN) đến từ IP khác loopback → vẫn bị chặn.
 _AUTH_LOCAL_EXACT = ("/telegram/send-file",)
@@ -550,15 +557,25 @@ def _trim_history(messages, max_msgs: int = _MAX_HISTORY_MSGS):
     return head + tail
 
 
-async def _api_stream_mcp(prov, key, model, messages, reasoning="off"):
-    """Như _api_stream nhưng cho model API/OAuth DÙNG MCP của Javis (vòng tool-calling).
-    Registry rỗng / không discover được tool → fallback chat thuần. anthropic-api chưa có tool loop."""
-    # ChatGPT OAuth (backend Codex) KHÔNG nhận function tool → bỏ MCP, chạy chat thuần.
-    servers = mcp_store.servers_for_client()
+def _hub_enabled():
+    """Hub MCP bật (mặc định) → mọi engine đấu 1 điểm; tắt qua settings mcp.hub=false (fallback cũ)."""
+    return bool(cfgmod.read_settings().get("mcp", {}).get("hub", True))
+
+
+async def _api_stream_mcp(prov, key, model, messages, reasoning="off", brain=None):
+    """Model API/OAuth dùng MCP của Javis qua HUB: đa tài khoản + quyền + audit + builtin tools
+    (file vault, use_skill) → engine API cũng là agent thực thụ. anthropic-api giờ CÓ tool loop.
+    ChatGPT OAuth (backend Codex responses) không nhận function tool → vẫn chat thuần."""
     tools, route = [], {}
-    if servers and prov in ("openrouter", "openai"):
+    if prov in ("openrouter", "openai", "anthropic-api"):
         try:
-            tools, route = await mcp_client.discover(servers)
+            if _hub_enabled():
+                vault_root = _brain_root(brain) if brain else None
+                tools, route = await mcp_hub.discover_all("full", vault_root=vault_root)
+            else:
+                servers = mcp_store.servers_for_client()
+                if servers:
+                    tools, route = await mcp_client.discover(servers)
         except Exception as e:
             print(f"[mcp discover] {e}", file=__import__('sys').stderr)
     if tools:
@@ -566,6 +583,8 @@ async def _api_stream_mcp(prov, key, model, messages, reasoning="off"):
             return engine.openrouter_chat_with_mcp(key, model, messages, reasoning, tools, route)
         if prov == "openai":
             return engine.openai_chat_with_mcp(key, model, messages, reasoning, tools, route)
+        if prov == "anthropic-api":
+            return engine.anthropic_chat_with_mcp(key, model, messages, reasoning, tools, route)
     return _api_stream(prov, key, model, messages, reasoning)
 
 def _api_label(prov):
@@ -592,8 +611,11 @@ def _toml_str(s):
 
 
 def _write_codex_profile():
-    """Ghi ~/.codex/javis.config.toml từ MCP http của Javis → `codex exec -p javis` thấy được MCP đó
-    (ChatGPT subscription dùng MCP của Javis như POSCake). Trả 'javis' nếu có server, None nếu rỗng."""
+    """Ghi ~/.codex/javis.config.toml → `codex exec -p javis` thấy MCP của Javis.
+    Hub bật (mặc định): 1 entry hub - Codex dùng được MỌI transport (cả stdio/internal) + đa tài
+    khoản + quyền. Hub tắt: per-server http như cũ. Trả 'javis' nếu có server, None nếu rỗng."""
+    if _hub_enabled():
+        return mcp_hub.codex_profile("full")
     path = Path.home() / ".codex" / "javis.config.toml"
     lines, seen = [], set()
     for s in mcp_store.servers_for_client():
@@ -623,13 +645,19 @@ def _write_codex_profile():
     return None
 
 
-def _apply_mcp(cli):
-    """Gắn MCP do Javis quản lý vào 1 ClaudeCLI (registry rỗng → không đổi gì, dùng MCP sẵn của máy)."""
+def _apply_mcp(cli, mode="full"):
+    """Gắn MCP do Javis quản lý vào 1 ClaudeCLI (registry rỗng → không đổi gì, dùng MCP sẵn của máy).
+    Hub bật: config 1 entry trỏ hub kèm X-Javis-Mode - deny/perm/audit chặn TẠI hub (lớp cứng),
+    không cần --disallowedTools. Hub tắt: per-server + --disallowedTools như cũ."""
     try:
-        cli.mcp_config = mcp_store.config_path()
-        cli.mcp_strict = bool(cfgmod.read_settings().get("mcp", {}).get("strict")) and cli.mcp_config is not None
-        dis = mcp_store.disallowed_tools()
-        cli.disallowed_tools = dis or None
+        if _hub_enabled():
+            cli.mcp_config = mcp_hub.claude_config_path(mode)
+            cli.mcp_strict = bool(cfgmod.read_settings().get("mcp", {}).get("strict")) and cli.mcp_config is not None
+        else:
+            cli.mcp_config = mcp_store.config_path()
+            cli.mcp_strict = bool(cfgmod.read_settings().get("mcp", {}).get("strict")) and cli.mcp_config is not None
+            dis = mcp_store.disallowed_tools()
+            cli.disallowed_tools = dis or None
     except Exception as e:
         print(f"[mcp apply] {e}", file=__import__('sys').stderr)
     return cli
@@ -719,13 +747,17 @@ async def mcp_add(request: Request):
         if not res.get("ok"):
             return JSONResponse({"ok": False, "error": res.get("error") or res.get("out") or "native add lỗi"}, status_code=400)
     sid = mcp_store.add_server(data)
+    mcp_hub.invalidate_cache()
+    _write_codex_profile()
     return {"ok": True, "id": sid, "oauth": (data.get("auth") or "header") == "oauth"}
 
 
 @app.post("/mcp/update")
 async def mcp_update(request: Request):
     data = await request.json()
-    return {"ok": mcp_store.update_server(data.get("id"), data)}
+    ok = mcp_store.update_server(data.get("id"), data)
+    mcp_hub.invalidate_cache()
+    return {"ok": ok}
 
 
 @app.post("/mcp/delete")
@@ -734,13 +766,18 @@ async def mcp_delete(request: Request):
     s = next((x for x in mcp_store.list_servers() if x["id"] == data.get("id")), None)
     if s and s.get("auth") == "oauth" and s.get("name"):
         mcp_native_remove(s["name"])
-    return {"ok": mcp_store.delete_server(data.get("id"))}
+    ok = mcp_store.delete_server(data.get("id"))
+    mcp_hub.invalidate_cache()
+    _write_codex_profile()
+    return {"ok": ok}
 
 
 @app.post("/mcp/toggle")
 async def mcp_toggle(request: Request):
     data = await request.json()
     en = mcp_store.toggle_server(data.get("id"))
+    mcp_hub.invalidate_cache()
+    _write_codex_profile()
     return {"ok": en is not None, "enabled": en}
 
 
@@ -766,8 +803,148 @@ def mcp_native_status_ep(name: str = Query(...)):
 
 @app.post("/mcp/oauth-auth")
 def mcp_oauth_auth():
-    """Mở terminal chạy claude để user gõ /mcp xác thực OAuth MCP (chỉ máy local)."""
+    """Mở terminal chạy claude để user gõ /mcp xác thực OAuth MCP (chỉ máy local) - fallback cũ."""
     return mcp_open_auth_terminal()
+
+
+# ============================================================
+# KHO KẾT NỐI (connector catalog + đa tài khoản) + MCP HUB
+# ============================================================
+@app.post("/hub/mcp")
+async def hub_mcp(request: Request):
+    """Endpoint MCP hub - Claude Code/Codex đấu vào đây (auth bằng Bearer hub_token riêng)."""
+    return await mcp_hub.handle_http(request)
+
+
+@app.get("/connect/catalog")
+async def connect_catalog():
+    return {"catalog": mcp_catalog.public_catalog(), "connections": mcp_store.list_connections(),
+            "strict": bool(cfgmod.read_settings().get("mcp", {}).get("strict")), "hub": _hub_enabled()}
+
+
+@app.post("/connect/add")
+async def connect_add(request: Request):
+    """Thêm tài khoản cho 1 connector trong kho: lưu tạm → VALIDATE ngay (gọi tool xác minh,
+    tự lấy tên shop làm label) → key sai thì xoá, không lưu rác."""
+    data = await request.json()
+    cid, err = mcp_store.add_connection((data.get("connector_id") or "").strip(), {
+        "label": (data.get("label") or "").strip(), "fields": data.get("fields") or {}})
+    if err:
+        return {"ok": False, "error": err}
+    val = await mcp_hub.validate_connection(cid)
+    if not val.get("ok"):
+        mcp_store.delete_connection(cid)
+        return {"ok": False, "error": val.get("error") or "Không kết nối được"}
+    if val.get("label") and not (data.get("label") or "").strip():
+        mcp_store.update_connection(cid, {"label": val["label"]})
+    mcp_hub.invalidate_cache()
+    _write_codex_profile()
+    c = mcp_store.get_connection(cid) or {}
+    return {"ok": True, "id": cid, "label": c.get("label"), "tools": val.get("tools", 0)}
+
+
+@app.post("/connect/test")
+async def connect_test(request: Request):
+    data = await request.json()
+    return await mcp_hub.validate_connection(data.get("id"))
+
+
+@app.post("/connect/update")
+async def connect_update(request: Request):
+    data = await request.json()
+    ok = mcp_store.update_connection(data.get("id"), data)
+    mcp_hub.invalidate_cache()
+    return {"ok": ok}
+
+
+@app.post("/connect/toggle")
+async def connect_toggle(request: Request):
+    data = await request.json()
+    en = mcp_store.toggle_connection(data.get("id"))
+    mcp_hub.invalidate_cache()
+    _write_codex_profile()
+    return {"ok": en is not None, "enabled": en}
+
+
+@app.post("/connect/delete")
+async def connect_delete(request: Request):
+    data = await request.json()
+    cid = data.get("id")
+    oauth_mcp.forget(cid)
+    ok = mcp_store.delete_connection(cid)
+    mcp_hub.invalidate_cache()
+    _write_codex_profile()
+    return {"ok": ok}
+
+
+@app.post("/connect/default")
+async def connect_default(request: Request):
+    data = await request.json()
+    return {"ok": mcp_store.set_default(data.get("id"))}
+
+
+@app.get("/connect/audit")
+async def connect_audit(limit: int = Query(80), id: str = Query("")):
+    return {"entries": mcp_hub.audit_tail(limit=min(int(limit or 80), 500), conn_id=(id or None))}
+
+
+# ---- Zalo: đăng nhập QR ngay trong UI ----
+@app.post("/connect/zalo/start")
+async def connect_zalo_start(request: Request):
+    data = await request.json()
+    return zalo_login.start(label=(data.get("label") or "").strip() or None)
+
+
+@app.get("/connect/zalo/status")
+async def connect_zalo_status(sid: str = Query(...)):
+    st = zalo_login.status(sid)
+    if st.get("state") == "done":
+        mcp_hub.invalidate_cache()
+        _write_codex_profile()
+    return st
+
+
+@app.post("/connect/zalo/cancel")
+async def connect_zalo_cancel(request: Request):
+    data = await request.json()
+    return zalo_login.cancel(data.get("sid"))
+
+
+# ---- OAuth chuẩn MCP: Javis tự giữ token, không cần terminal ----
+@app.post("/connect/oauth/start")
+async def connect_oauth_start(request: Request):
+    data = await request.json()
+    conn_id = data.get("id")
+    if not conn_id and data.get("connector_id"):
+        # Tái dùng connection oauth dở dang (chưa có token) của connector này -
+        # tránh mỗi lần bấm nút lại đẻ 1 connection mồ côi.
+        pend = next((c for c in mcp_store.list_connections()
+                     if c.get("connector_id") == data["connector_id"] and c.get("auth") == "oauth"
+                     and not oauth_mcp.status(c["id"]).get("connected")), None)
+        if pend:
+            conn_id = pend["id"]
+        else:
+            conn_id, err = mcp_store.add_connection(data["connector_id"],
+                                                    {"label": (data.get("label") or "").strip(), "auth": "oauth"})
+            if err:
+                return {"ok": False, "error": err}
+    redirect = str(request.base_url).rstrip("/") + "/connect/oauth/callback"
+    res = await oauth_mcp.start_auth(conn_id, redirect)
+    res["id"] = conn_id
+    return res
+
+
+@app.get("/connect/oauth/callback")
+async def connect_oauth_callback(state: str = Query(""), code: str = Query("")):
+    res = await oauth_mcp.handle_callback(state, code)
+    mcp_hub.invalidate_cache()
+    if res.get("ok"):
+        html = ("<html><body style='font-family:sans-serif;background:#111;color:#eee;text-align:center;padding-top:80px'>"
+                "<h2>✓ Đã kết nối thành công</h2><p>Đóng tab này và quay lại Javis, bấm Làm mới ở trang Kết nối.</p></body></html>")
+    else:
+        html = (f"<html><body style='font-family:sans-serif;background:#111;color:#eee;text-align:center;padding-top:80px'>"
+                f"<h2>⚠ Kết nối thất bại</h2><p>{res.get('error', '')}</p></body></html>")
+    return HTMLResponse(html)
 
 
 @app.get("/settings")
@@ -2336,11 +2513,16 @@ async def _loop_notify(text: str) -> None:
 
 
 def _loop_mcp_allow():
-    """Pattern MCP cho allowlist của loop: 'mcp__<server>' mỗi server bật (bỏ oauth).
-    Thêm vào --allowedTools để loop GỌI được tool MCP (Bash/Web/Task vẫn ngoài list → chặn)."""
+    """Pattern MCP cho allowlist của loop. Hub bật: mọi tool nằm dưới server 'javis' → 1 pattern;
+    quyền đọc/ghi thật sự do hub chặn theo X-Javis-Mode. Hub tắt: 'mcp__<namespace>' như cũ."""
     try:
-        return [f"mcp__{s['name']}" for s in mcp_store.list_servers()
-                if s.get("enabled") and s.get("auth") != "oauth" and s.get("name")]
+        conns = [c for c in mcp_store.list_connections() if c.get("enabled")]
+        if not conns:
+            return []
+        if _hub_enabled():
+            return mcp_hub.allow_patterns()
+        return [f"mcp__{r['namespace']}" for r in mcp_store.resolved()
+                if r.get("auth") != "oauth" and r.get("namespace")]
     except Exception:
         return []
 
@@ -3547,7 +3729,7 @@ async def websocket_endpoint(ws: WebSocket):
                         or_messages = _trim_history(or_messages)
                         seeded = True
                 or_messages.append({"role": "user", "content": user_message})
-                gen = await _api_stream_mcp(prov, api_key, api_model, or_messages, reasoning)   # MCP đa-model
+                gen = await _api_stream_mcp(prov, api_key, api_model, or_messages, reasoning, brain=brain)   # MCP đa-model qua hub
                 async for ev in gen:
                     if ev["type"] == "meta":
                         actual_model = ev.get("model") or actual_model
@@ -3718,7 +3900,7 @@ async def _tg_answer(text, meta=None):
             sess["or"] = [{"role": "system", "content": sysprompt + ident}]
         sess["or"].append({"role": "user", "content": text})
         out = ""
-        async for ev in (await _api_stream_mcp(prov, api_key, api_model, sess["or"], reasoning)):
+        async for ev in (await _api_stream_mcp(prov, api_key, api_model, sess["or"], reasoning, brain=brain)):
             if ev["type"] == "text":
                 out += ev["content"]
             elif ev["type"] == "error":
@@ -4180,6 +4362,29 @@ async def telegram_send_file(payload: dict = Body(...)):
         except Exception:
             pass
     return {"ok": ok, "error": err}
+
+
+@app.on_event("startup")
+async def _warm_mcp_hub():
+    """Làm nóng hub sau khi boot: mở sẵn session MCP (stdio npx lần đầu phải tải package)
+    để tin nhắn/tool call đầu tiên không phải chờ."""
+    async def _w():
+        try:
+            await asyncio.sleep(3)
+            if _hub_enabled():
+                await mcp_hub.discover_all("full")
+        except Exception as e:
+            print(f"[hub warmup] {e}", file=__import__('sys').stderr)
+    asyncio.create_task(_w())
+
+
+@app.on_event("shutdown")
+async def _shutdown_mcp_pool():
+    """Đóng các session MCP sống lâu (stdio subprocess, httpx client) khi server tắt."""
+    try:
+        await mcp_client.pool.close_all()
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

@@ -17,7 +17,15 @@ server/learn_config.json
 server/settings.json
 server/.sessions.json
 server/mcp_servers.json
+server/mcp_servers.v1.bak.json
 server/.mcp_config.json
+server/.mcp_hub_*.json
+server/.secret_key
+server/.hub_token
+server/.oauth_mcp.json
+server/mcp_audit.jsonl*
+server/connector-home/
+server/connector-files/
 server/conversations.db
 server/conversations.db-wal
 server/conversations.db-shm

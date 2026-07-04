@@ -1,163 +1,106 @@
-# MCP & số liệu kinh doanh
+# Kết nối & số liệu kinh doanh
 
-MCP là cách bạn "đấu" Javis vào các công cụ bên ngoài (Pancake POS, Facebook Ads, lịch, CRM...). Sau khi đấu, Javis đọc được số liệu THẬT từ những công cụ đó và báo cáo lại cho bạn qua chat và qua bảng số liệu ở cột trái dashboard. Trang này hướng dẫn từng bước: thêm server, quản lý nhiều cửa hàng, bật/tắt, chặn bớt công cụ, xử lý loại cần đăng nhập OAuth, và cách đọc số liệu.
+Trang **Kết nối** là nơi bạn "đấu" Javis vào các công cụ bạn đang dùng: Pancake POS, Zalo, Webcake Landing, Botcake, lịch, CRM... Sau khi đấu, Javis đọc được số liệu THẬT và (nếu bạn cho quyền) thao tác thật trên các công cụ đó. Trang này hướng dẫn: kết nối một dịch vụ từ Kho, nối nhiều tài khoản, phân quyền, xem nhật ký, và cách đọc số liệu.
 
 ## Tính năng này là gì
 
-MCP (Model Context Protocol) là một chuẩn để AI gọi công cụ ngoài. Bạn cứ hiểu đơn giản: MCP là một "đường ống" nối Javis tới hệ thống bạn đang dùng (ví dụ phần mềm bán hàng Pancake POS). Khi đường ống đã nối:
+Bên dưới, mỗi kết nối là một "đường ống" MCP (Model Context Protocol) nối Javis tới dịch vụ ngoài - nhưng bạn không cần biết chi tiết đó. Điểm mới từ bản 0.9:
 
-- Javis tự đọc doanh thu, số đơn, khách hàng, chi tiêu quảng cáo... trực tiếp từ nguồn, không phải bạn gõ tay.
-- Bạn hỏi bằng lời (ví dụ "hôm nay bán được bao nhiêu?") thì Javis gọi công cụ tương ứng và trả về số thật.
-- Bảng số liệu ở cột trái dashboard tự cập nhật theo các card quan trọng nhất.
-
-Điểm mạnh của Javis: MCP bạn đấu ở đây dùng được cho cả engine Claude Code lẫn các model API khác (OpenRouter, OpenAI, và ChatGPT gói subscription qua Codex). Javis tự làm "MCP client" nên hỗ trợ mọi kiểu khoá (Authorization: Bearer, X-Api-Key...), không kén như một số connector chỉ nhận Bearer.
+- **Kho kết nối cài sẵn**: chọn dịch vụ, dán API key (hoặc quét QR với Zalo) là xong. Javis tự kiểm tra key và tự đặt tên tài khoản (ví dụ lấy đúng tên cửa hàng từ Pancake POS). Không còn phải gõ URL hay header.
+- **Một dịch vụ, nhiều tài khoản**: 3 cửa hàng Pancake = 3 tài khoản trong cùng một thẻ Pancake POS. 2 số Zalo = 2 tài khoản Zalo chạy song song. Mỗi tài khoản bật/tắt, phân quyền, đặt mặc định riêng.
+- **Mọi bộ não dùng chung**: Claude Code, ChatGPT (Codex), OpenRouter, OpenAI API, Anthropic API đều dùng chung kho Kết nối này qua "hub" của Javis - đấu một lần, đổi model thoải mái.
+- **Phân quyền cứng**: mỗi tài khoản có mức quyền. Javis CHẶN thật sự (không phải chỉ nhắc bằng lời) các thao tác vượt quyền, ví dụ tạo đơn khi đang ở mức Chỉ đọc.
 
 ## Mở ở đâu trong Javis
 
 1. Vào dashboard (cổng mặc định `7777`).
-2. Ở thanh điều hướng bên trái, bấm mục **MCP** (biểu tượng phích cắm, phụ đề "Công cụ ngoài").
-3. Trang MCP có 2 khu:
-   - **MCP của Javis**: các server bạn tự đấu. Đây là khu bạn thao tác chính.
-   - **MCP từ Claude Code**: các MCP bạn đã kết nối sẵn trong app Claude (đồng bộ từ claude.ai). Khu này chỉ để xem, không sửa ở đây.
-
-Bảng số liệu nằm ở cột trái của trang **Javis** (màn hình 3D chính), không nằm trong trang MCP. Xem thêm ở mục "Đọc số liệu" bên dưới.
-
-## Trước khi đấu: kiểm tra Main Model
-
-MCP chỉ chạy khi model chính (Main Model) thuộc nhóm hỗ trợ. Ngay đầu trang MCP, Javis hiện một dòng nhắc màu:
-
-| Main Model đang dùng | Trạng thái MCP | Ghi chú hiện trên trang |
-|---|---|---|
-| Claude Code (anthropic-cli) | Dùng được đầy đủ | Không hiện cảnh báo |
-| OpenRouter | Dùng được | "dùng được MCP của Javis (qua vòng gọi tool). Mỗi tin nhắn kết nối MCP nên hơi chậm hơn." |
-| OpenAI (API key) | Dùng được | Cùng dòng ghi chú xanh như OpenRouter |
-| ChatGPT (gói subscription, OpenAI OAuth) | Dùng được qua Codex CLI | "Javis tự đẩy MCP của bạn sang Codex... Lần đầu mỗi tin nhắn kết nối MCP nên hơi chậm." |
-| Model khác chưa hỗ trợ | KHÔNG chạy MCP | Cảnh báo vàng: "chưa hỗ trợ MCP. Dùng MCP qua Claude Code, OpenRouter hoặc OpenAI. Đổi ở trang Models." |
-
-Nếu thấy cảnh báo vàng, hãy sang trang [Models & engine](10-models-va-engine.md) đổi Main Model rồi quay lại.
+2. Thanh bên trái, bấm mục **Kết nối** (biểu tượng phích cắm, phụ đề "Nguồn dữ liệu & công cụ").
+3. Trang có 3 khu: **Đã kết nối** (các tài khoản đang đấu), **Kho kết nối** (dịch vụ cài sẵn để đấu thêm), và **MCP từ Claude Code** (những MCP bạn kết nối trong app Claude - chỉ để xem).
 
 ## Cách dùng (từng bước)
 
-### 1. Thêm một MCP server
+### 1. Kết nối Pancake POS (dán API key)
 
-1. Trong khu **MCP của Javis**, bấm nút **+ Thêm server** (góc phải tiêu đề).
-2. Cửa sổ **THÊM MCP SERVER** hiện ra. Điền:
-   - **Tên**: đặt tên gợi nhớ, ví dụ `pancake-pos-shop-1`. Tên này dùng để phân biệt và để chặn tool sau này. Không được để trống.
-   - **Transport**: chọn kiểu kết nối. Đa số server web dùng **HTTP**. Có thêm **SSE** và **stdio** (chạy lệnh local).
-   - **URL**: dán địa chỉ MCP nhà cung cấp cho, ví dụ `https://mcp-pos.pancake.biz/mcp`. (Chỉ hiện khi transport là HTTP hoặc SSE.)
-   - **Header**: dán khoá xác thực, mỗi dòng một header. Ví dụ: `Authorization: Bearer xxxxx` hoặc `X-Api-Key: xxxxx`. Đây là nơi bỏ token/key của cửa hàng.
-3. Bấm **Thêm**. Server mới xuất hiện trong danh sách, mặc định ở trạng thái đã bật.
+1. Ở **Kho kết nối**, tìm thẻ **Pancake POS**, bấm **Kết nối**.
+2. Làm theo hướng dẫn trong cửa sổ: mở Pancake POS > Cấu hình cửa hàng > Ứng dụng & API > tạo API key, rồi dán vào ô.
+3. Bấm **Kết nối**. Javis tự kiểm tra key - đúng thì hiện "✓ Đã kết nối: <tên cửa hàng>" và tài khoản xuất hiện ở khu Đã kết nối. Key sai thì báo lỗi ngay tại chỗ.
+4. Có nhiều cửa hàng? Bấm **+ Thêm tài khoản** trên thẻ Pancake POS, dán key của shop tiếp theo. Mỗi shop một chip riêng.
 
-Nếu chọn transport **stdio** (chạy công cụ local trên máy), ô URL đổi thành ô **Lệnh (stdio)**: gõ lệnh và tham số cách nhau bằng dấu cách (ví dụ `npx my-mcp-server`), còn ô khoá đổi thành **Env KEY=VALUE (mỗi dòng)** để khai báo biến môi trường.
+Pancake POS mặc định ở mức **Chỉ đọc** - Javis xem được doanh thu, đơn, khách... nhưng không thể tạo đơn hay đụng tiền. Muốn Javis thao tác thật, xem mục Phân quyền bên dưới.
 
-### 2. Đấu nhiều cửa hàng cùng một link (multi-shop)
+### 2. Kết nối Zalo (quét QR)
 
-Đây là tình huống rất hay gặp với Pancake POS: bạn có nhiều cửa hàng, tất cả dùng chung một URL MCP nhưng mỗi shop một token khác nhau.
+Cần Node.js 20+ trên máy chạy Javis (tải tại nodejs.org, cài một lần).
 
-Cách làm: thêm nhiều server, mỗi server một dòng, **cùng URL nhưng khác Header/token**:
+1. Ở Kho kết nối, bấm **Kết nối** trên thẻ **Zalo (tài khoản cá nhân)**.
+2. Đọc cảnh báo rủi ro: đây là công cụ KHÔNG chính thức, tài khoản Zalo có thể bị hạn chế hoặc khoá - khuyến nghị dùng tài khoản phụ. Bấm "Tôi hiểu rủi ro, hiện mã QR".
+3. Mở Zalo trên điện thoại > biểu tượng QR góc trên > quét mã trong màn hình Javis.
+4. Quét xong, tài khoản tự xuất hiện. Nối thêm số Zalo khác bằng **+ Thêm tài khoản** - các tài khoản chạy cô lập, không giẫm nhau.
 
-1. Thêm server thứ nhất: Tên `pos-shop-1`, URL `https://mcp-pos.pancake.biz/mcp`, Header token của shop 1.
-2. Thêm server thứ hai: Tên `pos-shop-2`, cùng URL đó, Header token của shop 2.
-3. Cứ thế cho từng cửa hàng.
+Zalo mặc định được cả đọc lẫn gửi tin (Toàn quyền) theo lựa chọn của bạn khi kết nối - Javis chỉ gửi tin khi bạn yêu cầu trực tiếp trong chat, và loop chạy nền KHÔNG bao giờ được tự gửi. Có giới hạn tần suất tự động để tránh spam gây khoá tài khoản.
 
-Javis tự tách riêng công cụ của từng server theo tên, nên khi bạn hỏi Javis biết đang lấy số của shop nào. Bạn có thể bật/tắt từng shop độc lập.
+### 3. Kết nối Webcake Landing / Botcake
 
-### 3. Bật / tắt một server
+- **Webcake Landing**: lấy JWT tại webcake.io > Cài đặt > Mã truy cập > Tạo API keys, dán vào. Javis sẽ thiết kế/sửa landing page bằng lời nói. Cần Node.js 18+.
+- **Botcake**: mở Botcake > Cấu hình > Tích hợp > Public API > Tạo API Key; dán Page ID + key. Javis đọc được khách hàng, tag, flow và (nếu cho Toàn quyền) gửi flow tới khách.
 
-Trên mỗi thẻ server có các nút. Bấm **Tắt** để tạm ngắt server đó (Javis sẽ không gọi công cụ của nó nữa), bấm **Bật** để mở lại. Trạng thái hiện ngay trên thẻ: "● Bật" hoặc "○ Tắt". Tắt bớt các shop không cần dùng giúp Javis chạy nhanh và tránh nhầm nguồn.
+### 4. Kết nối bộ Google (Sheets, Search Console, Workspace)
 
-### 4. Sửa hoặc xoá server
+- **Google Sheets**: đổ báo cáo doanh thu/tồn kho/công nợ ra bảng tính. Tạo service account trong Google Cloud (hướng dẫn có trong cửa sổ kết nối), share thư mục Drive cho email service account, dán nội dung file key JSON + ID thư mục là xong - không cần đăng nhập gì thêm.
+- **Google Search Console**: số liệu SEO website (khách tìm từ khoá gì, lượt bấm). Cũng dán service account JSON, thêm email đó làm người dùng trong Search Console.
+- **Google Workspace** (Gmail + Lịch + Drive + Docs trong 1 kết nối): cần tạo OAuth client trong Google Cloud một lần (~10 phút, hướng dẫn từng bước trong cửa sổ kết nối); lần đầu dùng, trình duyệt mở để bạn bấm đồng ý. Mặc định ở mức Ghi nháp: Javis soạn nháp mail, tạo lịch, tạo tài liệu được nhưng KHÔNG tự gửi mail hay xoá gì - bật Toàn quyền phải xác nhận rủi ro.
 
-- Bấm **Sửa** trên thẻ để mở lại form và chỉnh Tên/Transport/URL/Header. Khi sửa, nếu để ô Header trống thì Javis **giữ nguyên key cũ** (không cần dán lại token). Ô nhập sẽ nhắc rõ "Để trống = giữ key cũ".
-- Bấm **Xoá** để gỡ hẳn server. Javis hỏi xác nhận "Xoá server này?" trước khi xoá.
+Mẹo: nếu chỉ cần Gmail/Lịch/Drive và bạn dùng engine Claude Code, cách nhanh hơn là bấm Connect ngay trong app Claude (claude.ai > Settings > Connectors) - Javis tự thấy chúng ở khu "MCP từ Claude Code".
 
-### 5. Chặn bớt công cụ nguy hiểm (chế độ chỉ đọc)
+### 4. Quản lý một tài khoản (chip)
 
-Một số MCP (như POS) có cả công cụ ghi/sửa: tạo đơn, hoàn tiền, chỉnh giao dịch. Nếu bạn chỉ muốn Javis ĐỌC số liệu chứ không được đụng vào dữ liệu thật, hãy chặn các công cụ ghi:
+Bấm vào chip tài khoản ở khu Đã kết nối để mở menu:
 
-1. Trên thẻ server, bấm nút **Chặn tool**.
-2. Một ô nhập hiện ra. Gõ tên các công cụ cần chặn, cách nhau bằng dấu phẩy. Gợi ý sẵn trong ô: `pos_order, pos_purchase, pos_transaction`. Để trống nghĩa là không chặn gì.
-3. Xác nhận. Thẻ server sẽ hiện nhãn **chỉ đọc** và ghi rõ "chặn N tool".
+- **Test kết nối**: gọi thử, báo số công cụ khả dụng.
+- **Đặt làm mặc định**: khi có nhiều tài khoản cùng dịch vụ, Javis ưu tiên tài khoản mặc định khi bạn không nói rõ shop nào.
+- **Đổi tên** / **Tắt tạm** / **Xoá**.
+- **Đổi quyền**: xem mục Phân quyền.
+- **Chặn tool cụ thể**: dành cho người rành - gõ tên tool muốn cấm hẳn.
+- **Nhật ký gọi tool**: xem Javis đã gọi gì, lúc nào, bị chặn gì.
 
-Khi có tool bị chặn, Javis tự đặt server về mức "chỉ đọc" (readonly). Đây là lớp an toàn khuyên dùng cho ai không rành kỹ thuật: bạn vẫn xem được số, nhưng Javis không thể vô tình tạo đơn hay hoàn tiền.
+### 5. Phân quyền 3 mức (quan trọng)
 
-### 6. Chế độ "Chỉ dùng MCP của Javis" (strict)
+Mỗi tài khoản có một mức quyền, Javis chặn CỨNG tại chỗ:
 
-Ngay dưới tiêu đề khu MCP của Javis có một ô tick: **Chỉ dùng MCP của Javis (bỏ MCP sẵn của máy)**.
+- **Chỉ đọc**: chỉ xem số liệu. Tạo đơn, sửa dữ liệu, gửi tin... đều bị chặn. An toàn nhất, mặc định cho POS.
+- **Ghi nháp**: được ghi/sửa dữ liệu thường (ghi chú, sản phẩm...), vẫn CHẶN hành động tiền/đơn/gửi tin.
+- **Toàn quyền**: thao tác THẬT - tạo đơn, gửi tin, publish trang. Khi bật phải tick "Tôi hiểu rủi ro"; với Zalo có cảnh báo riêng.
 
-- Bỏ tick (mặc định): Javis dùng cả MCP bạn đấu ở đây lẫn các MCP đã cài sẵn trong Claude Code trên máy.
-- Tick vào: Javis chỉ dùng đúng các server bạn khai ở khu này, bỏ qua MCP sẵn của máy. Dùng khi bạn muốn kiểm soát chặt, tránh Javis gọi nhầm công cụ nào đó của tài khoản Claude.
+Thông minh hơn bản cũ: Javis hiểu cả công cụ "2 trong 1" của Pancake - cùng tool đơn hàng, hỏi `danh sách đơn` thì cho qua, `tạo đơn` thì chặn nếu chưa đủ quyền.
 
-### 7. Loại cần đăng nhập OAuth
+Loop chạy nền còn bị siết thêm theo mode của loop: loop `suggest` chỉ đọc, loop `auto` không bao giờ đụng tiền/đơn/gửi tin - bất kể tài khoản đặt quyền gì.
 
-Một số MCP không dùng token dán sẵn mà bắt đăng nhập kiểu OAuth (bấm cho phép trên trình duyệt). Loại này Claude CLI không tự xác thực ngầm được, nên phải xác thực một lần trong cửa sổ dòng lệnh. Cách xử lý (chỉ làm được khi Javis chạy trên máy có màn hình, không phải VPS ẩn):
+### 6. Tự thêm dịch vụ ngoài kho (nâng cao)
 
-1. Khi bạn thêm server với kiểu xác thực OAuth, Javis đăng ký server đó vào Claude Code (native) để Claude Code tự lo phần OAuth.
-2. Bạn cần mở terminal chạy lệnh `claude`, gõ `/mcp` để đăng nhập và cấp quyền một lần. Javis có sẵn chức năng mở cửa sổ terminal này giúp bạn.
-3. Sau khi xác thực xong, server OAuth hoạt động qua cấu hình sẵn của máy.
+Dịch vụ chưa có trong Kho? Bấm thẻ **Tự thêm (nâng cao)** - form kỹ thuật như bản cũ (URL/lệnh + header/env, hỗ trợ HTTP, SSE, stdio). Dịch vụ đăng nhập kiểu OAuth chuẩn MCP thì Javis tự mở trang đăng nhập và tự giữ token, chạy được cả trên VPS.
 
-Với đa số nhà cung cấp phổ biến (POS, Ads dạng token) bạn không cần bước này, chỉ cần dán Header là xong.
+### 7. Chế độ "Chỉ dùng kết nối của Javis" (strict)
 
-### 8. Xem MCP đã có sẵn trong Claude Code
+Tick ô này ở khu Đã kết nối nếu muốn Javis CHỈ dùng các kết nối khai ở đây, bỏ qua MCP cài sẵn trong Claude Code trên máy - kiểm soát chặt, tránh gọi nhầm công cụ của tài khoản Claude.
 
-Khu **MCP từ Claude Code** liệt kê các MCP bạn đã kết nối trong app Claude (đồng bộ từ claude.ai). Danh sách này chỉ để xem, kèm trạng thái sức khoẻ từng cái (nên tải hơi lâu). Muốn thêm/bớt/đăng nhập các cái này, làm trong app Claude, không sửa tại đây. Engine Claude Code tự dùng các cái đang ở trạng thái kết nối tốt ("Connected").
+## Đọc số liệu
 
-## Đọc số liệu (bảng số liệu cột trái)
-
-Sau khi đấu MCP, số liệu thật hiện ở đâu:
-
-### Bảng số liệu tự động ở cột trái
-
-Trên trang **Javis** (màn hình chính), cột trái có bảng số liệu. Khi mở, Javis tự "quét các nguồn dữ liệu", phát hiện MCP đang kết nối và hiện 3-6 card quan trọng nhất. Mỗi card gồm: tên chỉ số, giá trị (dạng rút gọn như 250k, 3.1tr), và một dòng so sánh/ghi chú kèm mũi tên xu hướng (tăng/giảm). Có nút làm mới để lấy số mới nhất.
-
-Thứ tự ưu tiên khi Javis chọn nguồn cho bảng số liệu (lấy nguồn đầu tiên có dữ liệu):
-
-1. **Pancake POS** (công cụ tên dạng `pos_*`): doanh thu, số đơn, khách hàng kỳ hiện tại và so kỳ trước.
-2. Nếu không có POS: **kênh bán / mạng xã hội** (Facebook page, Instagram, YouTube, TikTok...): tương tác, follower, tin nhắn, lead.
-3. Nếu không có kênh: **quảng cáo** (Facebook Ads...): chi tiêu, ROAS, CPM, chuyển đổi.
-4. Nếu không có quảng cáo: bất kỳ nguồn kinh doanh nào đang có (web analytics, CRM, tài chính, lịch hẹn...).
-
-Nếu chưa đấu MCP nào có dữ liệu kinh doanh, bảng chuyển sang hiển thị số lớp Agentic của vault (số Agents, Skills, Workflows) và gợi ý đấu thêm MCP (POS, kênh, quảng cáo...) để Javis báo cáo.
-
-Để giảm tốn phí và tăng tốc, số liệu bảng này có bộ nhớ đệm tạm (mặc định khoảng 3 phút): bấm làm mới liên tục sẽ không gọi lại nguồn ngay. Cần số mới tức thì thì bấm nút làm mới sau khi hết thời gian đệm.
-
-### Hỏi số liệu bằng lời
-
-Bạn cứ hỏi Javis trực tiếp, ví dụ:
-
-- "Hôm nay bán được bao nhiêu, so với hôm qua thế nào?"
-- "Tuần này chốt bao nhiêu đơn, khách nào mua nhiều nhất?"
-- "Chi tiêu quảng cáo Facebook hôm nay ra sao, ROAS bằng bao nhiêu?"
-- "Có khách nào cần gọi lại không?"
-
-Javis gọi đúng công cụ MCP, đọc số thật, và trả lời theo công thức: số liệu thực tế + so sánh kỳ trước + nguyên nhân + đề xuất. Nếu không có MCP phù hợp, Javis nói rõ chưa có nguồn đó và gợi ý loại MCP cần đấu, chứ không bịa số.
-
-Khi báo cáo có số liệu thật, Javis tự đẩy các chỉ số quan trọng lên bảng số liệu cột trái (qua một khối ẩn trong câu trả lời, bạn không thấy khối này, chỉ thấy bảng cập nhật).
-
-### Data Cache: lưu số liệu kỳ đã đóng
-
-Với các kỳ đã kết thúc (tháng trước, tuần trước), Javis lưu ảnh chụp số liệu vào thư mục `05 - Data Cache/` trong brain (Second Brain của bạn). Lợi ích:
-
-- Hỏi lại số của kỳ đã đóng thì Javis đọc thẳng từ cache, không gọi lại MCP, nhanh và không tốn phí. Javis ghi rõ "(từ cache)".
-- Hỏi kỳ hiện tại (hôm nay, tuần này) thì Javis luôn gọi MCP lấy số mới nhất.
-
-Tên file cache theo dạng `{nguồn}_{YYYY-MM}_{loại}.md`, ví dụ `pos_2026-06_doanh-thu.md`. Bạn xem/sửa các file này ở trang [Quản lý tệp tin](05-quan-ly-tep-tin.md) hoặc trong app Obsidian. Đọc thêm về Second Brain ở [Second Brain: bộ nhớ, Wiki, INGEST](13-second-brain-bo-nho-wiki.md).
+Không đổi so với trước: hỏi trực tiếp trong chat ("hôm nay bán được bao nhiêu, so hôm qua thế nào?"), Javis gọi đúng nguồn, trả lời theo công thức số liệu + so kỳ trước + nguyên nhân + đề xuất, và tự đẩy 3-6 chỉ số lên bảng số liệu cột trái trang Javis. Kỳ đã đóng lưu cache trong `05 - Data Cache/` của brain. Có nhiều shop thì nói rõ tên shop, không nói thì Javis dùng tài khoản mặc định.
 
 ## Mẹo
 
-- Đặt tên server rõ ràng theo cửa hàng (`pos-cua-hang-a`, `pos-cua-hang-b`) để dễ chặn tool và dễ nhìn khi bật/tắt.
-- Với POS, nên bấm **Chặn tool** để về chế độ chỉ đọc nếu bạn chỉ cần xem báo cáo. Tránh rủi ro Javis vô tình tạo đơn hay hoàn tiền.
-- Khi sửa server mà không đổi token, cứ để ô Header trống, Javis giữ key cũ. Không cần lục lại token.
-- Nếu đang chạy nền tự động (trang [Tự cải thiện](08-tu-cai-thien.md)), lưu ý: chức năng chạy nền chỉ thao tác file trong vault, KHÔNG tự gọi MCP tạo đơn hay đốt tiền quảng cáo. Muốn Javis đọc số qua MCP thì hỏi trực tiếp trong chat.
-- Bảng số liệu có bộ nhớ đệm vài phút. Nếu vừa có đơn mới mà bảng chưa đổi, đợi hết thời gian đệm rồi bấm làm mới.
+- Đặt tên tài khoản theo cửa hàng cho dễ gọi trong chat ("shop Kim Khí" vs "shop 2").
+- POS cứ để Chỉ đọc nếu bạn chỉ cần xem báo cáo - không lo Javis vô tình tạo đơn.
+- Tin nhắn đầu sau khi bật máy có thể hơi chậm với kết nối dạng chạy local (Zalo, Webcake) do phải khởi động công cụ - các lượt sau nhanh vì Javis giữ kết nối sống.
+- Nhật ký gọi tool là chỗ đầu tiên nên xem khi nghi Javis "làm gì đó lạ".
 
 ## Sự cố thường gặp
 
-- **Cảnh báo vàng "chưa hỗ trợ MCP" ở đầu trang**: Main Model đang là loại không chạy MCP. Sang [Models & engine](10-models-va-engine.md) đổi sang Claude Code, OpenRouter hoặc OpenAI.
-- **Thêm server nhưng Javis không đọc được số**: kiểm tra lại URL và Header (token) có đúng không, và server có đang ở trạng thái "● Bật" không. Với server web, Header phải đúng định dạng `Tên: Giá trị`, mỗi header một dòng.
-- **Bảng số liệu báo chưa có nguồn dữ liệu kinh doanh**: bạn chưa đấu MCP nào có số liệu, hoặc server đang tắt. Thêm MCP POS/kênh/quảng cáo rồi bấm làm mới.
-- **Server OAuth báo cần xác thực**: mở terminal chạy `claude`, gõ `/mcp` để đăng nhập một lần. Việc này chỉ làm được trên máy có màn hình.
-- **Model API/OAuth chạy MCP nhưng chậm ở tin nhắn đầu**: bình thường. Mỗi tin nhắn phải kết nối MCP một lần nên hơi trễ; các lượt sau nhanh hơn.
-- **Bấm làm mới bảng số liệu mà số không đổi**: do bộ nhớ đệm còn hiệu lực. Đợi qua thời gian đệm (mặc định khoảng 3 phút) rồi thử lại.
+- **Dán key báo "Key chưa đúng hoặc chưa đủ quyền"**: tạo lại API key trong dịch vụ, dán lại. Với Pancake kiểm tra key thuộc đúng cửa hàng.
+- **Zalo báo "Cần cài Node.js 20+"**: cài Node.js từ nodejs.org rồi thử lại.
+- **Mã QR hết hạn**: bấm thử lại để lấy QR mới (QR Zalo sống ~3 phút).
+- **Tool bị chặn kèm dòng "đang ở mức quyền hạn chế"**: đúng thiết kế - nâng quyền tài khoản trong menu chip nếu bạn thật sự muốn Javis làm việc đó.
+- **Sau khi cập nhật từ bản cũ**: các server MCP cũ tự chuyển thành tài khoản trong trang Kết nối (bản gốc backup ở `mcp_servers.v1.bak.json`), không phải khai lại.
+- **Muốn quay về cơ chế cũ** (mỗi server một entry, không qua hub): đặt `"mcp": {"hub": false}` trong `server/settings.json` rồi khởi động lại.
 
-Liên quan: [Trò chuyện & giọng nói](02-tro-chuyen-va-giong-noi.md) để hỏi số liệu bằng lời, [Kênh Telegram](11-telegram.md) để nhận báo cáo qua Telegram, và [Khắc phục sự cố & FAQ](17-khac-phuc-su-co.md) nếu gặp lỗi khác.
+Liên quan: [Models & engine](10-models-va-engine.md) để hiểu bộ não nào dùng được gì, [Trò chuyện & giọng nói](02-tro-chuyen-va-giong-noi.md) để hỏi số liệu bằng lời.
