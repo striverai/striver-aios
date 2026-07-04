@@ -4,6 +4,13 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.6] - 2026-07-04
+### Cải thiện
+- **Trang Cài đặt gọn và hợp lý hơn**: gộp "Nhà cung cấp giọng đọc" vào chung nhóm Giọng nói (trước đây nằm tách tận cuối trang, sau avatar và tên miền); bỏ nút "Nghe thử" bị trùng (giữ 1 nút duy nhất); ẩn danh sách giọng Edge (HoaiMy/NamMinh) khi chọn provider OpenAI/ElevenLabs vì lúc đó chọn giọng ngay trong khối provider; sửa tiêu đề gây hiểu nhầm (bỏ "Giao diện" vì không có mục đó); nút nghe thử chuyển sang viền để nút Lưu nổi đúng vai trò chính.
+- **Thông báo cập nhật bản Docker rõ ràng hơn**: bản Docker không bật Watchtower giờ hướng dẫn thẳng cách **Redeploy** để lấy image mới nhất (Hostinger bấm nút Redeploy trong Docker Manager; VPS chạy `docker compose up -d --pull always`), thay vì bảo "tự thêm service watchtower". Panel Phiên bản hiện luôn hướng dẫn này khi có bản mới mà không tự cập nhật tại chỗ được, không còn để bấm nút "Cập nhật ngay" rồi mới báo lỗi.
+### Sửa lỗi
+- Nút "Cập nhật ngay" trước đây coi là tự cập nhật được chỉ vì biến `WATCHTOWER_TOKEN` có sẵn trong compose (dù Watchtower chưa chạy), bấm vào trigger âm thầm thất bại rồi báo "phiên bản chưa đổi". Nay **dò Watchtower thật** (kiểm tra cổng, không gửi HTTP để khỏi kích hoạt update nhầm) mới quyết định, tránh báo nhầm.
+
 ## [0.9.5] - 2026-07-04
 ### Thêm mới
 - **Lark** vào kho Kết nối (MCP chính chủ của Lark/LarkSuite, chạy local qua `@larksuiteoapi/lark-mcp`): nhắn tin, tài liệu (Docs), bảng dữ liệu (Base/Bitable), wiki, danh bạ. Tạo một Lark app rồi dán App ID + App Secret; Javis chỉ làm được đúng quyền bạn cấp cho app. Cần Node.js 18+. Mặc định Chỉ đọc; gửi tin nhắn và cấp quyền file là hành động nguy hiểm (phải Toàn quyền). Phân loại quyền theo 19 tool thật đã kiểm chứng.

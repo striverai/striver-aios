@@ -54,7 +54,7 @@
   const VIEW_META = {
     home:        { icon: "⬡", label: "Javis OS", sub: "" },
     overview:    { icon: "◎", label: "Tổng quan", sub: "Trạng thái hệ thống" },
-    settings:    { icon: "⚙", label: "Cài đặt", sub: "Giọng nói · giao diện · avatar · tên miền" },
+    settings:    { icon: "⚙", label: "Cài đặt", sub: "Giọng nói · avatar · tên miền" },
     workflows:   { icon: "⚡", label: "Workflows", sub: "Chuỗi agent tự động" },
     agents:      { icon: "🤖", label: "Agents", sub: "Trợ lý chuyên biệt" },
     skills:      { icon: "🧩", label: "Skills", sub: "Kỹ năng khả dụng" },
@@ -220,7 +220,7 @@
       ? `<span class="cl-badge up">Có bản mới: v${esc(d.latest)}</span>`
       : `<span class="cl-badge ok">Đang ở bản mới nhất</span>`;
     const upNote = d.update_available
-      ? `<div class="cl-note">Cập nhật ở mục <b>Tổng quan</b> (nút "Cập nhật ngay"), hoặc chạy <code>./update.sh</code> trên VPS.</div>`
+      ? `<div class="cl-note">Cập nhật ở mục <b>Tổng quan</b>: bản có Watchtower bấm "Cập nhật ngay"; bản Docker khác thì <b>Redeploy</b> (Hostinger) hoặc <code>docker compose up -d --pull always</code>; bản VPS chạy <code>./update.sh</code>.</div>`
       : "";
     const rels = d.releases || [];
     const timeline = rels.length ? rels.map(rel => {
@@ -995,8 +995,15 @@
       tag.textContent = "v" + (j.current || "?");
       const ml = MODE_LBL[j.mode] || j.mode || "";
       if (j.update_available) {
-        meta.innerHTML = "🆕 Có bản mới <b>v" + esc(j.latest) + "</b> (đang chạy v" + esc(j.current) + ") · " + esc(ml);
-        upd.style.display = "";
+        const base = "🆕 Có bản mới <b>v" + esc(j.latest) + "</b> (đang chạy v" + esc(j.current) + ") · " + esc(ml);
+        if (j.can_self_update) {
+          meta.innerHTML = base;
+          upd.style.display = "";
+        } else {
+          // Docker không có Watchtower: cập nhật bằng REDEPLOY (kéo lại image mới nhất).
+          meta.innerHTML = base + '<div style="margin-top:8px;line-height:1.55">↻ Cập nhật bằng cách <b>Redeploy</b>: trên Hostinger bấm nút <b>Redeploy</b> trong Docker Manager; trên VPS chạy <code>docker compose up -d --pull always</code>.</div>';
+          upd.style.display = "none";
+        }
       } else if (j.latest) {
         meta.innerHTML = "✅ Đang dùng bản mới nhất (v" + esc(j.current) + ") · " + esc(ml);
         upd.style.display = "none";
@@ -1924,76 +1931,75 @@
     const elSet = !!v.elevenlabs_key_set;
     const opt = (val, label, cur) => `<option value="${esc(val)}"${val === cur ? " selected" : ""}>${esc(label)}</option>`;
     const oaVoices = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"];
+    // Nhà cung cấp giọng đọc - gộp NGAY trong nhóm giọng nói (render vào #ttsProviderHost), không tách section riêng.
+    const provHtml = `
+      <div class="qs-block">
+        <div class="popover-label">NHÀ CUNG CẤP GIỌNG ĐỌC</div>
+        <select class="js-input" id="vpProvider">
+          ${opt("edge", "Edge TTS - miễn phí (mặc định)", prov)}
+          ${opt("openai", "OpenAI - mượt, đa ngôn ngữ", prov)}
+          ${opt("elevenlabs", "ElevenLabs - tự nhiên nhất", prov)}
+        </select>
+        <div id="vpOpenai" style="display:none">
+          <label class="js-lbl">OpenAI API key ${oaSet ? '<span class="dim">(đã có - để trống nếu không đổi)</span>' : ""}</label>
+          <input class="js-input" id="vpOaKey" type="password" placeholder="sk-...">
+          <label class="js-lbl">Giọng OpenAI</label>
+          <select class="js-input" id="vpOaVoice">${oaVoices.map(x => opt(x, x, v.openai_tts_voice || "alloy")).join("")}</select>
+        </div>
+        <div id="vpEleven" style="display:none">
+          <label class="js-lbl">ElevenLabs API key ${elSet ? '<span class="dim">(đã có - để trống nếu không đổi)</span>' : ""}</label>
+          <input class="js-input" id="vpElKey" type="password" placeholder="dán API key ElevenLabs">
+          <label class="js-lbl">Voice ID <span class="dim">(lấy ở ElevenLabs → Voices)</span></label>
+          <input class="js-input" id="vpElVoice" value="${esc(v.elevenlabs_voice || "")}" placeholder="21m00Tcm4TlvDq8ikWAM (Rachel)">
+        </div>
+        <div class="js-actions"><button class="gcard-btn" id="vpSave">Lưu nhà cung cấp</button></div>
+        <div class="gcard-meta" id="vpStatus">Đang dùng: <b>${esc(prov)}</b>. Provider trả phí lỗi sẽ tự về Edge. Bấm ▶ Nghe thử ở dưới để nghe.</div>
+      </div>`;
     el.innerHTML = `
       <div class="cview-section">
-        <h3>Giao diện · Avatar · Giọng nói · Tên miền</h3>
+        <h3>Giọng nói, ảnh đại diện &amp; tên miền</h3>
         <div class="cs-host"></div>
-      </div>
-      <div class="cview-section">
-        <h3>Nhà cung cấp giọng đọc</h3>
-        <div class="gcard" style="max-width:560px">
-          <label class="js-lbl">Chọn nhà cung cấp</label>
-          <select class="js-input" id="vpProvider">
-            ${opt("edge", "Edge TTS - miễn phí (mặc định)", prov)}
-            ${opt("openai", "OpenAI - mượt, đa ngôn ngữ", prov)}
-            ${opt("elevenlabs", "ElevenLabs - tự nhiên nhất", prov)}
-          </select>
-          <div id="vpOpenai" style="display:none">
-            <label class="js-lbl">OpenAI API key ${oaSet ? '<span class="dim">(đã có - để trống nếu không đổi)</span>' : ""}</label>
-            <input class="js-input" id="vpOaKey" type="password" placeholder="sk-...">
-            <label class="js-lbl">Giọng OpenAI</label>
-            <select class="js-input" id="vpOaVoice">${oaVoices.map(x => opt(x, x, v.openai_tts_voice || "alloy")).join("")}</select>
-          </div>
-          <div id="vpEleven" style="display:none">
-            <label class="js-lbl">ElevenLabs API key ${elSet ? '<span class="dim">(đã có - để trống nếu không đổi)</span>' : ""}</label>
-            <input class="js-input" id="vpElKey" type="password" placeholder="dán API key ElevenLabs">
-            <label class="js-lbl">Voice ID <span class="dim">(lấy ở ElevenLabs → Voices)</span></label>
-            <input class="js-input" id="vpElVoice" value="${esc(v.elevenlabs_voice || "")}" placeholder="21m00Tcm4TlvDq8ikWAM (Rachel)">
-          </div>
-          <div class="js-actions">
-            <button class="gcard-btn" id="vpSave">Lưu</button>
-            <button class="gcard-btn ghost" id="vpTest">▶ Nghe thử</button>
-          </div>
-          <div class="gcard-meta" id="vpStatus">Đang dùng: <b>${esc(prov)}</b>. Provider trả phí lỗi sẽ tự về Edge (miễn phí).</div>
-        </div>
       </div>`;
     const host = el.querySelector(".cs-host");
     const qs = document.getElementById("quickSet");
     if (qs && host) host.appendChild(qs);         // nhúng bộ điều khiển cũ vào trang (giữ handler)
     if (window.__javisRefreshExtras) { try { window.__javisRefreshExtras(); } catch (e) {} }  // nạp lại avatar/tên miền
+    const provHost = document.getElementById("ttsProviderHost");   // điểm neo trong nhóm giọng nói (index.html)
+    if (provHost) provHost.innerHTML = provHtml;
 
     const provSel = document.getElementById("vpProvider");
-    const showFields = () => {
-      document.getElementById("vpOpenai").style.display = provSel.value === "openai" ? "block" : "none";
-      document.getElementById("vpEleven").style.display = provSel.value === "elevenlabs" ? "block" : "none";
-    };
-    provSel.onchange = showFields; showFields();
-
-    const st = document.getElementById("vpStatus");
-    document.getElementById("vpSave").onclick = async () => {
-      st.textContent = "Đang lưu...";
-      const data = {
-        tts_provider: provSel.value,
-        openai_tts_voice: document.getElementById("vpOaVoice").value,
-        elevenlabs_voice: document.getElementById("vpElVoice").value.trim(),
+    if (provSel) {   // guard: thiếu điểm neo (vd cache index.html cũ) thì avatar/tên miền vẫn chạy, không sập trang
+      const showFields = () => {
+        const p = provSel.value;
+        document.getElementById("vpOpenai").style.display = p === "openai" ? "block" : "none";
+        document.getElementById("vpEleven").style.display = p === "elevenlabs" ? "block" : "none";
+        // Giọng HoaiMy/NamMinh chỉ áp dụng cho Edge. Provider khác chọn giọng ngay trong khối trên
+        // (vpOaVoice / vpElVoice) nên ẩn khối này cho gọn. Radio vẫn nằm trong DOM + giữ 'checked'
+        // để app.js đọc input[name=voice] không lỗi; server dùng provider đã lưu nên giá trị này vô hại.
+        const edgeVoice = document.getElementById("edgeVoiceSection");
+        if (edgeVoice) edgeVoice.style.display = p === "edge" ? "" : "none";
       };
-      const elKey = document.getElementById("vpElKey").value.trim();
-      if (elKey) data.elevenlabs_key = elKey;
-      const r = await saveSetting("voice", data);
-      const oaKey = document.getElementById("vpOaKey").value.trim();
-      if (oaKey) await saveSetting("model", { openai_api_key: oaKey });   // key OpenAI dùng chung với chat
-      _settings = null;
-      st.innerHTML = r.ok
-        ? "✅ Đã lưu. Đang dùng: <b>" + esc(provSel.value) + "</b>. Bấm ▶ Nghe thử."
-        : "⚠ Lỗi lưu.";
-    };
-    document.getElementById("vpTest").onclick = () => {
-      st.textContent = "Đang phát thử... (dùng cấu hình ĐÃ lưu)";
-      const a = new Audio("/tts?text=" + encodeURIComponent("Xin chào, đây là giọng đọc mới của Javis.") + "&t=" + Date.now());
-      a.onended = () => { st.textContent = "Nghe ổn chứ? Nếu chưa, đổi provider/giọng rồi Lưu lại."; };
-      a.onerror = () => { st.textContent = "⚠ Không phát được - kiểm tra API key / provider (Lưu trước khi thử)."; };
-      a.play().catch(() => { st.textContent = "⚠ Trình duyệt chặn phát - bấm ▶ lần nữa."; });
-    };
+      provSel.onchange = showFields; showFields();
+
+      const st = document.getElementById("vpStatus");
+      document.getElementById("vpSave").onclick = async () => {
+        st.textContent = "Đang lưu...";
+        const data = {
+          tts_provider: provSel.value,
+          openai_tts_voice: document.getElementById("vpOaVoice").value,
+          elevenlabs_voice: document.getElementById("vpElVoice").value.trim(),
+        };
+        const elKey = document.getElementById("vpElKey").value.trim();
+        if (elKey) data.elevenlabs_key = elKey;
+        const r = await saveSetting("voice", data);
+        const oaKey = document.getElementById("vpOaKey").value.trim();
+        if (oaKey) await saveSetting("model", { openai_api_key: oaKey });   // key OpenAI dùng chung với chat
+        _settings = null;
+        st.innerHTML = r.ok
+          ? "✅ Đã lưu. Đang dùng: <b>" + esc(provSel.value) + "</b>. Bấm ▶ Nghe thử."
+          : "⚠ Lỗi lưu.";
+      };
+    }
   }
 
   // ============================================

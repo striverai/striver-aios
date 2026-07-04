@@ -3172,6 +3172,30 @@ def _is_git_checkout(root: str) -> bool:
         return False
 
 
+async def _watchtower_reachable() -> bool:
+    """True nếu container Watchtower (profile 'update') đang CHẠY và mở cổng API.
+    Chỉ có ý nghĩa ở mode docker (host 'watchtower' trên mạng nội bộ compose). Biến env
+    WATCHTOWER_TOKEN luôn được set sẵn trong compose nên KHÔNG đủ để kết luận - phải dò thật.
+    Dò bằng cách MỞ KẾT NỐI TCP tới cổng, TUYỆT ĐỐI không gửi HTTP: endpoint /v1/update của
+    Watchtower bị kích hoạt update kể cả với GET, nên một request 'thăm dò' sẽ trigger nhầm."""
+    if not os.getenv("WATCHTOWER_TOKEN", ""):
+        return False
+    import asyncio
+    writer = None
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection("watchtower", 8080), timeout=4)
+        return True   # bắt tay TCP xong = container Watchtower đang lắng nghe
+    except Exception:
+        return False  # không phân giải host / connection refused = Watchtower không chạy
+    finally:
+        if writer is not None:
+            try:
+                writer.close()
+            except Exception:
+                pass
+
+
 @app.get("/version")
 async def version_info():
     cur = _read_version()
@@ -3189,7 +3213,9 @@ async def version_info():
         err = f"{type(e).__name__}: {e}"
     mode = _deploy_mode()
     avail = _ver_newer(latest, cur)
-    can = mode in ("native", "windows") or bool(os.getenv("WATCHTOWER_TOKEN"))
+    # docker: chỉ tự cập nhật tại chỗ được nếu Watchtower ĐANG chạy (ping thật). Không có →
+    # frontend chuyển sang hướng dẫn REDEPLOY. native/windows: git pull tự lo.
+    can = mode in ("native", "windows") or (mode == "docker" and await _watchtower_reachable())
     return {"current": cur, "latest": latest, "update_available": avail,
             "mode": mode, "can_self_update": can, "error": err}
 
@@ -3201,11 +3227,11 @@ async def do_update():
     import sys as _sys
     mode = _deploy_mode()
     if mode == "docker":
-        token = os.getenv("WATCHTOWER_TOKEN", "")
-        if not token:
+        if not await _watchtower_reachable():
             return JSONResponse({"ok": False,
-                "error": "Bản Docker chưa bật Watchtower để tự cập nhật. Thêm service watchtower (xem DEPLOY.md) rồi thử lại.",
-                "manual": "./update.sh"}, status_code=400)
+                "error": "Bản Docker cập nhật bằng cách REDEPLOY để kéo image mới nhất: trên Hostinger bấm nút Redeploy trong Docker Manager; trên VPS chạy lại lệnh dưới.",
+                "manual": "docker compose up -d --pull always"}, status_code=400)
+        token = os.getenv("WATCHTOWER_TOKEN", "")
         import asyncio
         import httpx
 
