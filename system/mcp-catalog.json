@@ -48,7 +48,7 @@
     {
       "id": "zalo",
       "name": "Zalo (tài khoản cá nhân)",
-      "icon": "💬",
+      "icon": "/static/logos/zalo.png",
       "category": "Nhắn tin",
       "description": "Đọc và gửi tin nhắn Zalo bằng tài khoản cá nhân (qua zalo-agent-cli, đăng nhập quét QR). Nối được nhiều tài khoản - mỗi tài khoản chạy cô lập.",
       "status": "beta",
@@ -153,7 +153,7 @@
     {
       "id": "google-sheets",
       "name": "Google Sheets",
-      "icon": "📊",
+      "icon": "/static/logos/google-sheets.png",
       "category": "Văn phòng",
       "description": "Đọc/ghi bảng tính Google: đổ báo cáo doanh thu, tồn kho, công nợ ra Sheets tự động. Đấu bằng service account - không cần đăng nhập.",
       "status": "beta",
@@ -513,6 +513,44 @@
       },
       "default_perm": "readonly",
       "risk": "Mức Ghi nháp cho phép Javis TẠO/SỬA liên hệ, tag, newsletter, phễu thật trên Systeme.io. Mức Toàn quyền thêm quyền XOÁ. Chỉ cần xem dữ liệu thì giữ mức Chỉ đọc. Lưu ý: tên tool chính xác chưa công bố nên phân loại dựa trên heuristic (tool có động từ hành động bị coi là GHI, xoá là NGUY HIỂM); nếu công cụ đọc bị chặn nhầm ở mức Chỉ đọc, báo lại để chỉnh."
+    },
+    {
+      "id": "lark",
+      "name": "Lark",
+      "icon": "/static/logos/lark.png",
+      "category": "Văn phòng",
+      "description": "Nhắn tin, tài liệu (Docs), bảng dữ liệu (Base/Bitable), wiki và danh bạ trong Lark qua MCP chính chủ. Chạy local bằng app của bạn (dán App ID + App Secret). Cần tạo một Lark app và cấp quyền tương ứng.",
+      "status": "beta",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@larksuiteoapi/lark-mcp", "mcp", "-d", "https://open.larksuite.com"],
+      "requires": { "node": ">=18" },
+      "auth": {
+        "type": "apikey",
+        "fields": [
+          {
+            "key": "app_id",
+            "label": "App ID (Lark app)",
+            "placeholder": "cli_xxxxxxxxxxxx",
+            "env": "APP_ID"
+          },
+          {
+            "key": "app_secret",
+            "label": "App Secret",
+            "placeholder": "dán app secret...",
+            "env": "APP_SECRET"
+          }
+        ],
+        "guide": "Cần Node.js 18+ trên máy chạy Javis. Làm 1 lần: vào open.larksuite.com/app > Create custom app > ở 'Credentials & Basic Info' lấy App ID + App Secret. Vào 'Permissions & Scopes' cấp các quyền cần dùng (vd im:message, im:chat, docx:document, bitable:app, contact:user.id) rồi 'Create version' để phát hành app (có thể cần admin duyệt). Dán App ID + App Secret vào đây. Javis chỉ đọc/làm được đúng những quyền bạn đã cấp cho app.",
+        "guide_url": "https://open.larksuite.com/document/uAjLw4CM/ukTMukTMukTM/mcp_integration/mcp_introduction"
+      },
+      "tool_meta": {
+        "read": ["*_list", "*_search", "*_get", "*batchGetId", "*rawContent", "*getNode"],
+        "write": ["*_create", "*_update", "docx_builtin_import"],
+        "danger": ["im_v1_message_create", "drive_v1_permissionMember_create"]
+      },
+      "default_perm": "readonly",
+      "risk": "Mức Ghi nháp cho phép Javis TẠO/SỬA bảng dữ liệu, tài liệu, nhóm chat thật trong Lark. Mức Toàn quyền thêm quyền GỬI TIN NHẮN vào chat và CẤP QUYỀN truy cập file. Chỉ cần xem/tìm thì giữ mức Chỉ đọc. Javis chỉ làm được đúng phạm vi quyền bạn cấp cho Lark app."
     }
   ]
 }
