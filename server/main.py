@@ -2324,6 +2324,26 @@ async def files_download(brain: str = Query("brain"), path: str = Query(...)):
         return JSONResponse({"error": "Không tìm thấy file"}, status_code=404)
     return FileResponse(str(f), filename=f.name)
 
+
+@app.get("/files/raw")
+async def files_raw(brain: str = Query("brain"), path: str = Query(...), dl: int = Query(0)):
+    """Phục vụ file THÔ để XEM INLINE trong trình duyệt: ảnh hiện trong <img>, pdf mở thẳng trên
+    tab, mọi file khác có URL tĩnh để mở/tải. Khác /files/download (luôn ép tải về): mặc định
+    inline; truyền dl=1 để ép tải. Cùng rào chống traversal (_safe_path)."""
+    try:
+        f = _safe_path(brain, path)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    if not f.is_file():
+        return JSONResponse({"error": "Không tìm thấy file"}, status_code=404)
+    if dl:
+        return FileResponse(str(f), filename=f.name)   # ép tải (giữ tên, kể cả tên tiếng Việt)
+    mt, _ = mimetypes.guess_type(f.name)
+    resp = FileResponse(str(f), media_type=mt or "application/octet-stream")
+    resp.headers["Content-Disposition"] = "inline"      # hiển thị trong trình duyệt, không ép tải
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
+
 # ---- Workflows ----
 @app.get("/workflows")
 async def list_workflows(brain: str = Query("brain")):

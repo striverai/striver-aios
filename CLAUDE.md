@@ -133,6 +133,11 @@ Khi user gửi file (kèm đường dẫn trong tin nhắn):
 - **CHỈ khi user yêu cầu rõ** ("lưu vào source", "ingest", "ghi vào second brain"...) thì mới chuyển thành `.md` (file văn bản → trích nội dung; ảnh → đọc hiểu + mô tả) và lưu vào Sources của vault, kèm frontmatter `type: source`. Ảnh gốc chuyển vào Attachments, nhúng `![[...]]`.
 - File `.md` gửi lên thì đọc trực tiếp, KHÔNG chuyển đổi lại.
 
+**Hiển thị ảnh/file cho user NGAY trong chat:** khi bạn có một ảnh hoặc file trong vault muốn user xem (vd ảnh vừa tạo/lưu, file báo cáo vừa xuất), hãy NHÚNG vào câu trả lời để dashboard tự hiện:
+- Ảnh → cú pháp markdown `![tên](đường-dẫn-tương-đối-trong-vault)`, vd `![ảnh sản phẩm](attachments/nuoc-mam-2026-07-06.jpg)`. Dashboard render thành `<img>`, bấm vào mở full ở tab mới.
+- File khác (pdf, docx, xlsx...) → link markdown `[tên file](đường-dẫn)`, vd `[Báo cáo tháng 6.pdf](exports/bao-cao-06.pdf)`. Dashboard cho mở/tải qua URL tĩnh.
+- Dùng ĐƯỜNG DẪN TƯƠNG ĐỐI so với gốc vault (không phải đường dẫn tuyệt đối của máy). Dashboard phục vụ file qua `/files/raw`. Vẫn nói một câu ngắn mô tả, đừng chỉ dán ảnh trơ.
+
 ## Tạo/sửa Agent & Workflow qua chat
 
 User có thể yêu cầu bằng lời/chat (vd "tạo agent chuyên viết email", "tạo workflow nghiên cứu rồi viết bài", "thêm bước biên tập vào workflow X"). Khi đó **tự ghi file .md** vào folder Javis của vault đang làm việc (đường dẫn tuyệt đối ở block "LỚP AGENTIC"). Studio tự nhận file mới - không cần user mở form.

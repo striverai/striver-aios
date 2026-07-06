@@ -341,6 +341,14 @@ function markdownToHtml(text) {
     }
   );
 
+  // 2b) Ảnh + link: giữ qua placeholder (NUL) để URL không bị escape. Đường dẫn vault -> /files/raw.
+  const _fileUrl = (p) => `/files/raw?brain=${encodeURIComponent(currentBrainPath())}&path=${encodeURIComponent((p || "").replace(/^\.?\//, ""))}`;
+  const _resolveSrc = (s) => { s = (s || "").trim(); return /^(https?:|data:|blob:|\/)/i.test(s) ? s : _fileUrl(s); };
+  const _imgHtml = (u, alt) => `<a href="${esc(u)}" target="_blank" rel="noopener"><img class="chat-img" style="max-width:min(100%,440px);border-radius:8px;display:block;margin:6px 0;cursor:zoom-in" src="${esc(u)}" alt="${esc(alt || "")}" loading="lazy"></a>`;
+  text = text.replace(/!\[\[([^\]|]+?)(?:\|[^\]]*)?\]\]/g, (_m, name) => ` B${blocks.push(_imgHtml(_resolveSrc(name.trim()), name.trim())) - 1} `);
+  text = text.replace(/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g, (_m, alt, src) => ` B${blocks.push(_imgHtml(_resolveSrc(src), alt)) - 1} `);
+  text = text.replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/g, (_m, t, href) => { href = href.trim(); const u = /^(https?:|mailto:)/i.test(href) ? href : _resolveSrc(href); return ` B${blocks.push(`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`) - 1} `; });
+
   // 3) Phần còn lại: escape rồi áp inline + list + heading
   let html = esc(text)
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")

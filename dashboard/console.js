@@ -319,6 +319,9 @@
     const closeModal = () => modal.classList.remove("open");
     modal.onclick = (e) => { if (e.target === modal) closeModal(); };
     const TEXT_EDIT_EXTS = [".md", ".txt", ".json", ".yaml", ".yml", ".csv", ".js", ".ts", ".py", ".html", ".css", ".toml", ".ini", ".log", ".sh", ".bat", ".xml", ".svg", ".env"];
+    const IMG_EXTS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico"];   // .svg = sửa text
+    // URL tĩnh phục vụ file inline (ảnh hiện, pdf mở tab). dl=1 → ép tải về.
+    const rawUrl = (rel, dl) => `/files/raw?brain=${encodeURIComponent(fbrain())}&path=${encodeURIComponent(rel)}${dl ? "&dl=1" : ""}`;
 
     async function load(path) {
       cur = path || ""; listEl.innerHTML = "Đang tải...";
@@ -348,8 +351,11 @@
       const div = document.createElement("div"); div.className = "fm-row" + (it.type === "dir" ? " is-dir" : "");
       const rel = cur ? cur + "/" + it.name : it.name;
       const editable = it.type === "file" && TEXT_EDIT_EXTS.includes(it.ext);
+      const viewable = it.type === "file" && (IMG_EXTS.includes(it.ext) || it.ext === ".pdf");
       let acts = "";
       if (editable) acts += '<button data-act="edit" title="Sửa nội dung">Sửa</button>';
+      else if (viewable) acts += '<button data-act="view" title="Xem trước">Xem</button>';
+      else if (it.type === "file") acts += '<button data-act="open" title="Mở trong tab mới">Mở</button>';
       acts += '<button data-act="ren" title="Đổi tên">Đổi tên</button>';
       if (it.type === "file") acts += '<button data-act="dl" title="Tải về">Tải</button>';
       acts += '<button data-act="del" class="danger" title="Xoá">Xoá</button>';
@@ -357,12 +363,16 @@
         <span class="fm-name">${esc(it.name)}</span>
         <span class="fm-size">${it.type === "dir" ? "" : _humanSize(it.size)}</span>
         <span class="fm-row-act">${acts}</span>`;
-      // Click TÊN: thư mục → mở vào; file → KHÔNG tự mở (dùng nút "Sửa").
-      if (it.type === "dir") { const go = () => load(rel); div.querySelector(".fm-name").onclick = go; div.querySelector(".fm-ico").onclick = go; }
+      // Click TÊN: thư mục → mở vào; ảnh/pdf/text → xem trước; file khác → mở tab mới.
+      const nameGo = it.type === "dir" ? () => load(rel)
+        : (editable || viewable) ? () => openFile(rel, it)
+        : () => window.open(rawUrl(rel), "_blank");
+      div.querySelector(".fm-name").onclick = nameGo; div.querySelector(".fm-ico").onclick = nameGo;
       div.querySelectorAll("[data-act]").forEach(b => b.onclick = (e) => {
         e.stopPropagation(); const a = b.dataset.act;
-        if (a === "edit") openFile(rel, it);
-        else if (a === "dl") window.open(`/files/download?brain=${encodeURIComponent(fbrain())}&path=${encodeURIComponent(rel)}`, "_blank");
+        if (a === "edit" || a === "view") openFile(rel, it);
+        else if (a === "open") window.open(rawUrl(rel), "_blank");
+        else if (a === "dl") window.open(rawUrl(rel, 1), "_blank");
         else if (a === "ren") doRename(rel, it.name);
         else if (a === "del") doDelete(rel, it.name);
       });
@@ -370,6 +380,17 @@
     }
     async function openFile(rel, it) {
       modal.classList.add("open");
+      const _raw = rawUrl(rel), _ext = it.ext || "";
+      const _vhead = `<div class="fm-vhead"><b>${esc(it.name)}</b><span><a href="${_raw}" target="_blank"><button>↗ Tab mới</button></a> <a href="${rawUrl(rel, 1)}"><button>⤓ Tải</button></a> <button id="fmVClose">✕</button></span></div>`;
+      // Ảnh / PDF: xem trước ngay qua /files/raw (không cần đọc dạng text).
+      if (IMG_EXTS.includes(_ext)) {
+        card.innerHTML = _vhead + `<div class="fm-readbox" style="text-align:center;overflow:auto"><img src="${_raw}" alt="${esc(it.name)}" style="max-width:100%;height:auto;border-radius:8px"></div>`;
+        card.querySelector("#fmVClose").onclick = closeModal; return;
+      }
+      if (_ext === ".pdf") {
+        card.innerHTML = _vhead + `<iframe src="${_raw}" style="width:100%;height:72vh;border:0;background:#fff"></iframe>`;
+        card.querySelector("#fmVClose").onclick = closeModal; return;
+      }
       card.innerHTML = `<div class="fm-vhead"><b>${esc(it.name)}</b><button id="fmVClose">✕</button></div><div class="fm-readbox">Đang mở...</div>`;
       card.querySelector("#fmVClose").onclick = closeModal;
       let resp, d;
@@ -379,7 +400,7 @@
       if (!resp.ok || d.error) {
         const m = d.error || (resp.status === 404 ? "Server chưa có chức năng Tệp tin - khởi động lại server Javis."
           : resp.status === 401 ? "Hết phiên đăng nhập - tải lại trang." : "Lỗi (" + resp.status + ")");
-        card.querySelector(".fm-readbox").innerHTML = `<span>${esc(m)} - <a href="${dlUrl}" target="_blank" style="color:#bcd2ff">Tải về</a></span>`;
+        card.querySelector(".fm-readbox").innerHTML = `<span>${esc(m)} - <a href="${_raw}" target="_blank" style="color:#bcd2ff">Mở trong tab mới</a> · <a href="${rawUrl(rel, 1)}" style="color:#bcd2ff">Tải về</a></span>`;
         return;
       }
       const head = `<div class="fm-vhead"><b>${esc(d.name)}</b><span>${d.editable ? '<button id="fmSave">💾 Lưu</button>' : '<a href="' + dlUrl + '" target="_blank"><button>⤓ Tải</button></a>'}<button id="fmVClose">✕</button></span></div>`;
