@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.10] - 2026-07-06
+### Thêm mới
+- **Higgsfield vào kho Kết nối** (MCP chính chủ, remote): tạo và chỉnh ảnh/video bằng AI - sinh ảnh, sinh video, nâng nét (upscale), mở rộng khung hình, xoá nền, cắt nhân vật, điều khiển chuyển động. Đăng nhập Higgsfield 1 chạm: Javis tự đăng ký ứng dụng theo chuẩn OAuth của MCP (tự dò metadata + DCR + PKCE, không cần tạo app hay dán key), dùng được trên mọi engine. Mặc định mức Ghi nháp để Javis tạo được nội dung ngay và chặn thao tác xoá/thanh toán; mỗi lần tạo tiêu credit Higgsfield trả trước của bạn.
+
 ## [0.9.9] - 2026-07-06
 ### Thêm mới
 - **Xem ảnh và mở file ngay trong chat + trang Tệp tin**: Javis nhúng được ảnh vào câu trả lời (hiện luôn trong khung chat, bấm là mở full ở tab mới) và đính link mở/tải file như PDF, DOCX, XLSX. Trang Tệp tin xem trước được ảnh và PDF ngay trong app; file khác có nút "Mở" ra tab mới bằng đường dẫn tĩnh. Thêm endpoint `/files/raw` phục vụ file inline (khác `/files/download` luôn ép tải).
