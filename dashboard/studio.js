@@ -253,7 +253,7 @@
       <label>Tên</label><input id="agName" value="${esc(a ? a.name : "")}">
       <label>Vai trò (mô tả ngắn)</label><input id="agRole" value="${esc(a ? a.role : "")}">
       <label>System prompt (cách làm việc chi tiết)</label><textarea id="agPrompt" rows="4">${esc(a ? (a.prompt || "") : "")}</textarea>
-      <label>Skills</label><div class="skill-pick" id="skillPick">${skills.length ? skills.map(s => `<label class="sp"><input type="checkbox" value="${esc(s.slug)}" ${a && (a.skills || []).includes(s.slug) ? "checked" : ""}> ${esc(s.name)}</label>`).join("") : '<span class="dim">Vault chưa có skill trong .claude/skills - vẫn tạo agent được, gán skill sau.</span>'}</div>
+      <label>Skills</label><div class="skill-pick" id="skillPick">${skills.length ? skills.map(s => `<label class="sp"><input type="checkbox" value="${esc(s.slug)}" ${a && (a.skills || []).includes(s.slug) ? "checked" : ""}> ${esc(s.name)}</label>`).join("") : '<span class="dim">Vault chưa có skill trong skills/ - vẫn tạo agent được, gán skill sau.</span>'}</div>
       <label>Model</label><select id="agModel">
         <option value="">Mặc định (theo CLI)</option>
         <optgroup label="Claude (Claude Code)"><option value="sonnet">Sonnet</option><option value="opus">Opus</option><option value="haiku">Haiku</option><option value="fable">Fable</option></optgroup>
@@ -403,7 +403,7 @@
     const cats = ["ALL"].concat(Object.keys(groups).sort());
     const catHtml = cats.map(c => `<div class="cat ${_skState.cat === c ? "sel" : ""}" data-cat="${esc(c)}"><span>${c === "ALL" ? "Tất cả" : esc(c)}</span><span class="n">${c === "ALL" ? all.length : groups[c]}</span></div>`).join("");
     panel.innerHTML = `
-      <div class="panel-bar"><h3>Skills <span class="dim">${enabledN}/${all.length} bật · nguồn <code>.claude/skills</code></span></h3>
+      <div class="panel-bar"><h3>Skills <span class="dim">${enabledN}/${all.length} bật · nguồn <code>skills/</code></span></h3>
         <button class="s-btn" id="skNew">+ Skill</button></div>
       ${all.length ? `<div class="sk2">
         <div class="sk2-side"><div class="sec">Nhóm</div>${catHtml}</div>
@@ -412,7 +412,7 @@
             <input id="skSearch" placeholder="Tìm skill…" value="${esc(_skState.q)}"></div>
           <div class="sk2-list" id="skList"></div>
         </div></div>`
-      : `<div class="empty">Brain chưa có skill. Bấm <b>+ Skill</b> để tạo (tự lưu vào <code>.claude/skills</code> + xếp nhóm).</div>`}`;
+      : `<div class="empty">Brain chưa có skill. Bấm <b>+ Skill</b> để tạo (tự lưu vào <code>skills/</code> + xếp nhóm).</div>`}`;
     document.getElementById("skNew").onclick = () => openSkillForm(null);
     if (!all.length) return;
     panel.querySelectorAll(".sk2-side .cat").forEach(c => c.onclick = () => { _skState.cat = c.dataset.cat; renderSkillUI(); });
@@ -477,7 +477,7 @@
   }
 
   async function deleteSkill(slug, name) {
-    if (!confirm(`Xoá skill "${name}"? Sẽ xoá cả thư mục .claude/skills/${slug}.`)) return;
+    if (!confirm(`Xoá skill "${name}"? Sẽ xoá cả thư mục skills/${slug}.`)) return;
     await api("/skills/delete", { method: "POST", body: fd({ slug, brain: brain() }) });
     loadSkills();
   }

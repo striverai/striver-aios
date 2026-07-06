@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse, Response
 import mcp_catalog
 import mcp_client
 import mcp_store
+import skill_router
 from config import STATE_DIR
 
 _TOKEN_PATH = STATE_DIR / ".hub_token"
@@ -183,18 +184,13 @@ def _connections_json():
 
 
 def _skills_dir(vault_root):
-    return Path(vault_root) / ".claude" / "skills"
+    """Canonical <vault>/skills (qua skill_router - dùng chung logic với main.py)."""
+    return skill_router.skills_base(vault_root, canonical=True)
 
 
 def _list_skills(vault_root):
-    out = []
-    try:
-        for d in sorted(_skills_dir(vault_root).iterdir()):
-            if (d / "SKILL.md").exists():
-                out.append(d.name)
-    except OSError:
-        pass
-    return out
+    """Slug các skill đang BẬT (list[str], giữ nguyên kiểu để chỗ join không vỡ)."""
+    return skill_router.enabled_slugs(vault_root)
 
 
 def _builtin_tools(mode, vault_root):
@@ -240,15 +236,10 @@ def _builtin_tools(mode, vault_root):
 
     async def _skill(args):
         name = str((args or {}).get("name") or "").strip()
-        base = _skills_dir(vault_root).resolve()
-        # Chặn traversal như _safe_path: name phải là 1 slug đơn, path resolve phải nằm trong skills dir
-        ok_name = bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", name)) and ".." not in name
-        f = (base / name / "SKILL.md") if ok_name else None
-        try:
-            in_base = bool(f) and base in f.resolve().parents
-        except OSError:
-            in_base = False
-        if not (ok_name and in_base and f.exists()):
+        # skill_router.resolve_skill_file đã validate slug + chống traversal, tìm canonical
+        # skills/ → .claude/skills → .agents.
+        f = skill_router.resolve_skill_file(vault_root, name)
+        if not f or not f.is_file():
             return ("ERROR: không có skill đó. Skill khả dụng: "
                     + (", ".join(_list_skills(vault_root)) or "(chưa có)"))
         return f.read_text(encoding="utf-8", errors="replace")[:60_000]
@@ -260,9 +251,14 @@ def _builtin_tools(mode, vault_root):
     add("javis_write_file", "Ghi/tạo file trong vault (ghi đè nếu có). Dùng khi cần lưu ghi chú, "
         "báo cáo, nháp. KHÔNG dùng cho hành động ra ngoài.",
         {"path": {"type": "string"}, "content": {"type": "string"}}, ["path", "content"], _write)
-    skills = _list_skills(vault_root)
-    add("javis_use_skill", "Nạp nội dung 1 skill (hướng dẫn chuyên sâu) rồi LÀM THEO. Skill khả dụng: "
-        + (", ".join(skills) or "(chưa có)"),
+    # Mô tả tool = router thu nhỏ: liệt kê slug + mô tả ngắn để engine biết KHI NÀO gọi skill nào.
+    metas = skill_router.list_enabled_meta(vault_root)
+    listing = "; ".join(f"{s['slug']}: {(s['description'] or '')[:60]}" for s in metas[:20])
+    if len(metas) > 20:
+        listing += f"; …(+{len(metas) - 20} skill nữa)"
+    add("javis_use_skill",
+        "Nạp nội dung 1 skill (hướng dẫn chuyên sâu) rồi LÀM THEO. Truyền name=<slug>. "
+        "Skill khả dụng (slug: mô tả): " + (listing or "(chưa có)"),
         {"name": {"type": "string"}}, ["name"], _skill)
     return tools, route
 

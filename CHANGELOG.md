@@ -4,6 +4,19 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.8] - 2026-07-06
+### Thêm mới
+- **Skill chạy trên MỌI engine, hết phụ thuộc cấu trúc của Claude**: trước đây skill chỉ hoạt động ngon trên Claude Code (đọc native từ `.claude/skills`), còn ChatGPT/Codex thì gọi không ra. Nay Javis có một **skill router riêng** dùng chung cho mọi engine: danh sách skill (tên + mô tả) được bơm thẳng vào system prompt, kèm tool `javis_use_skill` để nạp nội dung skill và làm theo. Claude Code, ChatGPT/Codex, OpenRouter, OpenAI API và Anthropic API giờ đều dùng được skill như nhau.
+- **Nơi lưu skill chuyển sang `skills/` (phẳng, do Javis sở hữu)**: đồng bộ với `agents/`, `workflows/`, `memory/`. Brain cũ để skill ở `.claude/skills` được **tự dời sang `skills/`** một lần (an toàn, không mất dữ liệu, giữ nguyên skill đang tắt). Javis vẫn tự **mirror** sang `.claude/skills` để Claude Code nạp native như một điểm cộng - nhưng router chính không còn phụ thuộc thư mục đó nữa.
+### Sửa lỗi
+- **ChatGPT/Codex không tìm thấy skill**: nhánh chat qua Codex trước đây không được nạp system prompt của Javis và chạy sai thư mục làm việc nên không thấy skill nào. Nay Codex chạy đúng thư mục brain và nhận đủ router skill, gọi được skill người dùng đã tạo.
+
+## [0.9.7] - 2026-07-05
+### Cải thiện
+- **Giọng nói mượt hơn, hết chèn giọng lạ, biết dừng khi bạn nói**: (1) audio đầu tiên phát NHANH hơn - tách câu đầu ra đoạn nhỏ để tổng hợp + tải tức thì, bớt cảnh khựng vài giây sau khi chữ đã hiện; (2) khi một đoạn đọc lỗi mạng, Javis thử lại đúng giọng Việt và TUYỆT ĐỐI không rơi về giọng mặc định trình duyệt (thường là tiếng Anh) - hết cảnh "giọng Anh lạ chèn giữa chừng"; (3) ngắt lời (barge-in) khi rảnh tay: đang đọc mà nghe bạn nói đủ rõ thì tự dừng và mở nghe ngay, kèm bật khử vọng/khử ồn mic để đỡ nghe lại chính giọng mình.
+### Sửa lỗi
+- Một đoạn đọc lỗi trước đây bị xử lý 2 lần (Chrome bắn cả sự kiện error lẫn play() reject cho cùng audio) gây 2 luồng đọc chồng nhau và audio không dừng được; nay mỗi đoạn lỗi chỉ xử lý đúng một lần.
+
 ## [0.9.6] - 2026-07-04
 ### Cải thiện
 - **Trang Cài đặt gọn và hợp lý hơn**: gộp "Nhà cung cấp giọng đọc" vào chung nhóm Giọng nói (trước đây nằm tách tận cuối trang, sau avatar và tên miền); bỏ nút "Nghe thử" bị trùng (giữ 1 nút duy nhất); ẩn danh sách giọng Edge (HoaiMy/NamMinh) khi chọn provider OpenAI/ElevenLabs vì lúc đó chọn giọng ngay trong khối provider; sửa tiêu đề gây hiểu nhầm (bỏ "Giao diện" vì không có mục đó); nút nghe thử chuyển sang viền để nút Lưu nổi đúng vai trò chính.

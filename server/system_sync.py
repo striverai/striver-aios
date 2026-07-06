@@ -13,11 +13,14 @@ Kiến trúc mới - 2 tầng rõ ràng:
   - TẦNG BRAIN (dữ liệu người dùng, đổi theo brain): memory/, sources/, wiki/, agent/workflow/
       skill/loop do user tạo. KHÔNG bị update ghi đè.
 
-Vì workflow/loop/learn chạy với cwd=brain (nạp skill từ <brain>/.claude/skills), tầng hệ thống
-được MIRROR vào mỗi brain qua sync có manifest:
+Skill trong brain có CANONICAL phẳng <brain>/skills/<slug>/SKILL.md (cùng hướng agents/workflows/
+memory). Tầng hệ thống được cài vào canonical đó qua sync có manifest, rồi MIRROR sang
+<brain>/.claude/skills để Claude Code nạp NATIVE ở ngữ cảnh cwd=brain (workflow/loop/learn/lint) -
+mirror chỉ là bản phái sinh (bonus), router chính của Javis không phụ thuộc nó. Brain cũ để skill
+ở .claude/skills được migrate_brain() dời sang skills/ (idempotent, 1 chiều, không mất data):
   - Manifest <brain>/.javis/system-manifest.json ghi hash bản đã cài của từng file hệ thống.
   - Thiếu → cài (kể cả khi user lỡ xoá: file hệ thống tự hồi phục như file HĐH; muốn ngừng
-    dùng thì TẮT skill - chuyển vào .claude/skills/.disabled - sync tôn trọng, không bật lại).
+    dùng thì TẮT skill - chuyển vào skills/.disabled - sync tôn trọng, không bật lại).
   - Có + CHƯA bị user sửa (hash khớp manifest, hoặc khớp bộ hash các bản đã ship LEGACY_HASHES)
     → ghi đè bằng bản mới của app (đây là cách "chức năng hệ thống update theo phiên bản").
   - Có + user ĐÃ SỬA → GIỮ NGUYÊN bản của user (user override; từ đó app không tự đụng nữa).
@@ -36,6 +39,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import sys
 import threading
 from datetime import datetime, timezone, timedelta
@@ -191,9 +195,73 @@ def _write_manifest(root: Path, data: dict) -> None:
 # ────────────────────────── sync ──────────────────────────
 
 def _skill_paths(root: Path, slug: str):
-    """(path đang BẬT, path đang TẮT) của 1 skill trong brain."""
-    base = root / ".claude" / "skills"
+    """(path đang BẬT, path đang TẮT) của 1 skill trong brain.
+    CANONICAL = <root>/skills (phẳng, cùng hướng agents/workflows/memory). Skill hệ thống được
+    cài vào đây; mirror_skills() copy sang <root>/.claude/skills cho Claude Code native."""
+    base = root / "skills"
     return base / slug / "SKILL.md", base / ".disabled" / slug / "SKILL.md"
+
+
+def migrate_brain(root) -> None:
+    """Idempotent: dời skill legacy <root>/.claude/skills/** → CANONICAL <root>/skills/**.
+    Dời CẢ cây bật lẫn cây .disabled (để skill người dùng đã TẮT không bị cài lại thành BẬT).
+    CHỈ move khi đích CHƯA có (canonical thắng - không ghi đè). Nguồn+đích đều dưới <root> nên
+    cùng ổ đĩa → shutil.move = rename nguyên tử (không lo copy dở dang). Per-slug try/except:
+    1 skill lỗi không chặn các skill còn lại."""
+    root = Path(root)
+    legacy = root / ".claude" / "skills"
+    canonical = root / "skills"
+    if not legacy.is_dir():
+        return
+    pairs = [(legacy, canonical), (legacy / ".disabled", canonical / ".disabled")]
+    for src_base, dst_base in pairs:
+        try:
+            if not src_base.is_dir():
+                continue
+            for d in sorted(p for p in src_base.iterdir()
+                            if p.is_dir() and p.name != ".disabled" and (p / "SKILL.md").is_file()):
+                dst = dst_base / d.name
+                try:
+                    if dst.exists():
+                        continue   # canonical đã có bản này → giữ nguyên, KHÔNG ghi đè
+                    dst_base.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(d), str(dst))
+                except Exception as e:
+                    print(f"[skill migrate] {d} → {dst}: {type(e).__name__}: {e}", file=sys.stderr)
+        except Exception as e:
+            print(f"[skill migrate] {src_base}: {type(e).__name__}: {e}", file=sys.stderr)
+
+
+def mirror_skills(root) -> None:
+    """Mirror MỘT CHIỀU <root>/skills → <root>/.claude/skills (CHỈ skill đang BẬT).
+    Mục đích: các ngữ cảnh Claude Code chạy cwd=brain (workflow/loop/learn/lint) vẫn nạp skill
+    NATIVE như bonus. Add/update-only (so hash, trùng thì bỏ qua = rẻ), BỎ QUA .disabled (mirror
+    skill đã tắt = vô tình bật lại native). KHÔNG xoá entry lạ ở .claude (việc gỡ mirror khi
+    tắt/xoá skill do endpoint xử lý). Đây là bản phái sinh - hỏng cũng không phá router chính."""
+    root = Path(root)
+    canonical = root / "skills"
+    mirror = root / ".claude" / "skills"
+    if not canonical.is_dir():
+        return
+    try:
+        for d in sorted(p for p in canonical.iterdir()
+                        if p.is_dir() and p.name != ".disabled" and (p / "SKILL.md").is_file()):
+            try:
+                dst_dir = mirror / d.name
+                dst = dst_dir / "SKILL.md"
+                src_text = (d / "SKILL.md").read_text(encoding="utf-8", errors="replace")
+                if dst.is_file():
+                    cur = dst.read_text(encoding="utf-8", errors="replace")
+                    if skill_hash(cur) == skill_hash(src_text):
+                        continue   # đã trùng nội dung → khỏi ghi lại
+                dst_dir.mkdir(parents=True, exist_ok=True)
+                for f in d.iterdir():   # SKILL.md + file phụ (asset) cùng thư mục skill
+                    if f.is_file():
+                        shutil.copy2(str(f), str(dst_dir / f.name))
+            except Exception as e:
+                print(f"[skill mirror] {d.name}: {type(e).__name__}: {e}", file=sys.stderr)
+    except Exception as e:
+        print(f"[skill mirror] {root}: {type(e).__name__}: {e}", file=sys.stderr)
 
 
 def _merge_loop_update(new_content: str, cur_text: str) -> str:
@@ -218,10 +286,15 @@ def sync_brain(brain_root) -> dict:
     Trả {"ok", "installed": [...], "updated": [...], "kept_user": [...]}."""
     root = Path(brain_root)
     result = {"ok": True, "installed": [], "updated": [], "kept_user": []}
-    items = _system_items()
-    if not items:
-        return result
     with _LOCK:
+        # (1) Migrate legacy .claude/skills → canonical skills/ TRƯỚC khi cài skill hệ thống,
+        #     để skill hệ thống user đã TẮT (đã migrate cả cây .disabled) không bị cài lại BẬT.
+        try:
+            migrate_brain(root)
+        except Exception as e:
+            print(f"[system sync] migrate {root}: {type(e).__name__}: {e}", file=sys.stderr)
+        # (2) Cài/cập nhật skill + loop hệ thống vào canonical (bỏ qua nếu app không ship item nào).
+        items = _system_items()
         manifest = _read_manifest(root)
         files = manifest["files"]
         changed = False
@@ -278,6 +351,11 @@ def sync_brain(brain_root) -> dict:
                 _write_manifest(root, manifest)
             except Exception as e:
                 print(f"[system sync] ghi manifest {root}: {e}", file=sys.stderr)
+        # (3) Mirror canonical skills/ → .claude/skills để Claude native (cwd=brain) nạp được.
+        try:
+            mirror_skills(root)
+        except Exception as e:
+            print(f"[system sync] mirror {root}: {type(e).__name__}: {e}", file=sys.stderr)
     return result
 
 

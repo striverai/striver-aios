@@ -152,7 +152,7 @@ class LearnDeps:
     enqueue_task: Optional[Callable] = None
 
 
-ALLOWED_WRITE_PREFIXES = ["memory", "Memory", "Wiki", ".claude/skills", "Javis"]
+ALLOWED_WRITE_PREFIXES = ["memory", "Memory", "Wiki", "skills", ".claude/skills", "Javis"]
 
 
 class LearnFeature:
@@ -542,7 +542,8 @@ class LearnFeature:
 
             # ---- SKILLS (draft/disabled) ----
             if caps.get("skill"):
-                sk_dis = Path(root) / ".claude" / "skills" / ".disabled"
+                # Ghi vào CANONICAL <root>/skills/.disabled (draft luôn TẮT; mirror bỏ qua .disabled).
+                sk_dis = Path(root) / "skills" / ".disabled"
                 for s in (manifest.get("skills") or []):
                     slug = _slugify(s.get("slug") or s.get("name") or "")
                     body = (s.get("body") or "").strip()

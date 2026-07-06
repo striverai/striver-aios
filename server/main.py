@@ -37,6 +37,7 @@ import mcp_hub
 import zalo_login
 import oauth_mcp
 import system_sync   # tầng năng lực HỆ THỐNG (skill/loop mặc định) - update theo phiên bản app
+import skill_router   # nguồn chân lý khám phá skill (canonical <brain>/skills) dùng chung mọi engine
 from telegram_bot import TelegramBot, parse_chat_ids as tg_parse_ids
 import channel_context   # metadata kênh + gom file trả về kênh chat (port gateway hermes-agent)
 from sessions import get_store   # kho phiên hội thoại (sqlite + fts5): list/resume/search
@@ -156,20 +157,32 @@ def build_system_prompt(brain: str = "brain") -> str:
     # Đường dẫn lớp Agentic của vault đang làm việc (để Javis tạo agent/workflow/loop qua chat)
     root = _brain_root(brain)
     system_sync.ensure_synced(root)   # brain nào cũng có đủ năng lực hệ thống (1 lần/process, rẻ)
+    try:
+        # Mirror skills/ → .claude/skills để fork Claude cwd=brain (workflow/loop/learn/lint) nạp
+        # native được skill viết giữa phiên (rẻ: bỏ qua nếu trùng hash).
+        system_sync.mirror_skills(root)
+    except Exception:
+        pass
     ag, wf = _agents_dir(brain), _workflows_dir(brain)
     lp = Path(root) / "Javis" / "loops"
+    sk = _skills_dir(brain)
     base += (
         "\n\n# === LỚP AGENTIC (vault đang làm việc) ===\n"
         f"Vault root: {root}\n"
         f"- AGENT: tạo/sửa tại `{ag}/<slug>.md`\n"
         f"- WORKFLOW: tạo/sửa tại `{wf}/<slug>.md`\n"
         f"- LOOP (nhiệm vụ lặp vô hạn): tạo/sửa tại `{lp}/<slug>.md`\n"
+        f"- SKILL: tạo/sửa tại `{sk}/<slug>/SKILL.md` (tự mirror sang .claude/skills cho Claude native)\n"
         "Khi user yêu cầu tạo/sửa agent, workflow hoặc loop qua chat, ghi file .md đúng định dạng "
         "(xem mục 'Tạo/sửa Agent & Workflow qua chat' và 'Điều phối' trong system prompt) bằng "
         "ĐƯỜNG DẪN TUYỆT ĐỐI ở trên. Studio/trang Tự cải thiện sẽ tự nhận file mới."
     )
     try:
         base += _javis_capability_summary(brain)   # chỉ mục năng lực LIVE (mọi engine biết Javis có gì)
+    except Exception:
+        pass
+    try:
+        base += _skill_router_block(brain, root)   # ROUTER SKILL đa-engine: list skill + cách gọi
     except Exception:
         pass
     return base
@@ -1669,8 +1682,9 @@ STANDARD_STRUCTURE = [
     {"key": "agents", "label": "agents", "kind": "dir", "detect": r"^agents$", "alt": "Javis/agents", "create": "agents", "essential": True},
     {"key": "workflows", "label": "workflows", "kind": "dir", "detect": r"^workflows$", "alt": "Javis/workflows", "create": "workflows", "essential": True},
     {"key": "memory", "label": "memory", "kind": "dir", "detect": r"^memory$", "alt": "Memory", "create": "memory", "essential": True},
-    # Skill KHÔNG phải folder top-level: sống ở .claude/skills/<skill>/SKILL.md (Claude Code native),
-    # chia nhóm bằng field `group` trong frontmatter. Nên không liệt kê ở đây.
+    # Skill: canonical phẳng skills/<slug>/SKILL.md (mirror sang .claude/skills cho Claude native),
+    # chia nhóm bằng field `group` trong frontmatter. alt = .claude/skills (vị trí cũ chưa migrate).
+    {"key": "skills", "label": "skills", "kind": "dir", "detect": r"^skills$", "alt": ".claude/skills", "create": "skills", "essential": False},
     # Tuỳ chọn - Javis chưng cất source → wiki (nuôi graph); đính kèm ảnh/file
     {"key": "wiki", "label": "wiki", "kind": "dir", "detect": r"^(\d+\s*[-_.]\s*)?wiki$", "create": "wiki", "essential": False},
     {"key": "attachments", "label": "attachments", "kind": "dir", "detect": r"^(\d+\s*[-_.]\s*)?attachments$", "create": "attachments", "essential": False},
@@ -1708,7 +1722,7 @@ JAVIS_README = (
     "# Javis\n\nLớp điều phối của Javis OS trong vault này.\n\n"
     "- `agents/` - các Agent (vai trò + skills + bộ nhớ riêng)\n"
     "- `workflows/` - quy trình nhiều agent (status active/off)\n"
-    "- Skills dùng chung ở `.claude/skills/`\n"
+    "- Skills dùng chung ở `skills/` (tự mirror sang `.claude/skills` cho Claude Code native)\n"
 )
 SCHEMA_SEED = (
     "# AGENTS.md - Vault Schema (Javis)\n\n"
@@ -2033,53 +2047,33 @@ async def delete_agent(slug: str = Form(...), brain: str = Form("brain")):
 # ---- Skills ----
 @app.get("/skills")
 async def list_skills(brain: str = Query("brain")):
-    # NGUỒN SKILL DUY NHẤT = <brain>/.claude/skills/<skill>/SKILL.md (+ .agents).
-    # Đây CHÍNH là nơi Claude Code native nạp skill lúc agent/CLI chạy → hiển thị == thực thi.
-    # NHÓM = field `group` trong frontmatter SKILL.md (mặc định "Chung"). KHÔNG dùng folder
-    # skills/<nhóm>/ vì Claude Code chỉ quét .claude/skills 1 cấp → nhồi folder nhóm sẽ làm
-    # agent KHÔNG tìm thấy skill. Chia nhóm bằng metadata không ảnh hưởng việc nạp.
-    root = Path(_brain_root(brain))
-    out, seen = [], set()
+    # NGUỒN SKILL: canonical <brain>/skills/<slug>/SKILL.md, fallback đọc .claude/skills (legacy +
+    # bản mirror) và .agents (rất cũ). Dùng skill_router (CHUNG với engine) → hiển thị == thực thi.
+    # NHÓM = field `group` trong frontmatter (mặc định "Chung"). Skill TẮT = <base>/.disabled/<slug>.
+    root = _brain_root(brain)
     sys_slugs = system_sync.system_skill_slugs()   # skill HỆ THỐNG (đi theo phiên bản app)
-    def _add(sk_dir, source, enabled=True):
-        if sk_dir.name in seen:
-            return
-        smd = sk_dir / "SKILL.md"
-        if not smd.is_file():
-            return
-        seen.add(sk_dir.name)
-        meta, body = _read_md(smd)
-        desc = meta.get("description", "") or (body.split("\n")[0][:140] if body else "")
-        out.append({"slug": sk_dir.name, "name": meta.get("name", sk_dir.name),
-                    "description": desc, "group": meta.get("group") or "Chung",
-                    "source": source, "enabled": enabled,
-                    "system": sk_dir.name in sys_slugs})
-    # Skill BẬT = <root>/.claude/skills/<slug>; skill TẮT = <root>/.claude/skills/.disabled/<slug>
-    # (Claude Code chỉ quét .claude/skills 1 cấp → skill trong .disabled không được nạp = tắt thật).
-    sk_base = root / ".claude" / "skills"
-    if sk_base.is_dir():
-        for sk in sorted(p for p in sk_base.iterdir() if p.is_dir() and p.name != ".disabled"):
-            _add(sk, ".claude", True)
-        dis = sk_base / ".disabled"
-        if dis.is_dir():
-            for sk in sorted(p for p in dis.iterdir() if p.is_dir()):
-                _add(sk, ".claude", False)
-    ag = root / ".agents"
-    if ag.is_dir():
-        for sk in sorted(p for p in ag.iterdir() if p.is_dir()):
-            _add(sk, ".agents", True)
+    out = [{**s, "system": s["slug"] in sys_slugs} for s in skill_router.list_skills(root)]
     return {"skills": out}
 
 
 def _skills_dir(brain):
-    """Thư mục skill chuẩn Claude Code: <brain>/.claude/skills (nơi native nạp skill)."""
-    return Path(_brain_root(brain)) / ".claude" / "skills"
+    """Thư mục skill CANONICAL của brain: <brain>/skills (phẳng, cùng hướng agents/workflows).
+    Bản mirror sang <brain>/.claude/skills (cho Claude Code native) do system_sync.mirror_skills lo."""
+    return skill_router.skills_base(_brain_root(brain), canonical=True)
 
 
 @app.post("/skills/toggle")
 async def skill_toggle(slug: str = Form(...), enabled: str = Form(...), brain: str = Form("brain")):
-    """Bật/tắt skill bằng cách di chuyển folder giữa .claude/skills/<slug> và .claude/skills/.disabled/<slug>."""
+    """Bật/tắt skill = di chuyển folder giữa <brain>/skills/<slug> và <brain>/skills/.disabled/<slug>.
+    Đồng bộ bản mirror .claude/skills (bật→copy, tắt→gỡ) để Claude native cwd=brain khớp trạng thái."""
     want = enabled in ("1", "true", "True", "on")
+    if not skill_router.valid_slug(slug):   # chống traversal: slug 1 đoạn, dùng cho rmtree/rename bên dưới
+        return JSONResponse({"error": "slug không hợp lệ"}, status_code=400)
+    root = _brain_root(brain)
+    try:
+        system_sync.migrate_brain(root)   # brain cũ: kéo skill legacy .claude/skills → skills/ trước
+    except Exception:
+        pass
     sk = _skills_dir(brain)
     dis = sk / ".disabled"
     src = (dis / slug) if want else (sk / slug)
@@ -2091,6 +2085,11 @@ async def skill_toggle(slug: str = Form(...), enabled: str = Form(...), brain: s
         if dst.exists():
             shutil.rmtree(dst)
         src.rename(dst)
+        mirror_slug = Path(root) / ".claude" / "skills" / slug
+        if want:
+            system_sync.mirror_skills(root)      # bật → tạo/cập nhật bản mirror cho Claude native
+        elif mirror_slug.is_dir():
+            shutil.rmtree(mirror_slug)           # tắt → gỡ mirror để native không còn nạp
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
     return {"ok": True}
@@ -2098,13 +2097,18 @@ async def skill_toggle(slug: str = Form(...), enabled: str = Form(...), brain: s
 
 @app.get("/skills/get")
 async def skill_get(slug: str = Query(...), brain: str = Query("brain")):
-    smd = _skills_dir(brain) / slug / "SKILL.md"
-    if not smd.is_file():
-        alt = Path(_brain_root(brain)) / ".agents" / slug / "SKILL.md"
-        if alt.is_file():
-            smd = alt
-        else:
-            return JSONResponse({"error": "Không tìm thấy skill"}, status_code=404)
+    if not skill_router.valid_slug(slug):
+        return JSONResponse({"error": "slug không hợp lệ"}, status_code=400)
+    root = _brain_root(brain)
+    smd = skill_router.resolve_skill_file(root, slug)   # canonical → .claude → .agents (bản BẬT)
+    if not smd:
+        for base in ("skills", ".claude/skills"):        # cho phép xem/sửa cả skill đang TẮT
+            cand = Path(root) / base / ".disabled" / slug / "SKILL.md"
+            if cand.is_file():
+                smd = cand
+                break
+    if not smd or not smd.is_file():
+        return JSONResponse({"error": "Không tìm thấy skill"}, status_code=404)
     meta, body = _read_md(smd)
     return {"slug": slug, "name": meta.get("name", slug), "description": meta.get("description", ""),
             "group": meta.get("group") or "Chung", "body": body}
@@ -2113,14 +2117,19 @@ async def skill_get(slug: str = Query(...), brain: str = Query("brain")):
 @app.post("/skills")
 async def save_skill(name: str = Form(...), description: str = Form(""), group: str = Form("Chung"),
                      body: str = Form(""), slug: str = Form(""), brain: str = Form("brain")):
-    """Tạo/cập nhật skill → <brain>/.claude/skills/<slug>/SKILL.md. group vào frontmatter để gom nhóm."""
+    """Tạo/cập nhật skill → CANONICAL <brain>/skills/<slug>/SKILL.md. group vào frontmatter để gom
+    nhóm. Sau khi ghi, mirror sang .claude/skills để Claude native (cwd=brain) thấy ngay."""
     slug = (slug or _ascii_slug(name)).strip()
-    if not slug:
+    if not skill_router.valid_slug(slug):
         return JSONResponse({"error": "Tên skill không hợp lệ"}, status_code=400)
     d = _skills_dir(brain) / slug
     d.mkdir(parents=True, exist_ok=True)
     meta = {"name": name, "description": description, "group": (group or "Chung").strip()}
     _write_md(d / "SKILL.md", meta, body or f"# {name}\n\n{description}")
+    try:
+        system_sync.mirror_skills(_brain_root(brain))
+    except Exception:
+        pass
     return {"ok": True, "slug": slug}
 
 
@@ -2130,26 +2139,39 @@ async def delete_skill(slug: str = Form(...), brain: str = Form("brain")):
         return JSONResponse({"error": "Skill hệ thống của Javis OS - không xoá được (đi theo "
                              "phiên bản app, xoá cũng tự cài lại khi cập nhật). Muốn ngừng dùng "
                              "thì TẮT skill (bỏ tích)."}, status_code=400)
-    for base in (".claude/skills", ".agents"):
-        d = Path(_brain_root(brain)) / Path(base) / slug
+    if not skill_router.valid_slug(slug):
+        return JSONResponse({"error": "slug không hợp lệ"}, status_code=400)
+    root = Path(_brain_root(brain))
+    # Xoá ở MỌI nơi: canonical (bật+tắt) + bản mirror .claude (bật+tắt) + legacy .agents.
+    targets = [root / "skills" / slug, root / "skills" / ".disabled" / slug,
+               root / ".claude" / "skills" / slug, root / ".claude" / "skills" / ".disabled" / slug,
+               root / ".agents" / slug]
+    found = False
+    for d in targets:
         if d.is_dir():
             try:
                 shutil.rmtree(d)
+                found = True
             except Exception as e:
                 return JSONResponse({"error": str(e)}, status_code=500)
-            return {"ok": True}
-    return JSONResponse({"error": "Không tìm thấy skill"}, status_code=404)
+    return {"ok": True} if found else JSONResponse({"error": "Không tìm thấy skill"}, status_code=404)
 
 
 @app.post("/skills/group")
 async def skill_set_group(slug: str = Form(...), group: str = Form(...), brain: str = Form("brain")):
     """Đổi nhóm 1 skill (chỉ cập nhật field group, giữ nguyên body)."""
-    smd = _skills_dir(brain) / slug / "SKILL.md"
-    if not smd.is_file():
+    if not skill_router.valid_slug(slug):
+        return JSONResponse({"error": "slug không hợp lệ"}, status_code=400)
+    smd = skill_router.resolve_skill_file(_brain_root(brain), slug)
+    if not smd or not smd.is_file():
         return JSONResponse({"error": "Không tìm thấy"}, status_code=404)
     meta, body = _read_md(smd)
     meta["group"] = (group or "Chung").strip()
     _write_md(smd, meta, body)
+    try:
+        system_sync.mirror_skills(_brain_root(brain))
+    except Exception:
+        pass
     return {"ok": True}
 
 
@@ -2349,6 +2371,13 @@ async def execute_workflow(brain, slug, input="", tools=None):
     meta, _ = _read_md(wf_file)
     steps = meta.get("steps", []) or []
     vault_root = str(_brain_root(brain))
+    try:
+        # Agent workflow chạy cwd=brain, agent nền có MCP rỗng → chỉ nạp skill NATIVE từ
+        # .claude/skills. Đảm bảo đã migrate + mirror trước khi spawn (idempotent, rẻ).
+        system_sync.ensure_synced(vault_root)
+        system_sync.mirror_skills(vault_root)
+    except Exception:
+        pass
 
     def _mk(sysprompt, model=None):
         # Agent model = Codex/ChatGPT → chạy qua Codex CLI (có tool file + MCP native của codex).
@@ -2845,23 +2874,10 @@ def _gather_capabilities(brain: str) -> dict:
                                       "status": m.get("status", "active"), "description": m.get("description", ""),
                                       "agents": [s.get("agent") for s in steps if isinstance(s, dict)],
                                       "n_steps": len(steps)})
-    skb = root / ".claude" / "skills"
-    if skb.is_dir():
-        for sk in sorted(p for p in skb.iterdir() if p.is_dir() and p.name != ".disabled"):
-            smd = sk / "SKILL.md"
-            if smd.is_file():
-                m, b = _read_md(smd)
-                caps["skills"].append({"slug": sk.name, "name": m.get("name", sk.name),
-                    "description": m.get("description", "") or (b.split("\n")[0][:120] if b else ""),
-                    "group": m.get("group") or "Chung", "enabled": True})
-        dis = skb / ".disabled"
-        if dis.is_dir():
-            for sk in sorted(p for p in dis.iterdir() if p.is_dir()):
-                smd = sk / "SKILL.md"
-                if smd.is_file():
-                    m, b = _read_md(smd)
-                    caps["skills"].append({"slug": sk.name, "name": m.get("name", sk.name),
-                        "description": m.get("description", ""), "group": m.get("group") or "Chung", "enabled": False})
+    # Skill: canonical <root>/skills + fallback .claude/skills + .agents (qua skill_router, de-dup).
+    caps["skills"] = [{"slug": s["slug"], "name": s["name"], "description": s["description"],
+                       "group": s["group"], "enabled": s["enabled"]}
+                      for s in skill_router.list_skills(root)]
     try:
         st = loop_feature.read_state(brain)
         for lp in loop_feature.list_loops(brain):
@@ -2981,6 +2997,31 @@ def _javis_capability_summary(brain: str) -> str:
         parts.append("Loops: " + ", ".join(f"{l['name']}({'bật' if l['enabled'] else 'tắt'})" for l in c["loops"][:20]))
     parts.append("Trước khi tạo năng lực mới, kiểm chỉ mục này để khỏi trùng.")
     return "\n".join(parts)
+
+
+def _skill_router_block(brain: str, root: str) -> str:
+    """ROUTER SKILL đa-engine (chèn vào system prompt của MỌI engine). Liệt kê skill đang BẬT kèm
+    mô tả (trigger) + chỉ rõ 2 cách nạp: tool javis_use_skill (engine API có tool) HOẶC mở thẳng
+    file SKILL.md bằng công cụ đọc file (Claude/Codex - dùng ĐƯỜNG DẪN TUYỆT ĐỐI vì cwd có thể là
+    /app). Đây là thứ giúp skill chạy trên cả ChatGPT/Codex, không phụ thuộc cơ chế native của Claude.
+    Cap 15 skill để không phình context (nhiều hơn → trỏ Javis/index.md)."""
+    metas = skill_router.list_enabled_meta(root)
+    if not metas:
+        return ""
+    sk_dir = skill_router.skills_base(root, canonical=True)
+    lines = ["\n\n# === SKILL KHẢ DỤNG (router - dùng được trên MỌI engine) ==="]
+    for s in metas[:15]:
+        desc = (s.get("description") or "").replace("\n", " ")[:100]
+        lines.append(f"- {s['slug']} ({s['name']}): {desc}")
+    if len(metas) > 15:
+        lines.append(f"…(+{len(metas) - 15} skill nữa - xem `Javis/index.md`)")
+    lines.append(
+        "CÁCH DÙNG: khi yêu cầu của user KHỚP mô tả 1 skill ở trên, hãy NẠP skill đó rồi LÀM THEO - "
+        "gọi tool `javis_use_skill(name=<slug>)` nếu engine có tool này; nếu không, mở file "
+        f"`{sk_dir}/<slug>/SKILL.md` bằng công cụ đọc file rồi tuân theo hướng dẫn trong đó. "
+        "Chỉ nạp khi thực sự khớp, không nạp tràn lan."
+    )
+    return "\n".join(lines)
 
 
 @app.get("/javis/index")
@@ -3745,7 +3786,10 @@ async def websocket_endpoint(ws: WebSocket):
                     except Exception as _e:
                         print(f"[codex model self-heal] {_e}", file=__import__('sys').stderr)
                 openai_oauth.write_codex_auth()   # bắc cầu token đã nối ở Models → ~/.codex/auth.json (codex dùng được)
-                ccli = CodexCLI(cwd=CLAUDE_CWD, model=actual_model, tag=conn_tag)
+                # cwd=brain (để Codex đọc được Javis/skills + .claude/skills mirror bằng tool file
+                # native, như nhánh workflow) + instructions=sysprompt (kèm ROUTER SKILL) → Codex
+                # dùng được skill. CodexCLI stateless (không --resume) nên đổi cwd an toàn.
+                ccli = CodexCLI(cwd=_brain_root(brain), model=actual_model, tag=conn_tag, instructions=sysprompt)
                 ccli.profile = _write_codex_profile()   # đẩy MCP của Javis (POSCake...) sang codex
                 if not ccli.is_available():
                     await ws.send_text(json.dumps({"type": "error", "content": "Chưa cài Codex CLI trong container. ChatGPT subscription là THỬ NGHIỆM - dùng Claude Code hoặc OpenRouter cho ổn định (đổi ở Models)."}))
@@ -4013,7 +4057,7 @@ async def _tg_skills_text(brain):
     except Exception:
         sk = []
     if not sk:
-        return "Vault chưa có skill nào trong .claude/skills."
+        return "Vault chưa có skill nào trong skills/."
     lines = [f"/{s['slug']} - {(s.get('description') or '')[:60]}" for s in sk[:30]]
     return "🧩 Skill có sẵn (gõ /slug để gọi, cần engine Claude CLI):\n" + "\n".join(lines)
 

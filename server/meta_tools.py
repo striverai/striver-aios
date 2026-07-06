@@ -34,7 +34,7 @@ _VAULT_SCHEMA = """# Vault Schema (Javis Second Brain)
 | Wiki | `wiki/` | AI | AI toàn quyền tạo/cập nhật/merge/archive. Người đọc và định hướng. |
 | Schema | `CLAUDE.md` / `AGENTS.md` | Người + AI cùng tiến hoá | Quy ước; chỉnh khi workflow đổi. |
 | Bộ nhớ | `memory/` | AI | Ký ức dài hạn về người dùng (facts + MEMORY.md index + conversations). |
-| Vận hành | `agents/`, `workflows/`, `.claude/skills/` | AI + người | Agent, workflow, kỹ năng. |
+| Vận hành | `agents/`, `workflows/`, `skills/` (mirror `.claude/skills`) | AI + người | Agent, workflow, kỹ năng. |
 
 Nguyên lý: Sources -> (INGEST) -> Wiki. Tri thức TÍCH LUỸ, không tái phát hiện.
 
