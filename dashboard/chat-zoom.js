@@ -1,7 +1,7 @@
 /* chat-zoom.js - phóng to khung chat thành CHAT WORKSPACE (kiểu Claude/Cowork):
    gần full màn hình, 2 cột = sidebar Lịch sử trái (sessions-ui.js render qua
    window.JavisChatSide) + cột chat chính. Di chuyển CHÍNH các node #chatArea +
-   #attachBar + #hudVoice vào lớp nổi (giữ nguyên mọi handler đã gắn), Esc hoặc
+   #attachBar + #modelBar + #hudVoice vào lớp nổi (giữ nguyên mọi handler đã gắn), Esc hoặc
    nút ✕ để thu nhỏ. Tách riêng để không đụng app.js. */
 (function () {
   "use strict";
@@ -75,6 +75,7 @@
     var body = ensureStage().querySelector(".chat-stage-body");
     moveInto(document.getElementById("chatArea"), body);
     moveInto(document.getElementById("attachBar"), body);   // chip file đính kèm hiện TRONG workspace
+    moveInto(document.getElementById("modelBar"), body);    // menu đổi model + effort đi theo vào workspace
     moveInto(document.getElementById("hudVoice"), body);
     document.body.classList.add("chat-zoomed");
     expanded = true;

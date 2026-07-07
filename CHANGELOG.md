@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.18] - 2026-07-07
+### Cải thiện
+- **Menu đổi model + effort có luôn trong khung chat phóng to**: trước đây thanh chọn model chỉ hiện ở khung chat thường; khi bấm phóng to hội thoại (nút ⛶ / Thu nhỏ bằng Esc) thì thanh này bị bỏ lại nên không thấy. Nay khi vào chế độ toàn màn hình, thanh chọn model được đưa theo vào ngay trên ô nhập, mở menu chọn nhà cung cấp/model và đổi effort bình thường; thu nhỏ lại thì trả về đúng chỗ cũ.
+
 ## [0.9.17] - 2026-07-07
 ### Thêm mới
 - **Đổi model + effort ngay trên khung chat**: thêm một thanh nhỏ ngay phía trên ô chat của dashboard, hiện nhà cung cấp, model và mức "Suy nghĩ" (effort) đang chạy. Bấm vào mở một menu gộp: danh sách model gom theo 6 nhà cung cấp (Claude Code, ChatGPT, OpenRouter, Anthropic API, OpenAI API, Google Gemini), có ô tìm model và hàng chọn effort (Tắt/Thấp/Vừa/Cao) ở dưới. Nhà cung cấp đã nối thì bung ra chọn model (danh sách nạp động theo tài khoản), nhà cung cấp chưa nối hiện khoá kèm lối tắt sang trang Models để thêm key. Chọn model hay effort là lưu ngay vào cấu hình và có hiệu lực ở lượt chat kế, badge engine tự cập nhật. Toàn bộ tái dùng các endpoint sẵn có nên không đổi luồng chat/engine.
