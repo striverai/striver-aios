@@ -4437,7 +4437,7 @@ def _javis_port() -> int:
         return 7777
 
 
-async def _tg_answer(text, meta=None):
+async def _tg_answer(text, meta=None, progress=None):
     # ĐA PHIÊN: định tuyến theo chat_id → ngữ cảnh của mỗi tài khoản tách biệt.
     chat_id = str((meta or {}).get("chat_id") or "default")
     sess = _tg_session(chat_id)
@@ -4447,6 +4447,14 @@ async def _tg_answer(text, meta=None):
     mcfg = cfgmod.read_settings().get("model", {})
     prov, kind, api_key, api_model = _chat_provider(mcfg)
     reasoning = _reasoning_level(mcfg)
+
+    async def _p(s):
+        # Báo trạng thái trung gian về kênh (Telegram) cho user đỡ lo khi chờ. Bỏ qua nếu lỗi.
+        if progress:
+            try:
+                await progress(s)
+            except Exception:
+                pass
     # Block kênh (port gateway hermes-agent): engine biết đang trả lời qua Telegram,
     # ai đang nhắn, và cách gửi file trả về (auto-attach + endpoint send-file).
     sysprompt = build_system_prompt(brain) + channel_context.build_channel_block(
@@ -4459,9 +4467,14 @@ async def _tg_answer(text, meta=None):
             sess["or"] = [{"role": "system", "content": sysprompt + ident}]
         sess["or"].append({"role": "user", "content": text})
         out = ""
+        _pinged = False
         async for ev in (await _api_stream_mcp(prov, api_key, api_model, sess["or"], reasoning, brain=brain)):
             if ev["type"] == "text":
+                if not _pinged:
+                    _pinged = True; await _p("✍ Đang soạn câu trả lời…")
                 out += ev["content"]
+            elif ev["type"] == "tool_call":
+                await _p(f"⚙ Đang gọi công cụ: {ev.get('name', '')}")
             elif ev["type"] == "error":
                 return "⚠ " + ev["content"]
         sess["or"].append({"role": "assistant", "content": out})
@@ -4478,14 +4491,24 @@ async def _tg_answer(text, meta=None):
         t0 = time.time()
         written = []   # file agent ghi bằng tool Write trong lượt này (ứng viên auto-gửi)
         out = ""
+        _pinged = False
         async for ev in cli.query(_cli_think(reasoning, text)):
-            if ev["type"] == "final":
+            et = ev["type"]
+            if et == "final":
                 out = ev.get("content") or out
-            elif ev["type"] == "tool_call" and ev.get("name") in ("Write", "NotebookEdit"):
-                fp = (ev.get("input") or {}).get("file_path") or (ev.get("input") or {}).get("notebook_path")
-                if fp:
-                    written.append(str(fp))
-            elif ev["type"] == "error":
+            elif et == "tool_call":
+                nm = ev.get("name", "")
+                if nm in ("Write", "NotebookEdit"):
+                    fp = (ev.get("input") or {}).get("file_path") or (ev.get("input") or {}).get("notebook_path")
+                    if fp:
+                        written.append(str(fp))
+                await _p(f"⚙ Đang gọi: {nm}")
+            elif et == "tool_result":
+                await _p("✓ Nhận kết quả - đang phân tích…")
+            elif et == "text":
+                if not _pinged:
+                    _pinged = True; await _p("✍ Đang soạn câu trả lời…")
+            elif et == "error":
                 return "⚠ " + ev["content"]
         # File sinh ra trong lượt → bot gửi đính kèm SAU câu trả lời (xem telegram_bot._handle_turn)
         files = channel_context.collect_turn_files(out, written, t0,

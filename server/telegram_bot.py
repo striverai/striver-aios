@@ -14,6 +14,7 @@ Decoupled: main.py cấp answer_fn (1 lượt chat) + command_fn (xử lý lện
 import asyncio
 import re
 import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -111,7 +112,7 @@ class TelegramBot:
         self.token = token
         # chat_id nhận chuỗi "id1,id2" hoặc list → whitelist NHIỀU người dùng chung 1 bot.
         self.chat_ids = parse_chat_ids(chat_id)
-        self.answer_fn = answer_fn          # async (text, meta) -> str | {"text":..., "files":[...]}
+        self.answer_fn = answer_fn          # async (text, meta, progress) -> str | {"text":..., "files":[...]}; progress(txt) = báo trạng thái trung gian
         self.command_fn = command_fn        # async (cmd, arg, chat) -> dict|None
         self.callback_fn = callback_fn      # async (data, chat) -> dict|None (bấm nút inline; chat = ai bấm)
         self.download_dir = download_dir    # str | callable(chat) -> str: nơi lưu file user gửi lên
@@ -208,6 +209,36 @@ class TelegramBot:
         except Exception:
             pass
 
+    # ---- Tin TRẠNG THÁI tạm: cho user đỡ lo khi chờ (gửi → cập nhật theo tiến trình → xoá) ----
+    async def _send_status(self, client, chat, text):
+        """Gửi 1 tin trạng thái (plain, không markdown) → trả message_id để sửa/xoá sau."""
+        try:
+            r = await client.post(self._url("sendMessage"), json={"chat_id": chat, "text": text})
+            d = r.json()
+            if d.get("ok"):
+                return d["result"]["message_id"]
+        except Exception as e:
+            print(f"[telegram status send] {e}", file=sys.stderr)
+        return None
+
+    async def _edit_status(self, client, chat, mid, text):
+        if not mid:
+            return
+        try:
+            await client.post(self._url("editMessageText"),
+                              json={"chat_id": chat, "message_id": mid, "text": text})
+        except Exception as e:
+            print(f"[telegram status edit] {e}", file=sys.stderr)
+
+    async def _del_msg(self, client, chat, mid):
+        if not mid:
+            return
+        try:
+            await client.post(self._url("deleteMessage"),
+                              json={"chat_id": chat, "message_id": mid})
+        except Exception:
+            pass
+
     # ---- Meta kênh: engine cần biết tin đến từ đâu (DM/nhóm, ai gửi) ----
     @staticmethod
     def _build_meta(msg):
@@ -283,15 +314,30 @@ class TelegramBot:
     async def _handle_turn(self, client, chat, text, meta=None):
         await self._typing(client, chat)
         files = []
+        # Tin trạng thái tạm để user Telegram thấy Javis đang chạy (đang gọi công cụ / nhận data /
+        # soạn trả lời) thay vì im lặng chờ dài. Xong thì xoá tin này và gửi câu trả lời thật.
+        status_mid = await self._send_status(client, chat, "🤔 Javis đang xử lý…")
+        _last = [0.0]
+
+        async def progress(txt):
+            now = time.monotonic()
+            if now - _last[0] < 2.5:      # throttle ~2.5s → không spam / dính rate-limit Telegram
+                return
+            _last[0] = now
+            await self._typing(client, chat)
+            await self._edit_status(client, chat, status_mid, "⏳ " + (txt or "Đang xử lý…"))
+
         try:
-            reply = await self.answer_fn(text, meta)
+            reply = await self.answer_fn(text, meta, progress)
         except asyncio.CancelledError:
+            await self._del_msg(client, chat, status_mid)
             return   # /stop sẽ tự báo, không gửi trùng
         except Exception as e:
             reply = f"⚠ Lỗi: {type(e).__name__}: {e}"
         if isinstance(reply, dict):
             files = reply.get("files") or []
             reply = reply.get("text") or ""
+        await self._del_msg(client, chat, status_mid)   # bỏ tin trạng thái, thay bằng câu trả lời
         await self._send(client, chat, reply)
         # Gửi file SAU câu trả lời để thứ tự đọc tự nhiên (text trước, đính kèm sau)
         for f in files:
