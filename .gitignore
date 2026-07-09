@@ -16,6 +16,9 @@ server/loop_config.json
 server/learn_config.json
 server/usage.json
 server/settings.json
+server/plugins.json
+server/plugins/
+server/plugin-data/
 server/.sessions.json
 server/mcp_servers.json
 server/mcp_servers.v1.bak.json

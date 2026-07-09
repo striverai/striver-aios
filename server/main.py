@@ -3205,7 +3205,7 @@ def _render_javis_index(caps: dict) -> str:
             if p.get("loaded"):
                 stt = "chạy"
             elif p.get("gated"):
-                stt = "⚠ chờ env JAVIS_ENABLE_VAULT_PLUGINS"
+                stt = "⚠ chờ env JAVIS_ENABLE_USER_PLUGINS"
             elif p.get("error"):
                 stt = "⚠ lỗi"
             else:
@@ -3236,7 +3236,7 @@ def _render_javis_index(caps: dict) -> str:
         flags.append(f"- Loop tự tạm dừng (cần xem): {', '.join(paused)}")
     p_gated = [p["slug"] for p in plugins if p.get("gated")]
     if p_gated:
-        flags.append(f"- Plugin bật nhưng bị chặn (đặt env JAVIS_ENABLE_VAULT_PLUGINS=true): {', '.join(p_gated)}")
+        flags.append(f"- Plugin bật nhưng bị chặn (đặt env JAVIS_ENABLE_USER_PLUGINS=true): {', '.join(p_gated)}")
     p_err = [p["slug"] for p in plugins if p.get("error")]
     if p_err:
         flags.append(f"- Plugin lỗi nạp: {', '.join(p_err)}")
@@ -3325,9 +3325,11 @@ async def javis_index(brain: str = Query("brain")):
 
 # ============================================================
 # PLUGINS - tool/hook native cho MỌI engine (port ý tưởng plugin của Hermes).
-# Plugin = thư mục Python (plugin.yaml + plugin.py với register(ctx)) thả vào:
-#   - bundled  <project>/system/plugins/<slug>/   (ship theo app, tin cậy)
-#   - vault    <brain>/plugins/<slug>/            (user; CHỈ chạy khi env JAVIS_ENABLE_VAULT_PLUGINS=true)
+# Plugin = thư mục Python (plugin.yaml + plugin.py với register(ctx)) thả vào 1 trong 3 nơi:
+#   - bundled  <project>/system/plugins/<slug>/     (ship theo app, tin cậy)
+#   - user     <JAVIS_STATE_DIR>/plugins/<slug>/    (TOÀN CỤC - chung MỌI brain; nơi cài mặc định)
+#   - vault    <brain>/plugins/<slug>/              (riêng 1 brain)
+# user + vault chạy code thật → CHỈ nạp khi env JAVIS_ENABLE_USER_PLUGINS=true (alias cũ *_VAULT_*).
 # ============================================================
 @app.post("/image/generate")
 async def image_generate(prompt: str = Form(...), aspect_ratio: str = Form("square"),
@@ -3343,7 +3345,8 @@ async def plugins_list(brain: str = Query("brain")):
     """Liệt kê MỌI plugin (bundled + vault) kèm trạng thái bật/nạp/gated/lỗi. KHÔNG chạy code plugin."""
     root = _brain_root(brain)
     items = plugins_host.describe(root)
-    return {"ok": True, "vault_gate": plugins_host._env_vault_enabled(),
+    return {"ok": True, "user_gate": plugins_host._env_user_enabled(),
+            "global_dir": str(plugins_host.global_plugins_dir()),
             "vault_dir": str(plugins_host.vault_plugins_dir(root) or ""), "plugins": items}
 
 

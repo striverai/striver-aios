@@ -44,6 +44,7 @@ from config import STATE_DIR
 
 PROJECT_ROOT = Path(__file__).parent.parent
 BUNDLED_DIR = PROJECT_ROOT / "system" / "plugins"
+GLOBAL_DIR = STATE_DIR / "plugins"                # plugin TOÀN CỤC do user cài - CHUNG mọi brain
 _STATE_PATH = STATE_DIR / "plugins.json"          # override bật/tắt cho bundled
 _PLUGIN_DATA_DIR = STATE_DIR / "plugin-data"      # state riêng mỗi plugin (không đụng vault)
 
@@ -67,8 +68,23 @@ def valid_slug(s: Any) -> bool:
     return bool(_SLUG_RE.match(str(s or "")))
 
 
-def _env_vault_enabled() -> bool:
-    return str(os.getenv("JAVIS_ENABLE_VAULT_PLUGINS", "")).strip().lower() in ("1", "true", "yes", "on")
+def _env_user_enabled() -> bool:
+    """Cho phép chạy plugin do NGƯỜI DÙNG cài (global STATE_DIR/plugins + vault/plugins). Chúng chạy
+    code Python THẬT trong tiến trình server nên mặc định TẮT - bật bằng JAVIS_ENABLE_USER_PLUGINS=true
+    (hoặc alias cũ JAVIS_ENABLE_VAULT_PLUGINS=true) rồi khởi động lại. Plugin BUNDLED không chịu gate này."""
+    for k in ("JAVIS_ENABLE_USER_PLUGINS", "JAVIS_ENABLE_VAULT_PLUGINS"):
+        if str(os.getenv(k, "")).strip().lower() in ("1", "true", "yes", "on"):
+            return True
+    return False
+
+
+# Alias tương thích: main.py + code cũ còn gọi _env_vault_enabled().
+_env_vault_enabled = _env_user_enabled
+
+
+def global_plugins_dir() -> Path:
+    """Thư mục plugin TOÀN CỤC (chung mọi brain) - JAVIS_STATE_DIR/plugins."""
+    return GLOBAL_DIR
 
 
 # ============================================================
@@ -111,16 +127,18 @@ def vault_plugins_dir(vault_root: Optional[str]) -> Optional[Path]:
 
 
 def _iter_plugin_dirs(vault_root: Optional[str]):
-    """Yield (source, plugin_dir). source ∈ {'bundled','vault'}."""
-    if BUNDLED_DIR.is_dir():
-        for d in sorted(BUNDLED_DIR.iterdir()):
+    """Yield (source, plugin_dir). source ∈ {'bundled','user','vault'} (dedupe theo slug, nguồn SAU đè
+    nguồn TRƯỚC): bundled (ship theo app) → user (GLOBAL_DIR, chung mọi brain) → vault (riêng 1 brain).
+    'user' KHÔNG phụ thuộc vault_root nên nạp được ở MỌI brain và MỌI engine (kể cả Claude/Codex qua hub)."""
+    seen: Dict[str, tuple] = {}
+    for source, base in (("bundled", BUNDLED_DIR), ("user", GLOBAL_DIR), ("vault", vault_plugins_dir(vault_root))):
+        if not base or not Path(base).is_dir():
+            continue
+        for d in sorted(Path(base).iterdir()):
             if d.is_dir() and any((d / e).is_file() for e in _ENTRY_FILES):
-                yield "bundled", d
-    vdir = vault_plugins_dir(vault_root)
-    if vdir and vdir.is_dir():
-        for d in sorted(vdir.iterdir()):
-            if d.is_dir() and any((d / e).is_file() for e in _ENTRY_FILES):
-                yield "vault", d
+                seen[d.name] = (source, d)   # trùng slug: nguồn sau ghi đè
+    for _slug, (source, d) in seen.items():
+        yield source, d
 
 
 def _read_manifest(pdir: Path) -> Tuple[dict, str]:
@@ -153,7 +171,7 @@ def _effective_enabled(source: str, slug: str, manifest: dict) -> bool:
         if slug in (st.get("enabled") or []):
             return True
         return bool(manifest.get("enabled", False))
-    # vault: theo frontmatter
+    # user (global) + vault: theo 'enabled' trong manifest (toggle ghi thẳng manifest)
     return bool(manifest.get("enabled", False))
 
 
@@ -161,14 +179,15 @@ def describe(vault_root: Optional[str] = None) -> List[dict]:
     """Metadata MỌI plugin (KHÔNG chạy code plugin) - cho UI/index/endpoint.
     Kèm trạng thái load lỗi nếu cache đã từng nạp."""
     errors = (_cache.get(_key(vault_root)) or {}).get("errors") or {}
-    env_ok = _env_vault_enabled()
+    env_ok = _env_user_enabled()
     out: List[dict] = []
     for source, pdir in _iter_plugin_dirs(vault_root):
         slug = pdir.name
         manifest, merr = _read_manifest(pdir)
         name = manifest.get("name") or slug
         want = _effective_enabled(source, slug, manifest)
-        gated = bool(source == "vault" and want and not env_ok)   # muốn bật nhưng env chặn
+        user_src = source in ("user", "vault")
+        gated = bool(user_src and want and not env_ok)   # muốn bật nhưng env chặn
         loaded = want and (env_ok or source == "bundled")
         mm = manifest.get("min_mode", "readonly")
         out.append({
@@ -255,7 +274,7 @@ def _key(vault_root: Optional[str]) -> str:
 
 def _signature(vault_root: Optional[str]) -> tuple:
     """Chữ ký để biết khi nào phải nạp lại: mtime state + mtime entry/manifest mọi plugin + env flag."""
-    sig: List[Any] = [_env_vault_enabled()]
+    sig: List[Any] = [_env_user_enabled()]
     try:
         sig.append(_STATE_PATH.stat().st_mtime)
     except OSError:
@@ -304,7 +323,7 @@ def _load_all(vault_root: Optional[str]) -> dict:
         plugins: List[LoadedPlugin] = []
         hooks: Dict[str, List[Callable]] = {}
         errors: Dict[str, str] = {}
-        env_ok = _env_vault_enabled()
+        env_ok = _env_user_enabled()
         for source, pdir in _iter_plugin_dirs(vault_root):
             slug = pdir.name
             manifest, merr = _read_manifest(pdir)
@@ -313,9 +332,9 @@ def _load_all(vault_root: Optional[str]) -> dict:
                 continue
             if not _effective_enabled(source, slug, manifest):
                 continue
-            if source == "vault":
+            if source in ("user", "vault"):
                 if not env_ok:
-                    continue   # gate CỨNG: vault plugin cần JAVIS_ENABLE_VAULT_PLUGINS=true
+                    continue   # gate CỨNG: plugin user (global+vault) cần JAVIS_ENABLE_USER_PLUGINS=true
                 if not valid_slug(slug):
                     errors[slug] = "slug không hợp lệ"
                     continue
@@ -490,7 +509,7 @@ def set_enabled(slug: str, enabled: bool, vault_root: Optional[str] = None) -> d
         _write_state(st)
         invalidate()
         return {"ok": True, "source": source, "gated": False, "note": ""}
-    # vault: ghi frontmatter
+    # user (global) + vault: ghi 'enabled' thẳng vào manifest của plugin
     f = pdir / "plugin.yaml"
     if not f.is_file():
         f = pdir / "plugin.yml"
@@ -503,7 +522,7 @@ def set_enabled(slug: str, enabled: bool, vault_root: Optional[str] = None) -> d
     except Exception as e:
         return {"ok": False, "error": f"ghi manifest lỗi: {e}"}
     invalidate()
-    gated = bool(enabled and not _env_vault_enabled())
-    note = ("Đã bật trong manifest NHƯNG plugin vault chỉ chạy khi đặt biến môi trường "
-            "JAVIS_ENABLE_VAULT_PLUGINS=true rồi khởi động lại (bảo vệ chống chạy code lạ).") if gated else ""
+    gated = bool(enabled and not _env_user_enabled())
+    note = ("Đã bật trong manifest NHƯNG plugin do người dùng cài chỉ chạy khi đặt biến môi trường "
+            "JAVIS_ENABLE_USER_PLUGINS=true rồi khởi động lại (bảo vệ chống chạy code lạ).") if gated else ""
     return {"ok": True, "source": source, "gated": gated, "note": note}

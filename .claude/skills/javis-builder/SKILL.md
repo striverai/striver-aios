@@ -85,7 +85,7 @@ updated: <YYYY-MM-DD>
 <mô tả nhiệm vụ: mỗi vòng loop làm ĐÚNG việc này - đây chính là prompt của loop, viết tự-đủ>
 ```
 
-### Plugin -> `<vault>/plugins/<slug>/` (2 file: plugin.yaml + plugin.py)
+### Plugin -> mặc định TOÀN CỤC `<JAVIS_STATE_DIR>/plugins/<slug>/` (chung mọi brain); riêng 1 brain thì `<vault>/plugins/<slug>/`. 2 file: plugin.yaml + plugin.py
 `plugin.yaml`:
 ```
 name: <Tên tiếng Việt>
@@ -121,7 +121,7 @@ ctx có `ctx.vault_root`, `ctx.data_dir` (state riêng plugin, không đụng va
   đè skill đã có và KHÔNG hồi sinh skill user đã tắt; agent tự động -> để nháp chờ duyệt. Skill do
   user yêu cầu trực tiếp -> tạo bật luôn nhưng phải kiểm trùng + `description` trigger rõ (skill rác
   làm Javis chọn skill sai). Đừng tạo skill trùng chức năng skill đã có.
-- Plugin vault chạy CODE PYTHON THẬT trong tiến trình server -> tạo `enabled: false`, `min_mode: readonly`,
-  và NÓI RÕ với user: plugin vault chỉ chạy khi họ đặt env `JAVIS_ENABLE_VAULT_PLUGINS=true` rồi khởi động lại
-  (rào chống chạy code lạ). KHÔNG viết plugin làm hành động tiền/đơn/gửi tin; việc đó để MCP + mức quyền lo.
+- Plugin user (toàn cục lẫn vault) chạy CODE PYTHON THẬT trong tiến trình server -> tạo `enabled: false`,
+  `min_mode: readonly`, và NÓI RÕ với user: plugin chỉ chạy khi họ đặt env `JAVIS_ENABLE_USER_PLUGINS=true`
+  rồi khởi động lại (rào chống chạy code lạ). KHÔNG viết plugin làm hành động tiền/đơn/gửi tin; việc đó để MCP + mức quyền lo.
 - Sau khi tạo, KHÔNG tự chạy thứ có side-effect; để user xem trước.

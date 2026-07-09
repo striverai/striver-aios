@@ -76,9 +76,32 @@ async def main():
     assert "demo_ping" not in _names(plugins_host.plugin_tools("full", vault)[0]), "vault plugin ran without gate!"
     d = {x["slug"]: x for x in plugins_host.describe(vault)}
     assert d["demo-x"]["gated"] is True
-    os.environ["JAVIS_ENABLE_VAULT_PLUGINS"] = "true"  # gate ON
+    os.environ["JAVIS_ENABLE_VAULT_PLUGINS"] = "true"  # gate ON (alias cũ vẫn chạy)
     plugins_host.invalidate()
     assert "demo_ping" in _names(plugins_host.plugin_tools("full", vault)[0]), "vault plugin didn't run with gate"
+
+    # 8) GLOBAL plugin (STATE_DIR/plugins) - CHUNG mọi brain + nạp cả khi vault_root=None (đường Claude/Codex)
+    os.environ.pop("JAVIS_ENABLE_VAULT_PLUGINS", None)
+    gdir = os.path.join(plugins_host.GLOBAL_DIR, "demo-global")
+    os.makedirs(gdir, exist_ok=True)
+    with open(os.path.join(gdir, "plugin.yaml"), "w", encoding="utf-8") as f:
+        f.write("name: Demo Global\nslug: demo-global\nenabled: true\nmin_mode: readonly\n")
+    with open(os.path.join(gdir, "plugin.py"), "w", encoding="utf-8") as f:
+        f.write("def register(ctx):\n"
+                "    ctx.register_tool('demo_global','g',lambda a,c:'G',min_mode='readonly')\n")
+    # gate OFF → không nạp
+    os.environ["JAVIS_ENABLE_USER_PLUGINS"] = ""
+    plugins_host.invalidate()
+    assert "demo_global" not in _names(plugins_host.plugin_tools("full", None)[0]), "global plugin ran without gate!"
+    dg = {x["slug"]: x for x in plugins_host.describe(None)}
+    assert dg["demo-global"]["source"] == "user" and dg["demo-global"]["gated"] is True
+    # gate ON → nạp, và có mặt DÙ vault_root=None (tức mọi brain + Claude/Codex đều thấy)
+    os.environ["JAVIS_ENABLE_USER_PLUGINS"] = "true"
+    plugins_host.invalidate()
+    names_none = _names(plugins_host.plugin_tools("full", None)[0])          # đường hub (Claude/Codex)
+    names_brainA = _names(plugins_host.plugin_tools("full", tempfile.mkdtemp())[0])  # brain bất kỳ
+    assert "demo_global" in names_none, "global plugin không thấy ở đường vault_root=None"
+    assert "demo_global" in names_brainA, "global plugin không dùng được ở brain khác"
 
     print("OK - test_plugins_host: tất cả assertion pass")
 

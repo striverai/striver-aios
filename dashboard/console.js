@@ -27,6 +27,7 @@
     account:     _svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6.5 8-6.5s8 2.5 8 6.5"/>'),
     files:       _svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>'),
     selfimprove: _svg('<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>'),
+    plugins:     _svg('<path d="M14 4a2 2 0 1 0-4 0v2H6a1 1 0 0 0-1 1v3H4a2 2 0 1 0 0 4h1v3a1 1 0 0 0 1 1h3v-1a2 2 0 1 1 4 0v1h3a1 1 0 0 0 1-1v-4h1a2 2 0 1 0 0-4h-1V7a1 1 0 0 0-1-1h-3V4z"/>'),
     learn:       _svg('<path d="M12 3v18"/><path d="M5 7h14"/><path d="M4 12h16"/><circle cx="12" cy="12" r="9"/>'),
     kanban:      _svg('<rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/>'),
     settings:    _svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
@@ -47,6 +48,7 @@
     { id: "models",      icon: ICON.models,      label: "Models" },
     { id: "channels",    icon: ICON.channels,    label: "Kênh" },
     { id: "mcp",         icon: ICON.mcp,         label: "Kết nối" },
+    { id: "plugins",     icon: ICON.plugins,     label: "Plugins" },
     { id: "logs",        icon: ICON.logs,        label: "Cập nhật" },
     { id: "account",     icon: ICON.account,     label: "Tài khoản" },
   ];
@@ -66,6 +68,7 @@
     models:      { icon: "◈", label: "Models", sub: "Main model & providers" },
     channels:    { icon: "✉", label: "Kênh kết nối", sub: "Telegram & hơn nữa" },
     mcp:         { icon: "🔌", label: "Kết nối", sub: "Nguồn dữ liệu & công cụ" },
+    plugins:     { icon: "🧰", label: "Plugins", sub: "Tool/hook native cho mọi engine" },
     logs:        { icon: "🗒", label: "Nhật ký cập nhật", sub: "Phiên bản & tính năng mới" },
     account:     { icon: "⚙", label: "Tài khoản", sub: "Đăng nhập & workspace" },
   };
@@ -130,6 +133,7 @@
     if (id === "settings") return renderSettings(el);
     if (id === "models")   return renderModels(el);
     if (id === "mcp")      return renderConnect(el);
+    if (id === "plugins")  return renderPlugins(el);
     if (id === "channels") return renderChannels(el);
     if (id === "account")  return renderAccount(el);
     if (id === "files")    return renderFiles(el);
@@ -453,6 +457,75 @@
   // ============================================
   // Trang Tự cải thiện (Nhiệm vụ tự động chạy nền)
   // ============================================
+  // ============================================
+  // Trang PLUGINS - tool/hook native cho mọi engine (bundled / toàn cục / brain)
+  // ============================================
+  async function renderPlugins(el) {
+    _injectExtraCss();
+    const myGen = _renderGen;   // chống race: đổi trang → load dở tự bỏ
+    el.innerHTML = `<div class="cview-section"><div class="empty">Đang tải...</div></div>`;
+
+    const SRC = { bundled: ["Có sẵn", "#3fdc86"], user: ["Toàn cục", "#6ea8ff"], vault: ["Brain này", "#e0a04a"] };
+    const srcBadge = (s) => {
+      const [t, c] = SRC[s] || [s, "#9fb0cf"];
+      return `<span style="font-size:11px;padding:2px 7px;border-radius:99px;border:1px solid ${c}55;color:${c}">${esc(t)}</span>`;
+    };
+    const chip = (t) => `<span style="font-size:11px;padding:2px 7px;border-radius:6px;background:rgba(255,255,255,.06);color:#b9c6e2;margin:0 4px 4px 0;display:inline-block">${esc(t)}</span>`;
+    const MM = { readonly: "chỉ đọc", safe: "ghi (safe)", full: "toàn quyền" };
+
+    function card(p) {
+      const status = p.error ? `<span style="color:#e0664a">⚠ lỗi</span>`
+        : p.gated ? `<span style="color:#e0a04a">⚠ chờ bật env</span>`
+        : p.loaded ? `<span style="color:#3fdc86">● đang chạy</span>`
+        : p.enabled ? `<span style="color:#e0a04a">● bật (chưa nạp)</span>`
+        : `<span style="color:#6b7894">○ tắt</span>`;
+      const meta = [MM[p.min_mode] ? `quyền tối thiểu: ${MM[p.min_mode]}` : "",
+                    p.version ? `v${esc(p.version)}` : "", p.author ? esc(p.author) : ""].filter(Boolean).join(" · ");
+      const chips = (p.tools || []).map(t => chip("🔧 " + t)).join("") + (p.hooks || []).map(h => chip("🪝 " + h)).join("");
+      const div = document.createElement("div");
+      div.className = "wf-card" + (p.loaded ? "" : " off");
+      div.innerHTML = `
+        <div class="wf-top">
+          <div class="wf-name">🧩 ${esc(p.name)} <span class="dim" style="font-size:12px">${esc(p.slug)}</span> ${srcBadge(p.source)}</div>
+          <div>${status}</div>
+        </div>
+        <div class="wf-desc">${esc(p.description || "")}</div>
+        <div class="wf-steps">${meta}${chips ? `<div style="margin-top:8px">${chips}</div>` : ""}${p.error ? `<div style="margin-top:6px;color:#e0664a">${esc(p.error)}</div>` : ""}</div>
+        <div class="wf-actions"><button class="s-btn-ghost tgl">${p.enabled ? "Tắt" : "Bật"}</button></div>`;
+      div.querySelector(".tgl").onclick = async () => {
+        const fd = new FormData();
+        fd.append("slug", p.slug); fd.append("enabled", p.enabled ? "0" : "1"); fd.append("brain", fbrain());
+        let r = {}; try { r = await (await fetch("/plugins/toggle", { method: "POST", body: fd })).json(); } catch (e) { r = { error: e.message }; }
+        if (r && r.error) alert("⚠ " + r.error);
+        else if (r && r.note) alert(r.note);
+        load();
+      };
+      return div;
+    }
+
+    async function load() {
+      if (myGen !== _renderGen) return;
+      let d = { plugins: [] };
+      try { d = await (await fetch(`/plugins?brain=${encodeURIComponent(fbrain())}`)).json(); } catch (e) {}
+      if (myGen !== _renderGen) return;
+      const intro = `<p style="color:#9fb0cf;font-size:15px;max-width:720px;margin:0 0 12px">Plugin thêm <b>tool</b> (công cụ engine gọi được) và <b>hook</b> native cho Javis mà không sửa lõi - dùng được ở MỌI engine (Claude Code, Codex, API) qua hub, tôn trọng 3 mức quyền như tool khác.</p>`;
+      const gateBanner = (!d.user_gate) ? `<div style="margin-bottom:14px;padding:11px 13px;border:1px solid rgba(224,160,74,.5);border-radius:10px;background:rgba(224,160,74,.08);color:#ffd9a0;font-size:13px;line-height:1.55"><b>⚠ Plugin do bạn cài đang bị chặn.</b> Plugin toàn cục/brain chạy code Python thật trong server nên mặc định TẮT. Để bật: đặt biến môi trường <code>JAVIS_ENABLE_USER_PLUGINS=true</code> rồi khởi động lại Javis. Plugin có sẵn (bundled) vẫn chạy bình thường.</div>` : "";
+      const dirHint = `<p style="color:#6b7894;font-size:12.5px;margin:0 0 14px">Thả plugin TOÀN CỤC (dùng cho MỌI brain) vào <code>${esc(d.global_dir || "")}</code> · mỗi plugin gồm <code>plugin.yaml</code> + <code>plugin.py</code>. Hoặc bảo Javis trong khung chat: "tạo plugin ...".</p>`;
+      const plugins = (d.plugins || []).slice();
+      const order = { bundled: 0, user: 1, vault: 2 };
+      plugins.sort((a, b) => (order[a.source] ?? 9) - (order[b.source] ?? 9) || (a.name || "").localeCompare(b.name || ""));
+      const wrap = document.createElement("div");
+      wrap.className = "cview-section";
+      wrap.innerHTML = intro + gateBanner + dirHint + `<div id="plCards"></div>`;
+      const host = wrap.querySelector("#plCards");
+      if (!plugins.length) host.innerHTML = `<div class="empty">Chưa có plugin nào. Thả một thư mục plugin vào ${esc(d.global_dir || "thư mục plugins toàn cục")} rồi tải lại.</div>`;
+      else plugins.forEach(p => host.appendChild(card(p)));
+      el.innerHTML = "";
+      el.appendChild(wrap);
+    }
+    load();
+  }
+
   async function renderSelfImprove(el) {
     _injectExtraCss();
     const myGen = _renderGen;   // chống race: đổi trang → mọi loadLoops/loadLog dở tự bỏ

@@ -68,7 +68,7 @@ Plugin là THƯ MỤC Python thả vào để thêm **tool** (công cụ engine 
 
 **Khi nào tạo plugin** (không lạm dụng): khi cần một TOOL cụ thể, tái dùng, làm được bằng Python thuần (tính toán, biến đổi dữ liệu, đọc/ghi file theo luật riêng, gọi 1 API đơn giản) mà chưa có MCP nào phủ. Nếu chỉ cần HƯỚNG DẪN cách làm bằng tool sẵn có → viết Skill. Nếu là nguồn dữ liệu ngoài có sẵn MCP → đấu MCP.
 
-**Nơi ghi:** plugin do user tạo → `<vault>/plugins/<slug>/` (2 file):
+**Nơi ghi:** plugin do user tạo → mặc định TOÀN CỤC `<JAVIS_STATE_DIR>/plugins/<slug>/` để MỌI brain dùng chung (giống `~/.hermes/plugins`; nạp được ở cả Claude Code/Codex vì không phụ thuộc vault). Chỉ khi user muốn RIÊNG cho một brain thì ghi vào `<vault>/plugins/<slug>/`. Cả hai đều cần env gate `JAVIS_ENABLE_USER_PLUGINS=true`. Mỗi plugin 2 file:
 ```yaml
 # plugin.yaml
 name: <Tên tiếng Việt>
@@ -98,7 +98,7 @@ def register(ctx):
 
 **AN TOÀN (BẮT BUỘC):**
 - Plugin do chat tạo LUÔN `enabled: false`. Không tự bật.
-- Plugin vault chạy CODE PYTHON THẬT trong tiến trình server → mặc định app CHẶN, chỉ chạy khi user tự đặt biến môi trường `JAVIS_ENABLE_VAULT_PLUGINS=true` rồi khởi động lại. Luôn NÓI RÕ điều này khi tạo plugin cho user.
+- Plugin user (toàn cục lẫn vault) chạy CODE PYTHON THẬT trong tiến trình server → mặc định app CHẶN, chỉ chạy khi user tự đặt biến môi trường `JAVIS_ENABLE_USER_PLUGINS=true` (alias cũ `JAVIS_ENABLE_VAULT_PLUGINS`) rồi khởi động lại. Luôn NÓI RÕ điều này khi tạo plugin cho user.
 - KHÔNG tự viết plugin làm hành động tiền/đơn/gửi tin/đăng bài. Việc đó để MCP + mức quyền lo. Plugin nên `min_mode: readonly` trừ khi user yêu cầu rõ.
 - Các plugin HỆ THỐNG (bundled trong `system/plugins/`, vd `datetime-vn`) đi theo app - đừng nhân bản vào vault.
 
