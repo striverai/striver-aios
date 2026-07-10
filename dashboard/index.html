@@ -7,7 +7,7 @@
   <!-- Favicon = logo hiện tại (/brand-logo): mặc định theo logo.png, và tự đổi theo ảnh user tải lên. -->
   <link rel="icon" href="/brand-logo?v=5">
   <link rel="apple-touch-icon" href="/brand-logo?v=5">
-  <link rel="stylesheet" href="/static/style.css?v=32">
+  <link rel="stylesheet" href="/static/style.css?v=33">
   <link rel="stylesheet" href="/static/console.css?v=14">
 </head>
 <body>
@@ -293,6 +293,12 @@
           <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
         </svg>
       </button>
+      <button class="attach-btn tts-bar-btn" id="ttsToggleBar" type="button" title="Tắt giọng đọc">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        </svg>
+      </button>
       <input type="file" id="fileInput" multiple style="display:none">
       <textarea id="chatInput" class="voice-input" placeholder="Nói với Javis, gõ ở đây, hoặc kéo/dán file vào..." rows="1"></textarea>
       <button class="stop-btn" id="stopBtn" title="Ngắt lệnh / dừng đọc (Esc)" style="display:none">
@@ -547,7 +553,7 @@
   <script src="/static/app.js?v=58"></script>
   <script src="/static/model-picker.js?v=1"></script>
   <script src="/static/branding.js?v=7"></script>
-  <script src="/static/quick-settings.js?v=3"></script>
+  <script src="/static/quick-settings.js?v=4"></script>
   <script src="/static/chat-zoom.js?v=5"></script>
   <script src="/static/brains-ui.js?v=4"></script>
   <script src="/static/sessions-ui.js?v=6"></script>

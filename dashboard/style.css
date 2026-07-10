@@ -519,6 +519,13 @@ body {
   display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
 .attach-btn:hover { border-color: var(--accent); color: var(--accent); }
+/* Nút loa trên khung chat: khi TẮT giọng thì đỏ + gạch chéo cho thấy rõ đang tắt */
+.tts-bar-btn.muted { color: #e0664a; border-color: rgba(224,102,74,0.45); position: relative; }
+.tts-bar-btn.muted:hover { color: #e0664a; border-color: rgba(224,102,74,0.7); }
+.tts-bar-btn.muted::after {
+  content: ""; position: absolute; left: 9px; right: 9px; top: 50%; height: 2px;
+  background: #e0664a; border-radius: 2px; transform: rotate(-45deg);
+}
 
 /* Attachment chips */
 .attach-bar {

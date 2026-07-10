@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.29] - 2026-07-10
+### Thêm mới
+- **Nút tắt/bật giọng đọc ngay trên khung chat**: thêm một nút loa cạnh nút mic và đính kèm ở thanh nhập chat (hiện ở cả màn 3D lẫn tab Trò chuyện). Bấm để tắt/bật việc Javis đọc câu trả lời bằng giọng mà không phải lên góc trên hay vào Cài đặt. Khi tắt, nút chuyển màu đỏ kèm gạch chéo cho dễ thấy; trạng thái đồng bộ hai chiều với nút loa ở header và công tắc "Đọc trả lời bằng giọng" trong Cài đặt nhanh, và nhớ qua các lần tải lại.
+
 ## [0.9.28] - 2026-07-09
 ### Thêm mới
 - **Telegram hiện trạng thái trung gian khi chờ**: trước đây nhắn cho Javis qua Telegram rồi phải chờ im lặng tới khi có câu trả lời, dễ tưởng bị treo. Nay bot gửi một tin trạng thái ("🤔 Javis đang xử lý…") rồi tự cập nhật theo tiến trình thật của lượt (đang gọi công cụ nào, đã nhận dữ liệu, đang soạn câu trả lời); soạn xong thì xoá tin trạng thái và gửi câu trả lời. Có tiết chế nhịp cập nhật (~2.5s) để không spam / dính giới hạn của Telegram. Áp dụng cho cả engine Claude Code lẫn engine API.
