@@ -1117,7 +1117,9 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
         for k in ("openai_tts_voice", "openai_tts_model", "elevenlabs_voice", "elevenlabs_model"):
             if patch.get(k):
                 v[k] = str(patch[k]).strip()
-        if patch.get("elevenlabs_key"):          # chỉ ghi khi có key mới (tránh xoá bằng ••••)
+        # Chỉ ghi khi có key mới THẬT: client lỡ gửi lại giá trị che "••••abcd" (lấy từ GET
+        # /settings rồi POST nguyên object về) mà lưu thì đè mất key thật.
+        if patch.get("elevenlabs_key") and not patch["elevenlabs_key"].strip().startswith("••••"):
             v["elevenlabs_key"] = patch["elevenlabs_key"].strip()
     elif section == "password":
         if patch.get("new_password"):
@@ -1137,6 +1139,8 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
             restart_telegram()   # áp cấu hình bot ngay
         except Exception as e:
             print(f"[telegram restart] {e}", file=__import__('sys').stderr)
+    if section == "voice":
+        cfgmod.apply_tool_env(cfg)   # key ElevenLabs -> env cho tool ngoài (video-use) ngay, không cần restart
     return {"ok": True}
 
 
@@ -3376,6 +3380,7 @@ async def _start_scheduler():
     _migrate_legacy_brain()   # dữ liệu brain cũ → <BRAINS_DIR>/Brain Default (không mất data)
     _ensure_default_brain()   # brain mặc định có sẵn cấu trúc chuẩn (ghi được trên mount /brains)
     _sync_system_all_brains() # năng lực hệ thống → mọi brain (update theo phiên bản app)
+    cfgmod.apply_tool_env()   # secret Cài đặt (key ElevenLabs...) → env cho tool ngoài (video-use)
     try:
         loop_feature.ensure_migrated()   # loop_config.json cũ → Javis/loops/vong-lap-goc.md (1 lần)
     except Exception as e:

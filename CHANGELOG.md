@@ -4,6 +4,13 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.30] - 2026-07-11
+### Thêm mới
+- **Key ElevenLabs trong Cài đặt dùng chung cho chỉnh sửa video**: Javis giờ biết dựng và cắt sửa video qua hai bộ công cụ ngoài (HyperFrames tạo video mới từ HTML, video-use cắt từ thừa / chèn phụ đề / chỉnh màu footage quay thật - cài dạng skill cho engine CLI). Phần phiên âm của video-use cần key ElevenLabs: chỉ cần nhập key một chỗ ở **Cài đặt > Giọng đọc (ElevenLabs)** như lâu nay, server tự bơm biến môi trường `ELEVENLABS_API_KEY` cho engine và tool con lúc khởi động và ngay khi lưu Cài đặt (không cần restart, không phải sửa file .env). Key vẫn được mã hóa at rest như các secret khác.
+### Sửa lỗi
+- **Tiến trình Python con hết crash Unicode trên Windows**: server tự đặt `PYTHONUTF8=1` cho tiến trình con (tôn trọng giá trị user đã đặt sẵn), tránh lỗi UnicodeEncodeError khi tool như video-use in ký tự đặc biệt ra console cp1252.
+- **Giá trị che "••••" không còn đè được key ElevenLabs thật**: client lạ lấy cài đặt từ GET /settings (key hiển thị dạng che) rồi POST nguyên object về sẽ không làm mất key đã lưu nữa.
+
 ## [0.9.29] - 2026-07-10
 ### Thêm mới
 - **Nút tắt/bật giọng đọc ngay trên khung chat**: thêm một nút loa cạnh nút mic và đính kèm ở thanh nhập chat (hiện ở cả màn 3D lẫn tab Trò chuyện). Bấm để tắt/bật việc Javis đọc câu trả lời bằng giọng mà không phải lên góc trên hay vào Cài đặt. Khi tắt, nút chuyển màu đỏ kèm gạch chéo cho dễ thấy; trạng thái đồng bộ hai chiều với nút loa ở header và công tắc "Đọc trả lời bằng giọng" trong Cài đặt nhanh, và nhớ qua các lần tải lại.

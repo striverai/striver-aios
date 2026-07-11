@@ -149,6 +149,37 @@ def write_settings(cfg):
     SETTINGS_PATH.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+_TOOL_ENV_OWNED = False   # ELEVENLABS_API_KEY trong env hiện do apply_tool_env đặt → được phép gỡ khi user xoá key
+
+
+def apply_tool_env(cfg=None):
+    """Bơm secret dùng chung từ Cài đặt vào os.environ để TOOL NGOÀI thừa kế khi engine CLI
+    (Claude Code/Codex) spawn tiến trình con (Bash -> python/node). Hiện có: key ElevenLabs
+    (Cài đặt > Giọng đọc) -> ELEVENLABS_API_KEY cho video-use phiên âm khi cắt sửa video.
+    Lưu ý phạm vi: đặt vào env của CẢ server nên mọi tiến trình con (MCP stdio, script vault...)
+    đều thừa kế - chấp nhận vì mục đích chính là đến được Bash con của engine, và cùng user
+    thì con nào cũng đọc được settings.json + .secret_key; blast radius chỉ là key TTS.
+    Chỉ ghi đè khi settings có giá trị; user xoá key trong settings thì gỡ khỏi env (nhưng
+    không đụng biến user tự đặt ngoài shell). Gọi lúc startup + sau khi lưu Cài đặt giọng đọc."""
+    global _TOOL_ENV_OWNED
+    try:
+        if cfg is None:
+            cfg = read_settings()
+        k = ((cfg.get("voice") or {}).get("elevenlabs_key") or "").strip()
+        if k and not k.startswith("••••"):   # bỏ qua giá trị che mà client lỡ gửi lại
+            os.environ["ELEVENLABS_API_KEY"] = k
+            _TOOL_ENV_OWNED = True
+        elif not k and _TOOL_ENV_OWNED:
+            os.environ.pop("ELEVENLABS_API_KEY", None)
+            _TOOL_ENV_OWNED = False
+    except Exception as e:
+        print(f"[config] apply_tool_env lỗi: {e}", file=__import__('sys').stderr)
+    # Windows: helper Python con (vd video-use) in Unicode ra console cp1252 sẽ crash
+    # (UnicodeEncodeError) -> ép UTF-8 cho mọi tiến trình con. Tôn trọng giá trị user tự đặt.
+    if os.name == "nt" and not os.environ.get("PYTHONUTF8"):
+        os.environ["PYTHONUTF8"] = "1"
+
+
 # ---- Mật khẩu ----
 def hash_password(password, salt=None):
     salt = salt or secrets.token_hex(16)
