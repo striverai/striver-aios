@@ -355,9 +355,11 @@ class ClaudeCLI:
             yield {"type": "error", "content": "Không tìm thấy Claude Code CLI."}
             return
 
+        # Prompt bơm qua STDIN, không qua argv: Windows giới hạn command line 32767 ký tự,
+        # dán bài dài vào chat là Popen nổ "WinError 206 filename or extension is too long".
         args = [
             self.cli_path,
-            "-p", prompt,
+            "-p",
             "--output-format", "stream-json",
             "--verbose",
             "--dangerously-skip-permissions",
@@ -399,6 +401,7 @@ class ClaudeCLI:
 
                 proc = subprocess.Popen(
                     args,
+                    stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     cwd=self.cwd,
@@ -411,6 +414,16 @@ class ClaudeCLI:
                 )
                 with _PROC_LOCK:
                     _ACTIVE_PROCS[proc] = self.tag
+
+                # Ghi prompt vào stdin ở thread riêng (prompt > pipe buffer 64KB mà ghi
+                # cùng thread đọc stdout thì kẹt chéo), xong đóng stdin để CLI biết hết input.
+                def _feed_stdin():
+                    try:
+                        proc.stdin.write(prompt)
+                        proc.stdin.close()
+                    except Exception:
+                        pass
+                threading.Thread(target=_feed_stdin, daemon=True).start()
 
                 started = time.time()
                 def _watchdog(p):
@@ -595,7 +608,10 @@ class CodexCLI:
         for c in (self.extra_config or []):
             args += ["-c", c]
         # Codex exec không nhận system-prompt riêng → gộp instructions (vai trò agent) vào đầu prompt.
-        args.append((self.instructions.strip() + "\n\n" + prompt) if self.instructions else prompt)
+        # Prompt bơm qua STDIN (positional "-") thay vì argv - né trần command line 32767 ký tự
+        # của Windows (WinError 206 khi dán bài dài).
+        full_prompt = (self.instructions.strip() + "\n\n" + prompt) if self.instructions else prompt
+        args.append("-")
 
         loop = asyncio.get_running_loop()
         queue: asyncio.Queue = asyncio.Queue()
@@ -609,12 +625,20 @@ class CodexCLI:
             try:
                 creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
                 proc = subprocess.Popen(
-                    args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     cwd=self.cwd, text=True, encoding="utf-8", errors="replace", bufsize=1,
                     creationflags=creationflags, start_new_session=(os.name != "nt"),
                 )
                 with _PROC_LOCK:
                     _ACTIVE_PROCS[proc] = self.tag
+
+                def _feed_stdin():
+                    try:
+                        proc.stdin.write(full_prompt)
+                        proc.stdin.close()
+                    except Exception:
+                        pass
+                threading.Thread(target=_feed_stdin, daemon=True).start()
 
                 def _watchdog(p):
                     while p.poll() is None:

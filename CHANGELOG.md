@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.31] - 2026-07-11
+### Sửa lỗi
+- **Dán bài dài vào chat không còn nổ "Subprocess error: WinError 206"**: trước đây tin nhắn (cộng system prompt) được truyền cho engine CLI qua command line, mà Windows giới hạn command line tối đa 32767 ký tự - dán một bài báo dài hay đoạn văn bản lớn là vượt trần và lỗi "FileNotFoundError: The filename or extension is too long" ngay trước khi engine kịp chạy. Nay prompt được bơm qua stdin (không đi qua command line) nên dán bao nhiêu cũng chạy; áp dụng cho cả engine Claude Code lẫn Codex. Đã test thật với prompt hơn 40 nghìn ký tự.
+
 ## [0.9.30] - 2026-07-11
 ### Thêm mới
 - **Key ElevenLabs trong Cài đặt dùng chung cho chỉnh sửa video**: Javis giờ biết dựng và cắt sửa video qua hai bộ công cụ ngoài (HyperFrames tạo video mới từ HTML, video-use cắt từ thừa / chèn phụ đề / chỉnh màu footage quay thật - cài dạng skill cho engine CLI). Phần phiên âm của video-use cần key ElevenLabs: chỉ cần nhập key một chỗ ở **Cài đặt > Giọng đọc (ElevenLabs)** như lâu nay, server tự bơm biến môi trường `ELEVENLABS_API_KEY` cho engine và tool con lúc khởi động và ngay khi lưu Cài đặt (không cần restart, không phải sửa file .env). Key vẫn được mã hóa at rest như các secret khác.
