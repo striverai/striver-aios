@@ -1,8 +1,11 @@
 # Kế hoạch: chuyển engine Claude sang Claude Agent SDK (Python)
 
-> Bản kế hoạch dev, viết 2026-07-12 trên nền code v0.9.34. Trạng thái: ĐỀ XUẤT - chưa làm.
-> Mục tiêu: thay lớp tự chế spawn `claude` CLI (subprocess + parse stream-json) bằng
-> `claude-agent-sdk` chính chủ, giữ nguyên giao diện với phần còn lại của Javis.
+> Bản kế hoạch dev, viết 2026-07-12 trên nền code v0.9.34. Mục tiêu: thay lớp tự chế spawn
+> `claude` CLI (subprocess + parse stream-json) bằng `claude-agent-sdk` chính chủ, giữ nguyên
+> giao diện với phần còn lại của Javis.
+>
+> **Trạng thái: Phase 0-2 XONG (v0.9.35, cùng ngày). Mặc định vẫn `cli` - bật thử bằng
+> `JAVIS_CLAUDE_ENGINE=sdk`. Phase 3 chưa làm, Phase 4 chờ bake. Nhật ký ở mục 8.**
 
 ## 1. Vì sao (động lực)
 
@@ -123,3 +126,29 @@ Hub HTTP giữ nguyên cho Codex + engine API.
 - Không migrate CodexCLI (không có SDK tương đương; giữ Popen + stdin fix v0.9.31).
 - Không bỏ hub MCP (Codex + engine API vẫn cần; hub vẫn là chỗ quản multi-account + OAuth).
 - Không dùng session_store/checkpointing của SDK thay SQLite sessions của Javis (xem lại sau).
+
+## 8. Nhật ký triển khai
+
+**2026-07-12 (v0.9.35) - Phase 0-2 xong:**
+
+- **Phase 0 spike: GO cả 7 hạng mục** trên Windows 11 + Python 3.12.10 + CLI 2.1.196 +
+  claude-agent-sdk 0.2.116, chạy Proactor loop (đúng loop uvicorn): (1) subscription auth
+  không cần API key; (2) stream text/tool/Result đủ usage+cost+session; (3) resume nhớ đúng;
+  (4) interrupt sạch; (5) mcp_servers nhận path json + strict; (6) system 19k + prompt 43k
+  không WinError 206; (7) first-text SDK 3.6s NHANH HƠN CLI Popen 4.0s.
+- **Phase 1**: `server/claude_sdk_engine.py` (ClaudeSDK cùng hợp đồng ClaudeCLI, map_message
+  pure test được offline, watchdog idle + max_wall_s parity, registry cancel theo họ tag).
+  Factory `claude_cli.claude_engine()` + env `JAVIS_CLAUDE_ENGINE=sdk|cli` (mặc định cli);
+  12 call site (main/learn/tasks/reminders/self_improve) đã qua factory. `cancel_all` ngắt
+  cả hai engine.
+- **Phase 2**: fork nền có `allowed_tools` chạy `permission_mode=default` + callback
+  `can_use_tool`: tool ngoài whitelist bị TỪ CHỐI per-call (pattern fnmatch cho
+  `mcp__javis__*`), audit JSONL tại `STATE_DIR/logs/sdk_tool_audit.jsonl`. Smoke thật:
+  fork chỉ-đọc được lệnh "tạo file bằng mọi cách" → file KHÔNG được tạo; cancel 0.6s.
+- **Dependency**: package `mcp` (dep của SDK) kéo starlette 1.x gãy fastapi 0.115 → ghim
+  `starlette>=0.37.2,<0.39` + `sse-starlette>=1.6.1,<3` trong requirements.txt (pip check sạch).
+- Test CI mới `server/test_sdk_engine.py` (14 case, không cần CLI/auth).
+
+**Còn lại:** Phase 3 (plugin in-process - cần thiết kế dedup với hub trước, vì hub đang phục vụ
+cùng bộ tool plugin cho mọi engine, đăng ký kép sẽ trùng tên tool); Phase 4 (flip mặc định
+sang sdk sau 1-2 tuần dùng thật bằng env, đo p50 + soát audit).

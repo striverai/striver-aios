@@ -60,7 +60,7 @@ from typing import Any, Callable, List, Optional, Tuple
 import yaml
 from fastapi import APIRouter, Form, Query
 
-from claude_cli import ClaudeCLI, cancel_all, _empty_mcp_file
+from claude_cli import claude_engine, cancel_all, _empty_mcp_file
 
 LEGACY_SLUG = "vong-lap-goc"
 GOALS = ("business", "brain", "product", "custom")
@@ -620,14 +620,14 @@ class LoopFeature:
             else:
                 base = self.deps.safe_tools if mode in ("auto", "full") else self.deps.readonly_tools
                 tools = list(base) + ["Bash", "WebFetch", "WebSearch"]
-            cli = ClaudeCLI(system_prompt=sysprompt, cwd=cwd, tag="loop", allowed_tools=tools)
+            cli = claude_engine(system_prompt=sysprompt, cwd=cwd, tag="loop", allowed_tools=tools)
             cli.mcp_config = mcpf
             cli.mcp_strict = True
             cli.disallowed_tools = ["Task"]
         elif mode == "full" and not for_verify:
             # TOÀN QUYỀN: không giới hạn allowlist → mọi tool + mọi MCP. Vẫn tôn trọng
             # deny_tools per-server (apply_mcp đặt --disallowedTools) - chặn user đã chủ ý.
-            cli = ClaudeCLI(system_prompt=sysprompt, cwd=cwd, tag="loop", allowed_tools=None)
+            cli = claude_engine(system_prompt=sysprompt, cwd=cwd, tag="loop", allowed_tools=None)
             if self.deps.apply_mcp:
                 try:
                     self.deps.apply_mcp(cli, mode="full")   # hub nhận mode qua header X-Javis-Mode
@@ -644,7 +644,7 @@ class LoopFeature:
                     tools += list(self.deps.mcp_allow_patterns() or [])
                 except Exception:
                     pass
-            cli = ClaudeCLI(system_prompt=sysprompt, cwd=cwd, tag="loop", allowed_tools=tools)
+            cli = claude_engine(system_prompt=sysprompt, cwd=cwd, tag="loop", allowed_tools=tools)
             if self.deps.apply_mcp:
                 # Hub ENFORCE quyền theo mode: suggest → chỉ đọc, auto → chặn danger (lớp cứng,
                 # cộng thêm allowlist + prompt sẵn có). for_verify luôn coi như suggest.

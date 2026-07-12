@@ -39,7 +39,7 @@ from typing import Any, Callable, List, Optional
 
 from fastapi import APIRouter, Form, Query
 
-from claude_cli import ClaudeCLI, cancel_all, _empty_mcp_file
+from claude_cli import claude_engine, cancel_all, _empty_mcp_file
 
 VALID_STATUS = {"todo", "ready", "running", "review", "done", "blocked", "archived"}
 _DONE_ISH = {"done", "archived"}
@@ -258,7 +258,7 @@ class TasksFeature:
             return result, (err or None), ni
 
         # direct: 1 claude file-only
-        cli = ClaudeCLI(system_prompt=self.deps.build_system_prompt(brain),
+        cli = claude_engine(system_prompt=self.deps.build_system_prompt(brain),
                         cwd=self.deps.brain_root(brain), tag="dispatch", allowed_tools=safe)
         mcpf = _empty_mcp_file()
         if mcpf:

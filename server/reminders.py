@@ -41,7 +41,7 @@ from typing import Any, Callable, List, Optional
 from fastapi import APIRouter, Body, Form, Query
 
 import cron_util
-from claude_cli import ClaudeCLI, _empty_mcp_file
+from claude_cli import claude_engine, _empty_mcp_file
 
 VN_TZ = timezone(timedelta(hours=7))
 VALID_MODE = {"notify", "task", "script"}
@@ -452,7 +452,7 @@ class RemindersFeature:
                 tools += list(self.deps.mcp_allow_patterns() or [])
             except Exception:
                 pass
-        cli = ClaudeCLI(system_prompt=sysprompt, cwd=self.deps.brain_root(brain),
+        cli = claude_engine(system_prompt=sysprompt, cwd=self.deps.brain_root(brain),
                         tag="reminder", allowed_tools=tools)
         if self.deps.apply_mcp:
             try:

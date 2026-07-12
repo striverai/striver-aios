@@ -30,7 +30,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import APIRouter, Form, Query
 
-from claude_cli import ClaudeCLI, cancel_all, _empty_mcp_file
+from claude_cli import claude_engine, cancel_all, _empty_mcp_file
 import git_brain
 import skill_router
 
@@ -400,7 +400,7 @@ class LearnFeature:
         mcpf = _empty_mcp_file()
         if not mcpf:
             return ""   # không tạo được file MCP rỗng → từ chối spawn (không để nuốt MCP máy)
-        gcli = ClaudeCLI(system_prompt=self.deps.build_system_prompt(brain),
+        gcli = claude_engine(system_prompt=self.deps.build_system_prompt(brain),
                          cwd=self.deps.brain_root(brain), tag=tag,
                          allowed_tools=self.deps.readonly_tools)
         gcli.model = self._model(cfg)

@@ -4,6 +4,13 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.35] - 2026-07-12
+### Thêm mới
+- **Engine Claude chạy được qua Agent SDK chính chủ (thử nghiệm, Phase 0-2 của kế hoạch)**: spike đạt cả 7 hạng mục (auth subscription không cần API key, stream, resume, interrupt, MCP config, prompt 43k ký tự không WinError 206, và tới token đầu còn NHANH HƠN cách cũ 3.6s vs 4.0s). Thêm engine `claude_sdk_engine.py` cùng hợp đồng với engine CLI cũ; bật thử bằng biến môi trường `JAVIS_CLAUDE_ENGINE=sdk` rồi khởi động lại - mặc định vẫn là `cli` như cũ, SDK lỗi thì tự rơi về CLI. Nút Dừng ngắt được cả hai loại engine.
+- **Quyền per-call cho fork nền (nâng cấp an toàn lớn nhất của đợt này)**: khi chạy engine SDK, các fork nền an toàn (loop suggest/auto, task, reminder, learn) chặn tool NGOÀI whitelist theo TỪNG LẦN GỌI kể cả Bash/Write builtin - kèm audit JSONL ở `logs/sdk_tool_audit.jsonl` trong thư mục state. Smoke test thật: fork chỉ-đọc bị lệnh "tạo file bằng mọi cách" vẫn không tạo được file. Trước đây chỉ giới hạn được bằng danh sách tĩnh lúc spawn, không có audit tool builtin.
+### Sửa lỗi
+- **Ghim starlette tránh gãy server khi cài dependency mới**: package `mcp` (dependency của claude-agent-sdk) kéo starlette 1.x xung đột fastapi 0.115; requirements.txt ghim `starlette<0.39` + `sse-starlette<3` (pip check sạch).
+
 ## [0.9.34] - 2026-07-12
 ### Thêm mới
 - **Chat engine API hết "mất trí nhớ" trong phiên dài (nén hội thoại)**: trước đây phiên chat dài trên engine API (OpenRouter/OpenAI/Anthropic API/Gemini) chỉ giữ 12 message gần nhất, phần cũ bị cắt bỏ - hỏi lại chuyện đầu phiên là Javis quên sạch. Nay phần lịch sử cũ rơi khỏi cửa sổ được TÓM TẮT tự động (chạy nền sau mỗi lượt, gộp dồn với tóm tắt trước) và bơm lại vào đầu phiên - Javis vẫn nhớ mạch cũ (quyết định, con số, việc dang dở) mà payload không phình. Tóm tắt lưu bền trong SQLite theo phiên, DB cũ tự migrate. Port ý tưởng session_memory_compaction của cookbook Anthropic. Kèm test `test_compaction.py` chạy trong CI.

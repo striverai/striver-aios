@@ -24,7 +24,8 @@ _PROC_LOCK = threading.Lock()
 def cancel_all(tag=None):
     """Ngắt tiến trình Claude. tag=None → tất cả; có tag → ngắt nhóm khớp.
     Khớp theo HỌ tag: 'chat' ngắt cả 'chat:abc' (tag đa phiên per-kết-nối/per-chat_id);
-    'chat:abc' chỉ ngắt đúng phiên đó. Tương tự 'telegram' vs 'telegram:<chat_id>'."""
+    'chat:abc' chỉ ngắt đúng phiên đó. Tương tự 'telegram' vs 'telegram:<chat_id>'.
+    Ngắt CẢ hai engine: subprocess CLI (Popen) lẫn phiên Agent SDK đang chạy."""
     with _PROC_LOCK:
         procs = [p for p, t in _ACTIVE_PROCS.items()
                  if tag is None or t == tag or str(t).startswith(str(tag) + ":")]
@@ -38,7 +39,13 @@ def cancel_all(tag=None):
                 p.terminate()
         except Exception:
             pass
-    return len(procs)
+    n = len(procs)
+    try:
+        import claude_sdk_engine
+        n += claude_sdk_engine.cancel_all(tag)
+    except Exception:
+        pass
+    return n
 
 
 def _kill_tree(p):
@@ -329,6 +336,25 @@ def mcp_open_auth_terminal():
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def claude_engine(system_prompt=None, cwd=None, tag="chat", allowed_tools=None, model=None):
+    """FACTORY engine Claude - mọi call site tạo engine qua đây thay vì ClaudeCLI() trực tiếp.
+    Mặc định trả ClaudeCLI (Popen, ổn định). Đặt env JAVIS_CLAUDE_ENGINE=sdk để chạy qua
+    claude-agent-sdk chính chủ (claude_sdk_engine.ClaudeSDK - cùng hợp đồng event);
+    SDK thiếu/lỗi thì tự fallback CLI và log rõ. Rollback = bỏ env, không đụng dữ liệu."""
+    if os.getenv("JAVIS_CLAUDE_ENGINE", "cli").strip().lower() == "sdk":
+        try:
+            import claude_sdk_engine
+            if claude_sdk_engine.sdk_available():
+                return claude_sdk_engine.ClaudeSDK(system_prompt=system_prompt, cwd=cwd, tag=tag,
+                                                   allowed_tools=allowed_tools, model=model)
+            print("[claude engine] JAVIS_CLAUDE_ENGINE=sdk nhưng claude-agent-sdk chưa cài - fallback CLI",
+                  file=sys.stderr)
+        except Exception as e:
+            print(f"[claude engine] SDK lỗi, fallback CLI: {type(e).__name__}: {e}", file=sys.stderr)
+    return ClaudeCLI(system_prompt=system_prompt, cwd=cwd, tag=tag,
+                     allowed_tools=allowed_tools, model=model)
 
 
 class ClaudeCLI:

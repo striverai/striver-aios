@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-from claude_cli import ClaudeCLI, CodexCLI, find_claude_cli, find_codex_cli, cancel_all, _empty_mcp_file, auth_status as claude_auth_status, auth_login as claude_auth_login, auth_logout as claude_auth_logout, auth_login_ui_start, auth_login_ui_code, mcp_native_add, mcp_native_remove, mcp_native_status, mcp_open_auth_terminal, mcp_native_list
+from claude_cli import ClaudeCLI, CodexCLI, claude_engine, find_claude_cli, find_codex_cli, cancel_all, _empty_mcp_file, auth_status as claude_auth_status, auth_login as claude_auth_login, auth_logout as claude_auth_logout, auth_login_ui_start, auth_login_ui_code, mcp_native_add, mcp_native_remove, mcp_native_status, mcp_open_auth_terminal, mcp_native_list
 from graph_builder import build_graph, _color_for, _top_folder, WIKILINK_RE
 import config as cfgmod
 import git_brain
@@ -1399,7 +1399,7 @@ async def metrics(fresh: int = Query(0, description="1 = bỏ cache, gọi mới
         cached["cached"] = True
         return cached
 
-    cli = ClaudeCLI(system_prompt=SYSTEM_PROMPT, cwd=CLAUDE_CWD, tag="metrics")
+    cli = claude_engine(system_prompt=SYSTEM_PROMPT, cwd=CLAUDE_CWD, tag="metrics")
     cli.model = _aux_model() or None   # việc nền: dùng model phụ nếu có cấu hình
     _apply_mcp(cli)   # metrics cần MCP (POS/ads) - dùng server Javis quản lý nếu có
     if not cli.is_available():
@@ -1673,7 +1673,7 @@ async def ingest_upload(
     attachments: str = Form(""), kind: str = Form("file"), name: str = Form(""),
 ):
     """Dùng Claude CLI biến file staged thành .md nguồn: text→trích, ảnh→mô tả."""
-    cli = ClaudeCLI(system_prompt=SYSTEM_PROMPT, cwd=CLAUDE_CWD)
+    cli = claude_engine(system_prompt=SYSTEM_PROMPT, cwd=CLAUDE_CWD)
     cli.model = _aux_model() or None   # việc nền: dùng model phụ nếu có cấu hình
     if not cli.is_available():
         return {"ok": False, "error": "Claude CLI chưa cài"}
@@ -2539,7 +2539,7 @@ async def execute_workflow(brain, slug, input="", tools=None):
             cc = CodexCLI(cwd=vault_root, tag="workflow", model=_codex_safe_model(model), instructions=sysprompt)
             cc.profile = _write_codex_profile()   # đẩy MCP của Javis (POS...) sang codex
             return cc
-        c = ClaudeCLI(system_prompt=sysprompt, cwd=vault_root, tag="workflow", allowed_tools=tools)
+        c = claude_engine(system_prompt=sysprompt, cwd=vault_root, tag="workflow", allowed_tools=tools)
         # Model Claude của AGENT (sonnet/opus/haiku/fable) được ÁP THẬT vào CLI.
         # Rỗng → dùng model phụ (việc nền) nếu có, cuối cùng None = mặc định CLI.
         c.model = ((model if not _is_codex_model(model) else "") or _aux_model() or None)
@@ -2894,7 +2894,7 @@ reminders_feature = reminders_mod.register(app, reminders_mod.RemindersDeps(
 @app.get("/lint")
 async def lint(brain: str = Query("brain")):
     """LINT - health-check Wiki (chỉ đọc, không sửa). Trả danh sách 8 loại vấn đề."""
-    cli = ClaudeCLI(system_prompt=SYSTEM_PROMPT, cwd=_brain_root(brain), tag="lint",
+    cli = claude_engine(system_prompt=SYSTEM_PROMPT, cwd=_brain_root(brain), tag="lint",
                     allowed_tools=READONLY_TOOLS)
     _mcpf = _empty_mcp_file()
     if _mcpf:
@@ -3046,7 +3046,7 @@ async def automations_sync(brain: str = Form("brain")):
     """Đồng bộ THẬT (Hướng 2): gọi Claude CLI dùng CronList / list_scheduled_tasks để lấy
     routine/cron đang chạy trên cloud, upsert vào registry (mục source=cloud)."""
     try:
-        cli = ClaudeCLI(system_prompt=None, cwd=CLAUDE_CWD, tag="routines")
+        cli = claude_engine(system_prompt=None, cwd=CLAUDE_CWD, tag="routines")
         if not cli.is_available():
             return {"ok": False, "error": "Claude CLI chưa cài"}
         prompt = (
@@ -4166,7 +4166,7 @@ async def websocket_endpoint(ws: WebSocket):
             or_messages = None
             seeded = False
             _row0 = store.get_session(conv_sid) or {}
-            cli = ClaudeCLI(system_prompt=SYSTEM_PROMPT, cwd=CLAUDE_CWD, tag=turn_tag)
+            cli = claude_engine(system_prompt=SYSTEM_PROMPT, cwd=CLAUDE_CWD, tag=turn_tag)
             cli.session_id = _row0.get("cli_session_id") or None    # --resume đúng mạch phiên này
             final_text = ""
 
@@ -4487,7 +4487,7 @@ async def _tg_answer(text, meta=None, progress=None):
     else:
         if sess["cli"] is None:
             # tag riêng theo chat → /stop chỉ giết đúng subprocess của chat này, không đụng người khác
-            sess["cli"] = ClaudeCLI(system_prompt=sysprompt, cwd=CLAUDE_CWD, tag=f"telegram:{chat_id}")
+            sess["cli"] = claude_engine(system_prompt=sysprompt, cwd=CLAUDE_CWD, tag=f"telegram:{chat_id}")
         cli = sess["cli"]
         cli.system_prompt = sysprompt
         cli.model = api_model or mcfg.get("claude_model") or None
