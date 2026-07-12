@@ -4,8 +4,9 @@
 > `claude` CLI (subprocess + parse stream-json) bằng `claude-agent-sdk` chính chủ, giữ nguyên
 > giao diện với phần còn lại của Javis.
 >
-> **Trạng thái: Phase 0-2 XONG (v0.9.35, cùng ngày). Mặc định vẫn `cli` - bật thử bằng
-> `JAVIS_CLAUDE_ENGINE=sdk`. Phase 3 chưa làm, Phase 4 chờ bake. Nhật ký ở mục 8.**
+> **Trạng thái: XONG CẢ 4 PHASE (v0.9.36, cùng ngày). MẶC ĐỊNH đã là `sdk`; lối thoát
+> `JAVIS_CLAUDE_ENGINE=cli` giữ nguyên một bản phát hành. Việc còn lại duy nhất: xoá code
+> Popen chết ở bản SAU khi user xác nhận chạy êm. Nhật ký ở mục 8.**
 
 ## 1. Vì sao (động lực)
 
@@ -149,6 +150,31 @@ Hub HTTP giữ nguyên cho Codex + engine API.
   `starlette>=0.37.2,<0.39` + `sse-starlette>=1.6.1,<3` trong requirements.txt (pip check sạch).
 - Test CI mới `server/test_sdk_engine.py` (14 case, không cần CLI/auth).
 
-**Còn lại:** Phase 3 (plugin in-process - cần thiết kế dedup với hub trước, vì hub đang phục vụ
-cùng bộ tool plugin cho mọi engine, đăng ký kép sẽ trùng tên tool); Phase 4 (flip mặc định
-sang sdk sau 1-2 tuần dùng thật bằng env, đo p50 + soát audit).
+**2026-07-12 (v0.9.36) - Phase 3-4 xong, thêm sdk-loops + e2e bake:**
+
+- **sdk-loops** (bước chuyển tiếp thận trọng của Phase 2): `JAVIS_CLAUDE_ENGINE=sdk-loops`
+  → chỉ họ tag nền (loop/dispatch/reminder/learn/lint/metrics/routines/workflow) dùng SDK,
+  chat + telegram giữ CLI.
+- **Phase 3 - plugin in-process:** giải bài dedup bằng header: engine SDK (không gated) đọc
+  file mcp_config thành dict, gắn `X-Javis-No-Plugins: 1` vào entry hub (hub bỏ nhóm plugin
+  khi thấy header - `discover_all(include_plugins=)`) rồi đấu server in-process
+  `javis-plugins` dựng từ plugins_host (min_mode enforce theo `javis_mode` do _apply_mcp đặt,
+  hook pre/post bọc như hub). Fork GATED giữ cô lập cũ - KHÔNG plugin in-process. Không có
+  hub (0 connection) plugin vẫn chạy - engine SDK dùng được plugin cả khi chưa đấu MCP nào.
+  Smoke thật: model gọi `mcp__javis-plugins__javis_now` trả đúng giờ VN.
+- **Parity settings:** chat/full nạp `setting_sources=[user,project,local]` như CLI (ambient
+  MCP + CLAUDE.md máy); fork gated KHÔNG nạp - allow-rule trong settings user không che được gate.
+- **Phase 4 - flip:** mặc định factory đổi `cli` → `sdk`. Lối thoát `JAVIS_CLAUDE_ENGINE=cli`
+  giữ tối thiểu 1 bản phát hành; docs/16 ghi biến. Code Popen CHƯA xoá (đúng kế hoạch - xoá ở
+  bản sau khi user xác nhận chạy êm; lúc đó claude_cli.py gọn ~300 dòng).
+- **E2E bake (mục 1, bản nén):** server THẬT cô lập (state + brains tạm, port 7999, mặc định
+  sdk) chạy 4 kiểm chứng ALL PASS: (1) chat WebSocket 2 lượt có resume nhớ đúng số
+  (first-token 11-14s lượt đầu phiên do spawn + system prompt lớn, ~6s lượt sau); (2) workflow
+  SSE đủ chuỗi event step_start→step_done→done; (3) loop suggest bị lệnh tạo file bằng được
+  vẫn KHÔNG tạo được file; (4) log server 0 fallback, 0 traceback. Probe riêng xác nhận gate
+  fire thật khi model cố gọi Write: deny per-call + audit JSONL + tool_result báo lý do.
+  Telegram không test live (không bot token trong môi trường test) - cùng đường factory +
+  hợp đồng event với chat đã test.
+
+**Còn lại (bản phát hành sau):** xoá nhánh Popen trong claude_cli.py khi user xác nhận vài
+tuần chạy êm; cân nhắc đưa công tắc engine lên trang Models thay vì env.

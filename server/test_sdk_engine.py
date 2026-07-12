@@ -33,15 +33,17 @@ from claude_cli import claude_engine, ClaudeCLI          # noqa: E402
 import claude_sdk_engine                                  # noqa: E402
 from claude_sdk_engine import ClaudeSDK, map_message      # noqa: E402
 
-eng = claude_engine(system_prompt="x", cwd=".", tag="t")
-check("factory: mặc định → ClaudeCLI", isinstance(eng, ClaudeCLI))
-os.environ["JAVIS_CLAUDE_ENGINE"] = "sdk"
 eng = claude_engine(system_prompt="x", cwd=".", tag="t", allowed_tools=["Read"], model="haiku")
-check("factory: env=sdk → ClaudeSDK", isinstance(eng, ClaudeSDK))
+check("factory: MẶC ĐỊNH (v0.9.36) → ClaudeSDK", isinstance(eng, ClaudeSDK))
 check("factory: truyền đủ tham số", eng.system_prompt == "x" and eng.allowed_tools == ["Read"]
       and eng.model == "haiku" and eng.tag == "t")
 os.environ["JAVIS_CLAUDE_ENGINE"] = "cli"
-check("factory: env=cli → ClaudeCLI", isinstance(claude_engine(), ClaudeCLI))
+check("factory: env=cli → ClaudeCLI (lối thoát)", isinstance(claude_engine(), ClaudeCLI))
+os.environ["JAVIS_CLAUDE_ENGINE"] = "sdk-loops"
+check("factory: sdk-loops, tag loop → SDK", isinstance(claude_engine(tag="loop"), ClaudeSDK))
+check("factory: sdk-loops, tag dispatch → SDK", isinstance(claude_engine(tag="dispatch"), ClaudeSDK))
+check("factory: sdk-loops, tag chat:abc → CLI", isinstance(claude_engine(tag="chat:abc12"), ClaudeCLI))
+check("factory: sdk-loops, tag telegram:1 → CLI", isinstance(claude_engine(tag="telegram:1"), ClaudeCLI))
 os.environ.pop("JAVIS_CLAUDE_ENGINE", None)
 
 # ---- 2. map_message: parity hợp đồng event ----
@@ -101,6 +103,54 @@ lines = [json.loads(x) for x in audit.read_text(encoding="utf-8").splitlines()] 
 check("audit: ghi đủ 4 quyết định JSONL", len(lines) == 4
       and lines[0]["allowed"] is True and lines[1]["allowed"] is False
       and lines[1]["tool"] == "Write" and lines[0]["tag"] == "loop-test")
+
+# ---- 4. Phase 3: plugin in-process + hub bỏ nhóm plugin ----
+import plugins_host                                       # noqa: E402
+
+
+async def _fake_call(args):
+    return f"kq:{(args or {}).get('x', '')}"
+
+_orig_pt, _orig_hooks = plugins_host.plugin_tools, plugins_host.has_tool_hooks
+plugins_host.plugin_tools = lambda mode, vr: (
+    [{"fn": "vd_tool", "server": "javis", "name": "vd_tool", "description": "tool ví dụ",
+      "schema": {"type": "object", "properties": {"x": {"type": "string"}}}}],
+    {"vd_tool": {"call": _fake_call}})
+plugins_host.has_tool_hooks = lambda vr: False
+try:
+    import tempfile as _tf
+    from pathlib import Path as _P
+    cfg = _P(_tf.mkdtemp(prefix="sdk-mcp-")) / "hub.json"
+    cfg.write_text(json.dumps({"mcpServers": {"javis": {
+        "type": "http", "url": "http://127.0.0.1:7777/hub/mcp",
+        "headers": {"Authorization": "Bearer t", "X-Javis-Mode": "full"}}}}), encoding="utf-8")
+
+    e = ClaudeSDK(tag="chat"); e.mcp_config = str(cfg); e.javis_mode = "full"
+    servers, strict = e._mcp_servers()
+    check("phase3: có javis-plugins in-process", "javis-plugins" in servers
+          and servers["javis-plugins"].get("type") == "sdk")
+    check("phase3: hub entry được gắn X-Javis-No-Plugins",
+          servers["javis"]["headers"].get("X-Javis-No-Plugins") == "1")
+    check("phase3: file config gốc KHÔNG bị sửa",
+          "X-Javis-No-Plugins" not in cfg.read_text(encoding="utf-8"))
+
+    g = ClaudeSDK(tag="loop", allowed_tools=["Read"]); g.mcp_config = str(cfg)
+    gs, _ = g._mcp_servers()
+    check("phase3: fork GATED không đấu plugin in-process (giữ cô lập)",
+          "javis-plugins" not in (gs or {}))
+
+    e2 = ClaudeSDK(tag="chat")   # không mcp_config (0 connection) → vẫn có plugin in-process
+    s2, _ = e2._mcp_servers()
+    check("phase3: không hub vẫn có plugin in-process", s2 and "javis-plugins" in s2)
+
+    opts = e._options()
+    check("phase3: chat nạp settings máy (parity CLI)",
+          getattr(opts, "setting_sources", None) == ["user", "project", "local"])
+    gopts = g._options()
+    check("phase3: fork gated KHÔNG nạp settings máy (allow-rule không che gate)",
+          getattr(gopts, "setting_sources", None) in (None, []))
+finally:
+    plugins_host.plugin_tools, plugins_host.has_tool_hooks = _orig_pt, _orig_hooks
 
 if _fails:
     print(f"\nFAIL - {len(_fails)} test: {_fails}")

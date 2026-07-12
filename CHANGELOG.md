@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.36] - 2026-07-12
+### Thêm mới
+- **Engine Claude chạy Agent SDK chính chủ theo MẶC ĐỊNH (hoàn tất cả 4 phase kế hoạch)**: sau spike và smoke đạt toàn bộ, engine Claude giờ mặc định chạy qua claude-agent-sdk. Người dùng không phải làm gì - vẫn đăng nhập Claude Code như cũ, chat/loop/workflow/Telegram chạy y hệt nhưng nền tảng do Anthropic bảo trì, fork nền được chặn quyền theo từng lần gọi tool kèm audit. Trục trặc thì đặt biến môi trường `JAVIS_CLAUDE_ENGINE=cli` là quay về cách cũ ngay (giữ tối thiểu một bản phát hành); có thêm mức trung gian `sdk-loops` (chỉ tác vụ nền dùng SDK). Đã kiểm chứng bằng phiên chạy thật cô lập đủ 3 luồng: chat 2 lượt có nhớ phiên, workflow chạy trọn chuỗi bước, loop chế độ đề xuất bị lệnh "tạo file bằng được" vẫn không tạo được file; log server sạch không lỗi không fallback.
+- **Plugin chạy thẳng trong tiến trình server (in-process) trên engine SDK**: tool plugin (tạo ảnh ChatGPT, ngày giờ VN, plugin user tự viết) không còn đi vòng qua hub HTTP - engine gọi thẳng handler Python, nhanh hơn và dùng được plugin cả khi CHƯA đấu kết nối MCP nào. Hub tự bỏ nhóm plugin khi engine đã có bản in-process (không còn nguy cơ model thấy 2 tool trùng chức năng); các engine khác (Codex, API) vẫn dùng plugin qua hub như cũ. Mức quyền min_mode của plugin vẫn được tôn trọng đúng theo chế độ suggest/auto/full.
+
 ## [0.9.35] - 2026-07-12
 ### Thêm mới
 - **Engine Claude chạy được qua Agent SDK chính chủ (thử nghiệm, Phase 0-2 của kế hoạch)**: spike đạt cả 7 hạng mục (auth subscription không cần API key, stream, resume, interrupt, MCP config, prompt 43k ký tự không WinError 206, và tới token đầu còn NHANH HƠN cách cũ 3.6s vs 4.0s). Thêm engine `claude_sdk_engine.py` cùng hợp đồng với engine CLI cũ; bật thử bằng biến môi trường `JAVIS_CLAUDE_ENGINE=sdk` rồi khởi động lại - mặc định vẫn là `cli` như cũ, SDK lỗi thì tự rơi về CLI. Nút Dừng ngắt được cả hai loại engine.

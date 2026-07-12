@@ -128,6 +128,7 @@ class ClaudeSDK:
         self.mcp_strict = False
         self.disallowed_tools = None
         self.max_wall_s = None
+        self.javis_mode = None    # _apply_mcp đặt (suggest|auto|full) - enforce min_mode plugin in-process
 
     def is_available(self) -> bool:
         if not _SDK_OK:
@@ -150,6 +151,62 @@ class ClaudeSDK:
         return PermissionResultDeny(
             message=f"Tool '{tool_name}' bị chặn: phiên nền này chỉ được dùng {', '.join(allowed)}.")
 
+    def _plugins_server(self):
+        """Phase 3: dựng MCP server IN-PROCESS từ tool plugin (plugins_host) - engine SDK gọi
+        thẳng handler Python, không qua hub HTTP. Trả McpSdkServerConfig hoặc None (không plugin).
+        min_mode enforce sẵn trong route của plugin_tools(mode); hook pre/post bọc như hub."""
+        import plugins_host
+        from claude_agent_sdk import tool as sdk_tool, create_sdk_mcp_server
+        mode = (self.javis_mode or "full").strip().lower()
+        p_tools, p_route = plugins_host.plugin_tools(mode, None)   # None = plugin toàn cục, như hub phục vụ CLI
+        if not p_tools:
+            return None
+        use_hooks = plugins_host.has_tool_hooks(None)
+        sdk_tools = []
+        for t in p_tools:
+            fn = t["fn"]
+            call = p_route[fn]["call"]
+            if use_hooks:
+                call = plugins_host.wrap_with_hooks(fn, call, mode, None)
+
+            async def _handler(args, _call=call):
+                res = await _call(args or {})
+                return {"content": [{"type": "text", "text": str(res)}]}
+
+            sdk_tools.append(sdk_tool(fn, t.get("description") or fn,
+                                      t.get("schema") or {"type": "object", "properties": {}})(_handler))
+        return create_sdk_mcp_server("javis-plugins", tools=sdk_tools)
+
+    def _mcp_servers(self):
+        """(mcp_servers cho options, strict) - đọc file config (đường _apply_mcp) thành dict,
+        đấu thêm plugin in-process khi KHÔNG gated. Gated fork (allowed_tools) giữ nguyên
+        cô lập như CLI: chỉ file config (thường là MCP rỗng), KHÔNG plugin in-process."""
+        servers = None
+        if self.mcp_config:
+            try:
+                with open(self.mcp_config, encoding="utf-8") as f:
+                    servers = dict(json.load(f).get("mcpServers") or {})
+            except Exception as e:
+                print(f"[sdk engine] đọc mcp_config lỗi ({e}) - truyền path thô", file=sys.stderr)
+                return str(self.mcp_config), self.mcp_strict
+        if self.allowed_tools:
+            return servers, self.mcp_strict
+        try:
+            plug = self._plugins_server()
+        except Exception as e:
+            print(f"[sdk engine] plugin in-process lỗi: {type(e).__name__}: {e}", file=sys.stderr)
+            plug = None
+        if plug is not None:
+            servers = dict(servers or {})
+            servers["javis-plugins"] = plug
+            hub = servers.get("javis")
+            if isinstance(hub, dict) and hub.get("headers") is not None:
+                # Báo hub bỏ nhóm plugin - model không thấy 2 tool trùng chức năng
+                hub = dict(hub); hub["headers"] = dict(hub["headers"])
+                hub["headers"]["X-Javis-No-Plugins"] = "1"
+                servers["javis"] = hub
+        return servers, self.mcp_strict
+
     def _options(self):
         from claude_agent_sdk import ClaudeAgentOptions
         kw = {
@@ -161,19 +218,23 @@ class ClaudeSDK:
             kw["model"] = self.model
         if self.session_id:
             kw["resume"] = self.session_id
-        if self.mcp_config:
-            kw["mcp_servers"] = str(self.mcp_config)
-            if self.mcp_strict:
+        servers, strict = self._mcp_servers()
+        if servers is not None:
+            kw["mcp_servers"] = servers
+            if strict:
                 kw["strict_mcp_config"] = True
         if self.disallowed_tools:
             kw["disallowed_tools"] = list(self.disallowed_tools)
         if self.allowed_tools:
             # Chế độ nền an toàn: whitelist auto-allow, MỌI tool khác rơi vào _permission_gate → DENY.
+            # KHÔNG nạp settings filesystem: allow-rule trong settings user có thể che gate.
             kw["allowed_tools"] = list(self.allowed_tools)
             kw["permission_mode"] = "default"
             kw["can_use_tool"] = self._permission_gate
         else:
             kw["permission_mode"] = "bypassPermissions"   # parity --dangerously-skip-permissions
+            # Parity CLI: nạp settings máy (ambient MCP, CLAUDE.md, config user) như claude -p vẫn làm
+            kw["setting_sources"] = ["user", "project", "local"]
         return ClaudeAgentOptions(**kw)
 
     async def query(self, prompt: str):

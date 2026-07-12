@@ -277,10 +277,12 @@ def _store_mtime():
         return 0
 
 
-async def discover_all(mode="full", vault_root=None):
-    """(tools_spec, route) đầy đủ cho 1 mode. route entries ĐÃ bọc quyền + audit."""
+async def discover_all(mode="full", vault_root=None, include_plugins=True):
+    """(tools_spec, route) đầy đủ cho 1 mode. route entries ĐÃ bọc quyền + audit.
+    include_plugins=False: bỏ nhóm tool plugin - dùng khi engine SDK đã đấu plugin
+    IN-PROCESS (header X-Javis-No-Plugins) để model không thấy tool trùng chức năng."""
     mode = (mode or "full").strip().lower()
-    key = (mode, str(vault_root or ""))
+    key = (mode, str(vault_root or ""), bool(include_plugins))
     ent = _cache.get(key)
     mt = _store_mtime()
     if ent and time.time() - ent["ts"] < _CACHE_TTL and ent["mtime"] == mt:
@@ -320,14 +322,15 @@ async def discover_all(mode="full", vault_root=None):
     # Trùng tên tool đã có (MCP/builtin) → BỎ QUA (không cho plugin shadow tool lõi).
     try:
         import plugins_host
-        p_tools, p_route = plugins_host.plugin_tools(mode, vault_root)
-        for t in p_tools:
-            fn = t["fn"]
-            if fn in route:
-                print(f"[hub] plugin tool '{fn}' trùng tool đã có - bỏ qua", file=sys.stderr)
-                continue
-            tools_spec.append(t)
-            route[fn] = p_route[fn]
+        if include_plugins:
+            p_tools, p_route = plugins_host.plugin_tools(mode, vault_root)
+            for t in p_tools:
+                fn = t["fn"]
+                if fn in route:
+                    print(f"[hub] plugin tool '{fn}' trùng tool đã có - bỏ qua", file=sys.stderr)
+                    continue
+                tools_spec.append(t)
+                route[fn] = p_route[fn]
         # HOOK pre/post_tool_call: bọc MỌI tool call (chỉ khi có plugin đăng ký hook → 0 overhead khi không).
         if plugins_host.has_tool_hooks(vault_root):
             for fn in list(route):
@@ -358,7 +361,7 @@ def _rpc_error(mid, code, message):
     return {"jsonrpc": "2.0", "id": mid, "error": {"code": code, "message": message}}
 
 
-async def _handle_one(msg, mode):
+async def _handle_one(msg, mode, include_plugins=True):
     mid = msg.get("id")
     method = msg.get("method") or ""
     params = msg.get("params") or {}
@@ -373,13 +376,13 @@ async def _handle_one(msg, mode):
     if method == "ping":
         return {"jsonrpc": "2.0", "id": mid, "result": {}}
     if method == "tools/list":
-        tools, _ = await discover_all(mode)   # Claude/Codex có tool file native → không builtin file
+        tools, _ = await discover_all(mode, include_plugins=include_plugins)   # Claude/Codex có tool file native → không builtin file
         return {"jsonrpc": "2.0", "id": mid, "result": {"tools": [
             {"name": t["fn"], "description": (t.get("description") or t["fn"]),
              "inputSchema": t.get("schema") or {"type": "object", "properties": {}}}
             for t in tools]}}
     if method == "tools/call":
-        _, route = await discover_all(mode)
+        _, route = await discover_all(mode, include_plugins=include_plugins)
         name = params.get("name") or ""
         result = await mcp_client.call_route(route, name, params.get("arguments") or {})
         return {"jsonrpc": "2.0", "id": mid, "result": {
@@ -397,17 +400,19 @@ async def handle_http(request):
     if not _secrets.compare_digest(auth, f"Bearer {hub_token()}"):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     mode = (request.headers.get("x-javis-mode") or "full").strip().lower()
+    # Engine SDK đấu plugin in-process gửi header này để hub bỏ nhóm plugin (tránh tool trùng)
+    include_plugins = (request.headers.get("x-javis-no-plugins") or "").strip() != "1"
     try:
         body = await request.json()
     except Exception:
         return JSONResponse(_rpc_error(None, -32700, "parse error"), status_code=400)
     try:
         if isinstance(body, list):
-            out = [r for r in [await _handle_one(m, mode) for m in body] if r is not None]
+            out = [r for r in [await _handle_one(m, mode, include_plugins) for m in body] if r is not None]
             if not out:
                 return Response(status_code=202)
             return JSONResponse(out)
-        res = await _handle_one(body, mode)
+        res = await _handle_one(body, mode, include_plugins)
         if res is None:
             return Response(status_code=202)
         return JSONResponse(res)

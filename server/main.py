@@ -693,6 +693,7 @@ def _apply_mcp(cli, mode="full"):
     Hub bật: config 1 entry trỏ hub kèm X-Javis-Mode - deny/perm/audit chặn TẠI hub (lớp cứng),
     không cần --disallowedTools. Hub tắt: per-server + --disallowedTools như cũ."""
     try:
+        cli.javis_mode = mode   # engine SDK dùng để enforce min_mode plugin in-process
         if _hub_enabled():
             cli.mcp_config = mcp_hub.claude_config_path(mode)
             cli.mcp_strict = bool(cfgmod.read_settings().get("mcp", {}).get("strict")) and cli.mcp_config is not None
