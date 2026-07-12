@@ -4,6 +4,13 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.34] - 2026-07-12
+### Thêm mới
+- **Chat engine API hết "mất trí nhớ" trong phiên dài (nén hội thoại)**: trước đây phiên chat dài trên engine API (OpenRouter/OpenAI/Anthropic API/Gemini) chỉ giữ 12 message gần nhất, phần cũ bị cắt bỏ - hỏi lại chuyện đầu phiên là Javis quên sạch. Nay phần lịch sử cũ rơi khỏi cửa sổ được TÓM TẮT tự động (chạy nền sau mỗi lượt, gộp dồn với tóm tắt trước) và bơm lại vào đầu phiên - Javis vẫn nhớ mạch cũ (quyết định, con số, việc dang dở) mà payload không phình. Tóm tắt lưu bền trong SQLite theo phiên, DB cũ tự migrate. Port ý tưởng session_memory_compaction của cookbook Anthropic. Kèm test `test_compaction.py` chạy trong CI.
+### Cải thiện
+- **Workflow tự cải thiện đúng kiểu evaluator-optimizer**: bước có `verify_agent` khi bị chấm CHƯA ĐẠT giờ được xem lại KẾT QUẢ LẦN TRƯỚC kèm phản hồi để sửa tiếp (giữ phần tốt, sửa chỗ bị chê) thay vì làm lại mù từ đầu - đỡ lặp đúng lỗi cũ, hội tụ nhanh hơn. Mẫu workflow trong tài liệu hệ thống bổ sung 2 khoá tuỳ chọn `verify_agent`/`max_retries` để Javis tạo workflow qua chat biết dùng vòng kiểm chứng.
+- **Kế hoạch chuyển engine Claude sang Agent SDK chính chủ**: viết bản kế hoạch chi tiết ở `docs/dev/2026-07-ke-hoach-agent-sdk.md` - vì sao (lớp Popen tự chế là ổ bug WinError 206, quyền tool tĩnh), kiến trúc adapter giữ nguyên giao diện ClaudeCLI, map 3 mức quyền suggest/auto/full vào callback `can_use_tool` từng tool call, lộ trình 4 phase + spike go/no-go, rủi ro và tiêu chí thành công. Chưa code - chờ duyệt.
+
 ## [0.9.33] - 2026-07-12
 ### Thêm mới
 - **Prompt caching cho engine API**: học từ cookbook chính chủ của Anthropic. Nhánh Anthropic API có tool MCP (nhánh chạy nhiều request nhất - mỗi vòng gọi tool là một request chở lại nguyên system prompt ~26k ký tự + schema tool + hội thoại) giờ được cache system + tools + hội thoại, các vòng sau chỉ trả ~10% giá input cho phần đã cache. Cách đánh dấu mới không mutate hội thoại gốc nên không còn nguy cơ tích luỹ marker vượt trần 4 breakpoint của API (lý do trước đây nhánh này phải tắt cache). Model Claude chạy qua OpenRouter cũng được cache system prompt. Kèm test mới `test_engine_cache.py` chạy trong CI.

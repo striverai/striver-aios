@@ -213,6 +213,8 @@ description: <mô tả ngắn>
 steps:
   - agent: <agent-slug>
     task: "<nhiệm vụ; dùng {{input}} = đầu vào user, {{prev}} = kết quả bước trước>"
+    verify_agent: <agent-slug>  # tuỳ chọn: agent đánh giá độc lập; CHƯA ĐẠT thì bước tự cải thiện theo phản hồi
+    max_retries: 1              # tuỳ chọn: số vòng cải thiện tối đa (đi kèm verify_agent)
   - agent: <agent-slug>
     task: "..."
 updated: <YYYY-MM-DD>

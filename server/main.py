@@ -46,6 +46,7 @@ import usage_store   # đếm token/chi phí Javis tự đo (đa nhà cung cấp
 from telegram_bot import TelegramBot, parse_chat_ids as tg_parse_ids
 import channel_context   # metadata kênh + gom file trả về kênh chat (port gateway hermes-agent)
 from sessions import get_store   # kho phiên hội thoại (sqlite + fts5): list/resume/search
+import compaction   # nén hội thoại dài cho engine API (tóm tắt phần cũ thay vì cắt bỏ)
 
 app = FastAPI(title="Javis OS")
 # CORS KHÔNG dùng '*' nữa: dashboard cùng-origin (không cần CORS). Chỉ mở cross-origin cho localhost
@@ -592,23 +593,9 @@ def _api_stream(prov, key, model, messages, reasoning="off"):
 
 
 # Cửa sổ lịch sử chat cho engine API (openrouter/openai/anthropic-api). Mỗi lượt
-# resend TOÀN BỘ history → phiên dài phình vô hạn (cost tăng + nguy cơ vượt context /
-# bị API từ chối body quá to). Port rút gọn từ hermes trajectory_compressor: giữ
-# system turn đầu + N message gần nhất, bỏ phần giữa. Count-based - không cần tokenizer.
-_MAX_HISTORY_MSGS = 12   # ≈6 lượt hỏi-đáp gần nhất (ngoài system message)
-
-
-def _trim_history(messages, max_msgs: int = _MAX_HISTORY_MSGS):
-    """Giữ system message (index 0) + max_msgs message user/assistant gần nhất.
-    Bỏ assistant dẫn đầu phần tail vì Anthropic yêu cầu message đầu (sau system)
-    phải là role=user. Trả về list mới; không mutate input."""
-    if not messages or len(messages) <= max_msgs + 1:
-        return messages
-    head = messages[:1] if messages[0].get("role") == "system" else []
-    tail = messages[len(messages) - max_msgs:]
-    while tail and tail[0].get("role") == "assistant":
-        tail = tail[1:]
-    return head + tail
+# resend TOÀN BỘ history → phiên dài phình vô hạn. Cửa sổ + logic nén nằm ở compaction.py:
+# phần cũ rơi khỏi cửa sổ được TÓM TẮT (chạy nền) thay vì cắt bỏ mất trí nhớ như trước.
+_trim_history = compaction.trim_history
 
 
 def _hub_enabled():
@@ -2643,10 +2630,12 @@ async def execute_workflow(brain, slug, input="", tools=None):
                 break
             attempt += 1
             yield {"type": "step_retry", "i": i, "attempt": attempt}
+            # Evaluator-optimizer (cookbook Anthropic): lượt sau THẤY kết quả cũ + phản hồi
+            # để CẢI THIỆN tiếp, không làm lại từ đầu (làm lại mù dễ lặp đúng lỗi cũ).
             cur_prompt = (
-                f"{task_f}\n\n# KẾT QUẢ LẦN TRƯỚC CHƯA ĐẠT - sửa lại theo phản hồi kiểm chứng:\n"
-                f"- Vấn đề: {reason}\n- Cần sửa: {fixes}\n"
-                f"Làm lại cho ĐẠT."
+                f"{task_f}\n\n# KẾT QUẢ LẦN TRƯỚC (bị kiểm chứng đánh giá CHƯA ĐẠT):\n{out[:8000]}\n\n"
+                f"# PHẢN HỒI KIỂM CHỨNG:\n- Vấn đề: {reason}\n- Cần sửa: {fixes}\n"
+                "CẢI THIỆN kết quả lần trước theo phản hồi: giữ phần đã tốt, sửa đúng chỗ bị chê. Làm cho ĐẠT."
             )
 
         prev = out
@@ -4236,11 +4225,13 @@ async def websocket_endpoint(ws: WebSocket):
                     )
                     or_messages = [{"role": "system", "content": sysprompt + _ident}]
                     # Resume: nạp lại lượt user/assistant cũ từ SQLite để engine API
-                    # thấy lại mạch hội thoại (trừ lượt user vừa lưu ở trên).
+                    # thấy lại mạch hội thoại (trừ lượt user vừa lưu ở trên). Phần đầu đã
+                    # NÉN thì thay bằng tóm tắt (system message #2) - nhớ mạch, payload gọn.
                     if not seeded:
-                        for _m in store.get_messages(conv_sid)[:-1]:
-                            if _m["role"] in ("user", "assistant") and _m.get("content"):
-                                or_messages.append({"role": _m["role"], "content": _m["content"]})
+                        _raw = [{"role": _m["role"], "content": _m["content"]}
+                                for _m in store.get_messages(conv_sid)[:-1]
+                                if _m["role"] in ("user", "assistant") and _m.get("content")]
+                        or_messages += compaction.seed_messages(store, conv_sid, _raw)
                         or_messages = _trim_history(or_messages)
                         seeded = True
                 or_messages.append({"role": "user", "content": user_message})
@@ -4289,6 +4280,14 @@ async def websocket_endpoint(ws: WebSocket):
                 store.append_message(conv_sid, "assistant", final_text)
                 store.auto_title(conv_sid, user_message)
                 log_conversation(brain, user_message, final_text)
+                # Nén NỀN phần lịch sử cũ sắp rơi khỏi cửa sổ (chỉ engine API - CLI tự quản
+                # context). Lỗi nén không ảnh hưởng lượt chat; lượt sau vẫn còn fallback trim.
+                if kind == "api" and api_key and prov in ("openrouter", "openai", "anthropic-api", "gemini"):
+                    try:
+                        asyncio.create_task(compaction.maybe_compact(
+                            store, conv_sid, prov, api_key, api_model, _api_stream))
+                    except Exception as _e:
+                        print(f"[compact hook] {_e}", file=__import__('sys').stderr)
                 # Rewire: đưa lượt vào hàng đợi học (non-blocking; gate/debounce/rate-limit ở learn.py).
                 # Đi theo guard `if final_text` sẵn có → lượt rỗng/lỗi cố ý không enqueue.
                 try:
