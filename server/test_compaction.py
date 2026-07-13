@@ -171,8 +171,70 @@ async def prepare_tests():
           and all(f"n{i}" in c2 for i in range(10)))
 
 
+async def mem_tests():
+    """compact_mem: nén lịch sử IN-MEMORY (phiên Telegram) - phần cũ vào tóm tắt, KHÔNG cắt câm.
+    Đây là cùng lớp lỗi mất ngữ cảnh đã vá cho dashboard, nhưng cho nhánh giữ sess['or'] in RAM."""
+    head_sys = {"role": "system", "content": "SYS+ident"}
+
+    # (a) Phiên dài: 20 message user/assistant, cut = 20-12 = 8 >= min_chunk 6 → nén phần đầu.
+    mem_calls = []
+
+    def mem_stream(text):
+        async def _f(prov, key, model, messages, reasoning):
+            mem_calls.append(messages[0]["content"])
+            yield {"type": "meta", "model": model}
+            yield {"type": "text", "content": text}
+        return _f
+
+    mem = [head_sys]
+    for i in range(20):
+        mem.append({"role": "user" if i % 2 == 0 else "assistant", "content": f"t{i}"})
+    out = await compaction.compact_mem(mem, "openrouter", "k", "m", mem_stream("MEM-TT"))
+    contents = [m["content"] for m in out]
+    check("compact_mem: giữ system cố định đầu tiên", out[0]["content"] == "SYS+ident")
+    check("compact_mem: chèn 1 system tóm tắt sau head",
+          out[1]["role"] == "system" and out[1]["content"].startswith(compaction.SUMMARY_HEADER)
+          and "MEM-TT" in out[1]["content"])
+    check("compact_mem: giữ message GẦN nhất nguyên văn", "t19" in contents)
+    check("compact_mem: bỏ nguyên văn message CŨ (t0) - đã vào tóm tắt, không mất câm",
+          "t0" not in contents and "t0" in mem_calls[-1] and "t7" in mem_calls[-1])
+    check("compact_mem: payload bị chặn (head + tóm tắt + <=12 gần)", len(out) <= 1 + 1 + 12)
+    check("compact_mem: đuôi mở đầu bằng user", out[2]["role"] == "user")
+    check("compact_mem: KHÔNG mutate input", len(mem) == 21)
+
+    # (b) Vòng 2 (rolling): nối thêm lượt mới rồi nén tiếp → tóm tắt cũ được GỘP vào prompt.
+    mem2 = list(out)
+    for i in range(20, 28):
+        mem2.append({"role": "user" if i % 2 == 0 else "assistant", "content": f"t{i}"})
+    out2 = await compaction.compact_mem(mem2, "openrouter", "k", "m", mem_stream("MEM-TT2"))
+    check("compact_mem: vòng 2 gộp tóm tắt cũ vào prompt", "MEM-TT" in mem_calls[-1])
+    check("compact_mem: vòng 2 ra tóm tắt mới", "MEM-TT2" in out2[1]["content"])
+    check("compact_mem: vòng 2 vẫn giữ message mới nhất", any(m["content"] == "t27" for m in out2))
+
+    # (c) Phiên ngắn (8 message, cut < min_chunk): giữ NGUYÊN, KHÔNG gọi provider, không mất gì.
+    before = len(mem_calls)
+    short_mem = [head_sys] + [{"role": "user" if i % 2 == 0 else "assistant", "content": f"s{i}"}
+                             for i in range(8)]
+    outS = await compaction.compact_mem(short_mem, "openrouter", "k", "m", mem_stream("NOPE"))
+    cS = [m["content"] for m in outS]
+    check("compact_mem: phiên ngắn → không gọi tóm tắt", len(mem_calls) == before)
+    check("compact_mem: phiên ngắn → giữ nguyên văn tất cả",
+          all(f"s{i}" in cS for i in range(8)) and "NOPE" not in " ".join(cS))
+
+    # (d) Provider lỗi khi nén phiên dài → fallback trim_history: chặn phình, không văng, không mất head.
+    async def mem_err(prov, key, model, messages, reasoning):
+        yield {"type": "error", "content": "provider chết"}
+    mem_long = [head_sys]
+    for i in range(20):
+        mem_long.append({"role": "user" if i % 2 == 0 else "assistant", "content": f"e{i}"})
+    outE = await compaction.compact_mem(mem_long, "openrouter", "k", "m", mem_err)
+    check("compact_mem: provider lỗi → fallback trim, giữ head + chặn kích thước",
+          outE[0]["content"] == "SYS+ident" and len(outE) <= 1 + 1 + 12 and any(m["content"] == "e19" for m in outE))
+
+
 asyncio.run(main())
 asyncio.run(prepare_tests())
+asyncio.run(mem_tests())
 
 if _fails:
     print(f"\nFAIL - {len(_fails)} test: {_fails}")

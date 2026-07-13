@@ -4520,7 +4520,10 @@ async def _tg_answer(text, meta=None, progress=None):
             elif ev["type"] == "error":
                 return "⚠ " + ev["content"]
         sess["or"].append({"role": "assistant", "content": out})
-        sess["or"] = _trim_history(sess["or"])   # bound history → payload không phình vô hạn
+        # Nén (KHÔNG cắt câm) phần cũ rơi khỏi cửa sổ. Phiên Telegram giữ lịch sử in-memory
+        # nên dùng compact_mem - bản in-memory của cơ chế nén dashboard: phần cũ vào tóm tắt
+        # thay vì bị trim cứng bỏ mất, hết mất trí nhớ khi phiên dài / đổi từ Claude sang API.
+        sess["or"] = await compaction.compact_mem(sess["or"], prov, api_key, api_model, _api_stream)
         return out   # engine API không có tool ghi file → không có gì để đính kèm
     else:
         if sess["cli"] is None:
