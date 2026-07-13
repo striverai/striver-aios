@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.42] - 2026-07-13
+### Sửa lỗi
+- **Tác vụ dài (edit video, render, tách nền...) không còn bị chém oan ở giây 180**: watchdog chống treo coi "engine im lặng 180 giây" là treo và ngắt phiên, nhưng khi Claude/Codex gọi một tool chạy lâu (render video cả tiếng, tách nền, build) thì im lặng suốt lúc tool chạy là BÌNH THƯỜNG - kết quả là đang làm dở việc dài thì bị dừng với thông báo "Claude không phản hồi 180s". Nay watchdog phân biệt hai trạng thái: đang CHỜ TOOL chạy thì trần chờ riêng 1 tiếng (đổi bằng biến `JAVIS_CLAUDE_TOOL_TIMEOUT`, xem [Cấu hình env](docs/16-cau-hinh-env.md)), còn im lặng khi KHÔNG tool nào chạy (treo thật) vẫn ngắt ở 180 giây như cũ. Áp dụng cho cả engine Claude (Agent SDK) lẫn Codex CLI. Kèm 2 test hành vi trong `test_sdk_engine.py`.
+- **Hết cảnh "(không có nội dung trả về)" câm lặng**: khi phiên Claude kết thúc LỖI mà không có chữ nào (hay gặp ở lượt hỏi ngay sau khi phiên trước bị ngắt giữa chừng), engine giờ báo rõ loại lỗi và gợi ý cách thoát (gửi lại / mở hội thoại mới) thay vì để khung chat hiện dòng rỗng không rõ nguyên nhân.
+
 ## [0.9.41] - 2026-07-13
 ### Sửa lỗi
 - **Giọng Javis không còn bị thu ngược vào khung chat**: trước đây khi Javis đọc câu trả lời (TTS), micro nhận dạng giọng nói vẫn mở và nghe lại chính giọng Javis phát ra loa, chép thành chữ rồi sau 1.5 giây im lặng tự gửi vào khung chat như tin nhắn của người dùng (hay gặp nhất khi bật chế độ rảnh tay rồi gõ phím gửi tin - mic mở suốt lúc Javis nói). Nguyên nhân: bộ nhận dạng (SpeechRecognition) thu âm bằng luồng riêng KHÔNG được khử vọng, và không có cơ chế loại trừ lẫn nhau giữa nghe với nói. Nay sửa 2 lớp trong voice.js: (1) Javis bắt đầu đọc mà mic đang nghe thì tạm NGỪNG nhận dạng ngay (bỏ cả phần lỡ nghe dở), đọc xong toàn bộ tự mở nghe lại sau một nhịp ngắn bằng phiên nhận dạng mới sạch; (2) mọi kết quả nhận dạng lọt về trong lúc đang phát tiếng đều bị bỏ (chắc chắn đó là giọng Javis, không phải người dùng). Ngắt lời bằng giọng (barge-in) vẫn hoạt động bình thường vì nó đo mức âm qua luồng mic đã khử vọng, không dựa vào nhận dạng. Người dùng chủ động tắt mic (Esc/bấm nút) thì không bị tự mở lại.

@@ -100,6 +100,13 @@ def map_message(msg):
         return events, None
     if isinstance(msg, ResultMessage):
         u = msg.usage or {}
+        # Kết thúc LỖI mà không có chữ nào trả về → nói rõ lý do thay vì để dashboard
+        # hiện "(không có nội dung trả về)" trơ trọi (hay gặp sau khi phiên trước bị ngắt).
+        if msg.is_error and not (msg.result or "").strip():
+            events.append({"type": "error",
+                           "content": f"Claude kết thúc lỗi ({msg.subtype}) - không có nội dung trả về. "
+                                      "Gửi lại tin nhắn; nếu vẫn lặp lại, mở hội thoại mới "
+                                      "(phiên cũ có thể đã hỏng sau khi bị ngắt giữa chừng)."})
         events.append({
             "type": "final",
             "content": msg.result or "",
@@ -244,9 +251,14 @@ class ClaudeSDK:
             return
         from claude_agent_sdk import ClaudeSDKClient, ResultMessage
         IDLE = float(os.getenv("JAVIS_CLAUDE_IDLE_TIMEOUT", "180"))
+        # Trần RIÊNG khi đang chờ TOOL chạy: SDK im lặng suốt lúc tool chạy là BÌNH THƯỜNG
+        # (render video, tách nền, build... có thể cả tiếng) - không phải Claude treo.
+        # Trước đây dùng chung IDLE 180s nên tác vụ dài bị chém oan giữa chừng.
+        TOOL_IDLE = float(os.getenv("JAVIS_CLAUDE_TOOL_TIMEOUT", "3600"))
         loop = asyncio.get_running_loop()
         client = ClaudeSDKClient(options=self._options())
         started = time.time()
+        tools_running = 0   # số tool đã gọi mà CHƯA thấy kết quả về
         try:
             await client.connect()
             with _LOCK:
@@ -254,8 +266,10 @@ class ClaudeSDK:
             await client.query(prompt)
             agen = client.receive_response().__aiter__()
             while True:
-                # Watchdog parity với CLI: idle-timeout + trần wall-clock cho fork nền
-                timeout = IDLE
+                # Watchdog parity với CLI: idle-timeout + trần wall-clock cho fork nền.
+                # Đang chờ tool → trần dài (TOOL_IDLE); Claude "suy nghĩ" im lặng → trần ngắn (IDLE).
+                waiting_tool = tools_running > 0
+                timeout = TOOL_IDLE if waiting_tool else IDLE
                 if self.max_wall_s:
                     timeout = min(timeout, max(1.0, self.max_wall_s - (time.time() - started)))
                 try:
@@ -265,6 +279,9 @@ class ClaudeSDK:
                 except asyncio.TimeoutError:
                     if self.max_wall_s and time.time() - started >= self.max_wall_s:
                         err = f"Fork vượt trần {int(self.max_wall_s)}s - đã dừng (cap wall-clock nền)."
+                    elif waiting_tool:
+                        err = (f"Tool chạy quá {int(TOOL_IDLE)}s chưa xong - đã dừng để tránh treo server. "
+                               f"(tăng JAVIS_CLAUDE_TOOL_TIMEOUT nếu tác vụ thật sự dài hơn)")
                     else:
                         err = (f"Claude không phản hồi {int(IDLE)}s - đã dừng để tránh treo server. "
                                f"(tăng JAVIS_CLAUDE_IDLE_TIMEOUT nếu tác vụ thật sự dài)")
@@ -278,6 +295,10 @@ class ClaudeSDK:
                 if sid:
                     self.session_id = sid
                 for ev in events:
+                    if ev["type"] == "tool_call":
+                        tools_running += 1
+                    elif ev["type"] == "tool_result":
+                        tools_running = max(0, tools_running - 1)
                     yield ev
                 if isinstance(msg, ResultMessage):
                     break

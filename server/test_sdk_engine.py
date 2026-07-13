@@ -80,6 +80,18 @@ check("map: final đủ trường như ClaudeCLI",
 evs, _ = map_message(UserMessage(content="chuỗi thuần không block"))
 check("map: user content str → không event", evs == [])
 
+evs, _ = map_message(ResultMessage(
+    subtype="error_during_execution", duration_ms=1, duration_api_ms=1, is_error=True,
+    num_turns=1, session_id="s2", result=None))
+check("map: result LỖI + rỗng → error nói rõ lý do trước final",
+      len(evs) == 2 and evs[0]["type"] == "error" and "error_during_execution" in evs[0]["content"]
+      and evs[1]["type"] == "final" and evs[1]["content"] == "")
+
+evs, _ = map_message(ResultMessage(
+    subtype="success", duration_ms=1, duration_api_ms=1, is_error=False,
+    num_turns=1, session_id="s3", result=""))
+check("map: result rỗng nhưng KHÔNG lỗi → không thêm error", len(evs) == 1 and evs[0]["type"] == "final")
+
 # ---- 3. _permission_gate: whitelist per-call + audit ----
 
 
@@ -150,6 +162,68 @@ try:
           getattr(gopts, "setting_sources", None) in (None, []))
 finally:
     plugins_host.plugin_tools, plugins_host.has_tool_hooks = _orig_pt, _orig_hooks
+
+# ---- 5. Watchdog: đang chờ TOOL chạy ≠ Claude treo (v0.9.41) ----
+# IDLE rất ngắn + TOOL_IDLE đủ dài: tool "chạy" lâu hơn IDLE phải SỐNG (trước đây bị chém oan);
+# còn im lặng không tool vẫn bị ngắt đúng như cũ.
+import claude_agent_sdk  # noqa: E402
+
+
+def _fake_client(messages_gen):
+    class _Fake:
+        def __init__(self, options=None): pass
+        async def connect(self): pass
+        async def query(self, prompt): pass
+        async def interrupt(self): pass
+        async def disconnect(self): pass
+        def receive_response(self): return messages_gen()
+    return _Fake
+
+
+async def _run_query():
+    e = ClaudeSDK(tag="wd-test")
+    return [ev async for ev in e.query("x")]
+
+
+def _rm(sid="s1", result="OK"):
+    return ResultMessage(subtype="success", duration_ms=1, duration_api_ms=1, is_error=False,
+                         num_turns=1, session_id=sid, result=result)
+
+
+async def _gen_slow_tool():
+    yield AssistantMessage(content=[ToolUseBlock(id="t1", name="Bash", input={})], model="m")
+    await asyncio.sleep(0.8)   # tool chạy LÂU HƠN IDLE (0.3s) nhưng dưới TOOL_IDLE (10s)
+    yield UserMessage(content=[ToolResultBlock(tool_use_id="t1", content="xong")])
+    yield _rm()
+
+
+async def _gen_hung():
+    await asyncio.sleep(0.8)   # im lặng KHÔNG tool nào chạy → phải bị ngắt ở IDLE
+    yield _rm(sid="s-treo")
+
+
+os.environ["JAVIS_CLAUDE_IDLE_TIMEOUT"] = "0.3"
+os.environ["JAVIS_CLAUDE_TOOL_TIMEOUT"] = "10"
+_orig_client_cls = claude_agent_sdk.ClaudeSDKClient
+_orig_avail = ClaudeSDK.is_available
+ClaudeSDK.is_available = lambda self: True
+try:
+    claude_agent_sdk.ClaudeSDKClient = _fake_client(_gen_slow_tool)
+    evs = asyncio.run(_run_query())
+    types = [e["type"] for e in evs]
+    check("watchdog: tool chạy lâu hơn IDLE → KHÔNG bị chém oan, về đích final",
+          "error" not in types and "final" in types and "tool_result" in types)
+
+    claude_agent_sdk.ClaudeSDKClient = _fake_client(_gen_hung)
+    evs = asyncio.run(_run_query())
+    errs = [e for e in evs if e["type"] == "error"]
+    check("watchdog: im lặng không tool → vẫn ngắt ở IDLE như cũ",
+          len(errs) == 1 and "không phản hồi" in errs[0]["content"])
+finally:
+    claude_agent_sdk.ClaudeSDKClient = _orig_client_cls
+    ClaudeSDK.is_available = _orig_avail
+    os.environ.pop("JAVIS_CLAUDE_IDLE_TIMEOUT", None)
+    os.environ.pop("JAVIS_CLAUDE_TOOL_TIMEOUT", None)
 
 if _fails:
     print(f"\nFAIL - {len(_fails)} test: {_fails}")

@@ -95,7 +95,8 @@ Lưu ý: hai biến TTS này áp cho giọng Edge TTS miễn phí mặc định.
 |---|---|---|---|
 | `WATCHTOWER_TOKEN` | Token cho nút "Cập nhật ngay" (trang Tổng quan) gọi Watchtower khi chạy Docker | `javis-update` | Muốn chặt hơn: đổi thành chuỗi ngẫu nhiên, đặt cùng giá trị cho cả app lẫn service watchtower. |
 | `METRICS_TTL` | Thời gian cache số liệu kinh doanh, tính bằng giây | `180` | Muốn số liệu MCP làm mới nhanh hơn hoặc chậm hơn. Xem [MCP & số liệu](09-mcp-va-so-lieu.md). |
-| `JAVIS_CLAUDE_IDLE_TIMEOUT` | Thời gian chờ tối đa khi Claude CLI không phản hồi, tính bằng giây | `180` | Tác vụ nền chạy lâu hay bị ngắt sớm thì tăng lên. |
+| `JAVIS_CLAUDE_IDLE_TIMEOUT` | Thời gian chờ tối đa khi Claude/Codex IM LẶNG mà KHÔNG có tool nào đang chạy, tính bằng giây | `180` | Hiếm khi cần đổi - đây là lưới bắt phiên treo thật. |
+| `JAVIS_CLAUDE_TOOL_TIMEOUT` | Trần chờ khi một TOOL đang chạy dở (render video, tách nền, build...), tính bằng giây | `3600` | Tác vụ tool chạy quá 1 tiếng (encode video dài, train model...) thì tăng lên. |
 | `JAVIS_CLAUDE_ENGINE` | (Lịch sử) Từ 0.9.37 engine Claude luôn chạy qua Agent SDK chính chủ - biến này không còn tác dụng, đặt `cli`/`sdk-loops` sẽ bị bỏ qua kèm một dòng log | `sdk` | Không cần đụng. Engine Claude trục trặc thì báo lỗi kèm log server. |
 | `JAVIS_FILES_ROOT` | Trần duyệt của trang Tệp tin (không cho bấm "Lên" quá đây). `brain`/`vault` = khoá trong brain; `drive`/`root` = cả ổ đĩa chứa brain; `<đường dẫn>` = một thư mục cụ thể (phải chứa brain) | localhost: cả ổ đĩa; bind public: khoá brain | Chạy public (VPS) mà vẫn muốn duyệt rộng thì đặt `drive` hoặc một thư mục cha. Muốn khoá chặt trong brain khi chạy local thì đặt `brain`. |
 | `JAVIS_SESSIONS_DB` | Đường dẫn file cơ sở dữ liệu lưu phiên hội thoại (`conversations.db`) | Nằm trong `JAVIS_STATE_DIR` | Muốn để file lịch sử phiên ở nơi khác. Xem [Phiên hội thoại](04-phien-hoi-thoai.md). |

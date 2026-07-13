@@ -432,6 +432,12 @@ class CodexCLI:
             tinfo = {"timed_out": False}
             last = {"t": time.time()}
             IDLE = float(os.getenv("JAVIS_CLAUDE_IDLE_TIMEOUT", "180"))
+            # Trần RIÊNG khi codex đang chạy TOOL/lệnh (im lặng lúc đó là bình thường -
+            # render video, build... có thể rất lâu). Cùng logic với engine Claude SDK.
+            TOOL_IDLE = float(os.getenv("JAVIS_CLAUDE_TOOL_TIMEOUT", "3600"))
+            busy = {"n": 0}   # số item tool/lệnh đã started mà chưa completed
+            _TOOL_ITEMS = ("command_execution", "mcp_tool_call", "function_call",
+                           "tool_call", "local_shell_call", "web_search_call")
             try:
                 creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
                 proc = subprocess.Popen(
@@ -452,11 +458,15 @@ class CodexCLI:
 
                 def _watchdog(p):
                     while p.poll() is None:
-                        if time.time() - last["t"] > IDLE:
+                        limit = TOOL_IDLE if busy["n"] > 0 else IDLE
+                        if time.time() - last["t"] > limit:
                             tinfo["timed_out"] = True
                             _kill_tree(p)
-                            asyncio.run_coroutine_threadsafe(queue.put({"__error__":
-                                f"Codex không phản hồi {int(IDLE)}s - đã dừng để tránh treo server."}), loop)
+                            err = (f"Tool chạy quá {int(TOOL_IDLE)}s chưa xong - đã dừng để tránh treo server. "
+                                   f"(tăng JAVIS_CLAUDE_TOOL_TIMEOUT nếu tác vụ thật sự dài hơn)"
+                                   if busy["n"] > 0 else
+                                   f"Codex không phản hồi {int(IDLE)}s - đã dừng để tránh treo server.")
+                            asyncio.run_coroutine_threadsafe(queue.put({"__error__": err}), loop)
                             return
                         time.sleep(5)
                 threading.Thread(target=_watchdog, args=(proc,), daemon=True).start()
@@ -474,6 +484,11 @@ class CodexCLI:
                     last["t"] = time.time()
                     line = line.strip()
                     if line:
+                        # Theo dõi tool/lệnh đang chạy dở để watchdog nới trần đúng lúc
+                        if '"item.started"' in line and any(t in line for t in _TOOL_ITEMS):
+                            busy["n"] += 1
+                        elif '"item.completed"' in line and any(t in line for t in _TOOL_ITEMS):
+                            busy["n"] = max(0, busy["n"] - 1)
                         asyncio.run_coroutine_threadsafe(queue.put(line), loop)
                 proc.wait()
                 st.join(timeout=2)
