@@ -4205,8 +4205,6 @@ async def websocket_endpoint(ws: WebSocket):
             mcfg = cfgmod.read_settings().get("model", {})
             prov, kind, api_key, api_model = _chat_provider(mcfg)
             reasoning = _reasoning_level(mcfg)
-            or_messages = None
-            seeded = False
             _row0 = store.get_session(conv_sid) or {}
             cli = claude_engine(system_prompt=SYSTEM_PROMPT, cwd=CLAUDE_CWD, tag=turn_tag)
             cli.session_id = _row0.get("cli_session_id") or None    # --resume đúng mạch phiên này
@@ -4259,23 +4257,21 @@ async def websocket_endpoint(ws: WebSocket):
                 # ===== PROVIDER API/OAuth (openrouter | openai | anthropic-api) - chat thuần (MCP đa-model cho openrouter/openai) =====
                 label = _api_label(prov)
                 actual_model = api_model or "?"
-                if or_messages is None:
-                    _ident = (
-                        f"\n\n[Sự thật hệ thống - TUÂN THỦ tuyệt đối: Bạn đang chạy qua {label}, "
-                        f"model thực tế là '{actual_model}'. Khi được hỏi bạn là AI/model nào, "
-                        f"trả lời ĐÚNG tên model này. KHÔNG được tự nhận là model khác.]"
-                    )
-                    or_messages = [{"role": "system", "content": sysprompt + _ident}]
-                    # Resume: nạp lại lượt user/assistant cũ từ SQLite để engine API
-                    # thấy lại mạch hội thoại (trừ lượt user vừa lưu ở trên). Phần đầu đã
-                    # NÉN thì thay bằng tóm tắt (system message #2) - nhớ mạch, payload gọn.
-                    if not seeded:
-                        _raw = [{"role": _m["role"], "content": _m["content"]}
-                                for _m in store.get_messages(conv_sid)[:-1]
-                                if _m["role"] in ("user", "assistant") and _m.get("content")]
-                        or_messages += compaction.seed_messages(store, conv_sid, _raw)
-                        or_messages = _trim_history(or_messages)
-                        seeded = True
+                _ident = (
+                    f"\n\n[Sự thật hệ thống - TUÂN THỦ tuyệt đối: Bạn đang chạy qua {label}, "
+                    f"model thực tế là '{actual_model}'. Khi được hỏi bạn là AI/model nào, "
+                    f"trả lời ĐÚNG tên model này. KHÔNG được tự nhận là model khác.]"
+                )
+                _head = [{"role": "system", "content": sysprompt + _ident}]
+                # Resume: nạp lại lượt user/assistant cũ từ SQLite để engine API thấy lại mạch
+                # hội thoại (trừ lượt user vừa lưu ở trên). prepare_history đảm bảo phần cũ CHỈ
+                # rời payload khi đã vào tóm tắt nén - KHÔNG cắt câm như trim cũ (đó là lỗi mất
+                # ngữ cảnh khi phiên dài / vừa đổi từ engine Claude sang API).
+                _raw = [{"role": _m["role"], "content": _m["content"]}
+                        for _m in store.get_messages(conv_sid)[:-1]
+                        if _m["role"] in ("user", "assistant") and _m.get("content")]
+                or_messages = await compaction.prepare_history(
+                    _head, store, conv_sid, _raw, prov, api_key, api_model, _api_stream)
                 or_messages.append({"role": "user", "content": user_message})
                 gen = await _api_stream_mcp(prov, api_key, api_model, or_messages, reasoning, brain=brain)   # MCP đa-model qua hub
                 async for ev in gen:
@@ -4291,8 +4287,8 @@ async def websocket_endpoint(ws: WebSocket):
                         await ws.send_text(json.dumps({"type": "stream", "content": ev["content"], "tts": False}))
                     elif ev["type"] == "error":
                         await ws.send_text(json.dumps({"type": "error", "content": ev["content"]}))
-                or_messages.append({"role": "assistant", "content": final_text})
-                or_messages = _trim_history(or_messages)   # bound history → payload không phình vô hạn
+                # (or_messages là biến cục bộ của lượt - mỗi lượt dựng lại từ SQLite qua
+                # prepare_history, nên không cần append/trim để giữ mạch; lịch sử ở store.)
                 await ws.send_text(json.dumps({"type": "response", "content": final_text, "engine": prov, "model": actual_model, "session_id": conv_sid}))
             else:
                 # ===== PROVIDER anthropic-cli - qua Claude Code, đầy đủ MCP / skill / session =====

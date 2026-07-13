@@ -130,7 +130,49 @@ async def main():
           r is False and sess.get("compact_summary") == "TT2" and sess.get("compact_count") == 14)
 
 
+async def prepare_tests():
+    """prepare_history: KHÔNG bỏ câm ngữ cảnh (bug đổi engine Claude→API mất trí nhớ)."""
+    tmp2 = Path(tempfile.mkdtemp(prefix="javis-prep-"))
+    head = [{"role": "system", "content": "SYS"}]
+
+    # (a) Phiên vừa đổi từ Claude CLI sang API: có 30 message trong store, CHƯA có tóm tắt
+    # (CLI không nén). Trước đây trim cắt còn 12, bỏ 18 message đầu KHÔNG tóm tắt → mất mạch.
+    st = SessionStore(db_path=tmp2 / "switch.db")
+    s = st.create_session(brain="brain")
+    for i in range(30):
+        st.append_message(s, "user" if i % 2 == 0 else "assistant", f"m{i}")
+    st.append_message(s, "user", "câu hỏi hiện tại")   # câu user vừa lưu (sẽ bị [:-1] loại)
+    raw = [{"role": m["role"], "content": m["content"]}
+           for m in st.get_messages(s)[:-1] if m["role"] in ("user", "assistant")]
+    out = await compaction.prepare_history(head, st, s, raw,
+                                           "openrouter", "k", "m", fake_stream("TÓM-TẮT"))
+    contents = " ".join(m["content"] for m in out)
+    check("prepare: đuôi dài + chưa tóm tắt → nén ĐỒNG BỘ, không mất phần đầu",
+          "TÓM-TẮT" in contents and out[0]["content"] == "SYS")
+    # message cũ nhất (m0) không còn nguyên văn NHƯNG phải nằm trong tóm tắt (không biến mất câm)
+    sess = st.get_session(s)
+    check("prepare: đã tạo tóm tắt nén phủ phần đầu", (sess.get("compact_count") or 0) > 0)
+    check("prepare: payload bị chặn kích thước (head + tóm tắt + đuôi gần)", len(out) <= 1 + 1 + 12)
+    check("prepare: giữ được các message GẦN nhất nguyên văn", any(m["content"] == "m29" for m in out))
+
+    # (b) Phiên ngắn (10 message, chưa quá ngưỡng): gửi NGUYÊN VĂN hết, không nén, không bỏ.
+    st2 = SessionStore(db_path=tmp2 / "short.db")
+    s2 = st2.create_session(brain="brain")
+    for i in range(10):
+        st2.append_message(s2, "user" if i % 2 == 0 else "assistant", f"n{i}")
+    st2.append_message(s2, "user", "hỏi tiếp")
+    raw2 = [{"role": m["role"], "content": m["content"]}
+            for m in st2.get_messages(s2)[:-1] if m["role"] in ("user", "assistant")]
+    out2 = await compaction.prepare_history(head, st2, s2, raw2,
+                                            "openrouter", "k", "m", fake_stream("KHÔNG-DÙNG"))
+    c2 = [m["content"] for m in out2]
+    check("prepare: phiên ngắn → giữ nguyên văn TẤT CẢ, không nén",
+          out2[0]["content"] == "SYS" and c2.count("KHÔNG-DÙNG") == 0
+          and all(f"n{i}" in c2 for i in range(10)))
+
+
 asyncio.run(main())
+asyncio.run(prepare_tests())
 
 if _fails:
     print(f"\nFAIL - {len(_fails)} test: {_fails}")
