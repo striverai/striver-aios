@@ -21,10 +21,15 @@ Phân loại quyền (khai trong system/mcp-catalog.json):
   substack_publish       -> danger  (đăng thật; send=true còn gửi email cho toàn bộ
                                       người đăng ký - KHÔNG hoàn tác được)
 """
+import asyncio
 import json
 import re
+import shutil
+from urllib.parse import quote
 
-import httpx
+# LƯU Ý: gọi API Substack qua CURL, KHÔNG dùng httpx/requests. Substack đứng sau Cloudflare,
+# chặn client Python theo TLS fingerprint (trả 403 kèm trang HTML) trong khi curl thì qua được.
+# (Đã xác minh: httpx -> 403 <!DOCTYPE html>; curl -> chạm được app, trả JSON / "Not authorized".)
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
@@ -203,15 +208,67 @@ def _draft_payload(title, subtitle, body, user_id, audience):
     }
 
 
-async def _req(client, method, url, headers, body=None, params=None):
-    r = await client.request(method, url, headers=headers, json=body, params=params)
-    if r.status_code >= 400:
-        snippet = (r.text or "").strip()[:300]
-        raise RuntimeError(f"Substack {r.status_code}: {snippet or r.reason_phrase}")
+def _clean_err(text):
+    """Rút gọn thân lỗi để KHÔNG đổ nguyên HTML/JSON dài vào chat + form Kết nối."""
+    t = (text or "").strip()
+    if not t:
+        return ""
+    low = t[:200].lower()
+    if t.startswith("<") or "<html" in low or "<!doctype" in low:
+        return "Substack chặn truy cập (thường do session token sai/hết hạn hoặc bị chặn tạm)"
     try:
-        return r.json()
+        j = json.loads(t)
+        if isinstance(j, dict) and (j.get("error") or j.get("message")):
+            return str(j.get("error") or j.get("message"))[:180]
     except ValueError:
-        return r.text
+        pass
+    return t[:180]
+
+
+async def _req(method, url, headers, body=None, params=None):
+    """Gọi 1 request qua curl (bypass Cloudflare). Trả JSON đã parse; lỗi thì raise RuntimeError
+    với thông điệp NGẮN, sạch (không đổ HTML)."""
+    if params:
+        qs = "&".join(f"{k}={quote(str(v))}" for k, v in params.items() if v is not None)
+        if qs:
+            url += ("&" if "?" in url else "?") + qs
+    curl = shutil.which("curl") or "curl"
+    argv = [curl, "-s", "-X", method, "--max-time", "45", "-w", "\n%{http_code}"]
+    for k, v in headers.items():
+        argv += ["-H", f"{k}: {v}"]
+    stdin_data = None
+    if body is not None:
+        argv += ["--data-binary", "@-"]
+        stdin_data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    argv.append(url)
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *argv, stdin=asyncio.subprocess.PIPE if stdin_data is not None else None,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        out, errb = await asyncio.wait_for(proc.communicate(stdin_data), timeout=55)
+    except FileNotFoundError:
+        raise RuntimeError("máy chạy Javis thiếu 'curl' - cần cài curl để gọi Substack")
+    except Exception as e:
+        raise RuntimeError(f"không gọi được Substack ({type(e).__name__})")
+    text = out.decode("utf-8", "replace")
+    body_text, sep, status_s = text.rpartition("\n")
+    if not sep:
+        body_text, status_s = text, ""
+    try:
+        status = int(status_s.strip())
+    except ValueError:
+        status = 0
+    if status == 0:
+        raise RuntimeError(f"curl lỗi: {_clean_err(errb.decode('utf-8', 'replace')) or 'không rõ'}")
+    if status >= 400:
+        raise RuntimeError(f"Substack {status}: {_clean_err(body_text) or 'lỗi không rõ'}")
+    body_text = body_text.strip()
+    if not body_text:
+        return {}
+    try:
+        return json.loads(body_text)
+    except ValueError:
+        return body_text
 
 
 async def list_tools(spec):
@@ -224,59 +281,57 @@ async def call(tool, arguments, spec):
         return err
     args = arguments or {}
     try:
-        async with httpx.AsyncClient(timeout=45, follow_redirects=True) as client:
-            if tool == "substack_list_drafts":
-                limit = int(args.get("limit") or 15)
-                data = await _req(client, "GET", f"{api}/drafts", headers,
-                                  params={"limit": limit, "offset": 0})
-                rows = data if isinstance(data, list) else (data.get("drafts") or data.get("posts") or [])
-                out = []
-                for d in rows[:limit]:
-                    out.append({
-                        "id": d.get("id"),
-                        "title": d.get("draft_title") or d.get("title") or "(chưa có tiêu đề)",
-                        "is_published": bool(d.get("is_published")),
-                        "post_date": d.get("post_date"),
-                    })
-                return _clip(json.dumps({"drafts": out}, ensure_ascii=False))
+        if tool == "substack_list_drafts":
+            limit = int(args.get("limit") or 15)
+            data = await _req("GET", f"{api}/drafts", headers, params={"limit": limit, "offset": 0})
+            rows = data if isinstance(data, list) else (data.get("drafts") or data.get("posts") or [])
+            out = []
+            for d in rows[:limit]:
+                out.append({
+                    "id": d.get("id"),
+                    "title": d.get("draft_title") or d.get("title") or "(chưa có tiêu đề)",
+                    "is_published": bool(d.get("is_published")),
+                    "post_date": d.get("post_date"),
+                })
+            return _clip(json.dumps({"drafts": out}, ensure_ascii=False))
 
-            if tool == "substack_create_draft":
+        if tool == "substack_create_draft":
+            if not args.get("title") or not args.get("body"):
+                return "ERROR: cần title và body để tạo nháp"
+            payload = _draft_payload(args.get("title"), args.get("subtitle"), args.get("body"),
+                                     user_id, args.get("audience"))
+            draft = await _req("POST", f"{api}/drafts", headers, body=payload)
+            did = draft.get("id") if isinstance(draft, dict) else None
+            return (f"OK - đã tạo nháp id={did}. Sửa hoặc đăng tại: {pub}/publish/post/{did}"
+                    if did else _clip(json.dumps(draft, ensure_ascii=False)))
+
+        if tool == "substack_publish":
+            send_email = bool(args.get("send_email"))
+            did = str(args.get("draft_id") or "").strip()
+            if not did:
                 if not args.get("title") or not args.get("body"):
-                    return "ERROR: cần title và body để tạo nháp"
+                    return "ERROR: cần draft_id (đăng nháp có sẵn) HOẶC title+body (tạo mới rồi đăng)"
                 payload = _draft_payload(args.get("title"), args.get("subtitle"), args.get("body"),
                                          user_id, args.get("audience"))
-                draft = await _req(client, "POST", f"{api}/drafts", headers, body=payload)
-                did = draft.get("id") if isinstance(draft, dict) else None
-                return (f"OK - đã tạo nháp id={did}. Sửa hoặc đăng tại: {pub}/publish/post/{did}"
-                        if did else _clip(json.dumps(draft, ensure_ascii=False)))
-
-            if tool == "substack_publish":
-                send_email = bool(args.get("send_email"))
-                did = str(args.get("draft_id") or "").strip()
+                draft = await _req("POST", f"{api}/drafts", headers, body=payload)
+                did = str(draft.get("id")) if isinstance(draft, dict) else ""
                 if not did:
-                    if not args.get("title") or not args.get("body"):
-                        return "ERROR: cần draft_id (đăng nháp có sẵn) HOẶC title+body (tạo mới rồi đăng)"
-                    payload = _draft_payload(args.get("title"), args.get("subtitle"), args.get("body"),
-                                             user_id, args.get("audience"))
-                    draft = await _req(client, "POST", f"{api}/drafts", headers, body=payload)
-                    did = str(draft.get("id")) if isinstance(draft, dict) else ""
-                    if not did:
-                        return "ERROR: tạo nháp không trả về id, chưa đăng: " + _clip(json.dumps(draft, ensure_ascii=False))
-                # prepublish: best-effort, không chặn nếu server không cần
-                try:
-                    await _req(client, "GET", f"{api}/drafts/{did}/prepublish", headers)
-                except Exception:
-                    pass
-                res = await _req(client, "POST", f"{api}/drafts/{did}/publish", headers,
-                                 body={"send": send_email, "share_automatically": False})
-                url = ""
-                if isinstance(res, dict):
-                    slug = res.get("slug")
-                    url = res.get("canonical_url") or (f"{pub}/p/{slug}" if slug else "")
-                mail = "CÓ gửi email cho người đăng ký" if send_email else "chỉ đăng lên web (không gửi email)"
-                return f"OK - đã ĐĂNG bài (id={did}, {mail}). {('Link: ' + url) if url else ''}".strip()
+                    return "ERROR: tạo nháp không trả về id, chưa đăng: " + _clip(json.dumps(draft, ensure_ascii=False))
+            # prepublish: best-effort, không chặn nếu server không cần
+            try:
+                await _req("GET", f"{api}/drafts/{did}/prepublish", headers)
+            except Exception:
+                pass
+            res = await _req("POST", f"{api}/drafts/{did}/publish", headers,
+                             body={"send": send_email, "share_automatically": False})
+            url = ""
+            if isinstance(res, dict):
+                slug = res.get("slug")
+                url = res.get("canonical_url") or (f"{pub}/p/{slug}" if slug else "")
+            mail = "CÓ gửi email cho người đăng ký" if send_email else "chỉ đăng lên web (không gửi email)"
+            return f"OK - đã ĐĂNG bài (id={did}, {mail}). {('Link: ' + url) if url else ''}".strip()
 
-            return f"ERROR: tool '{tool}' không có trong cầu nối Substack"
+        return f"ERROR: tool '{tool}' không có trong cầu nối Substack"
     except RuntimeError as e:
         return f"ERROR: {e}"
     except Exception as e:
