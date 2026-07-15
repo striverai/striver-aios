@@ -2330,6 +2330,30 @@ def _safe_path(brain: str, rel: str) -> Path:
     return target
 
 
+def _safe_serve_path(brain: str, rel: str) -> Path:
+    """Resolve rel để PHỤC VỤ/ĐỌC file, chấp nhận CẢ HAI quy ước đường dẫn:
+    - tương đối TRẦN duyệt (File Manager, path lấy từ /files/list) → thử trước;
+    - tương đối GỐC BRAIN/vault (link & ảnh trong chat, do AI ghi theo CLAUDE.md) → dự phòng.
+    Lý do: khi trần duyệt nằm CAO hơn gốc brain (vd localhost = tới ổ đĩa), đường dẫn vault kiểu
+    'videos/x.mp4' nếu chỉ tính theo trần sẽ thành 'D:/videos/x.mp4' → 404. Cả hai nhánh đều bị
+    KHOÁ trong trần (chống ../). CHỈ dùng cho endpoint CHỈ-ĐỌC (raw/read/download) - KHÔNG dùng cho
+    ghi/xoá/đổi tên để tránh mơ hồ khi tạo file mới."""
+    root = _files_root(brain)
+    rel = (rel or "").strip().replace("\\", "/").lstrip("/")
+    ceil_target = (root / rel).resolve()
+    ceil_in = ceil_target == root or root in ceil_target.parents
+    if ceil_in and ceil_target.exists():
+        return ceil_target
+    broot = Path(_brain_root(brain)).resolve()
+    if broot != root:                                   # chỉ khi trần KHÁC gốc brain
+        brain_target = (broot / rel).resolve()
+        if (brain_target == broot or broot in brain_target.parents) and brain_target.exists():
+            return brain_target                         # đường dẫn vault, vẫn nằm trong gốc brain
+    if not ceil_in:
+        raise ValueError("Đường dẫn ngoài phạm vi cho phép")
+    return ceil_target                                  # không thấy: trả theo trần để 404 nhất quán
+
+
 def _files_rel(root: Path, p: Path) -> str:
     """Đường dẫn POSIX của p tương đối so với trần root ('' nếu p == root)."""
     return "" if p == root else str(p.relative_to(root)).replace("\\", "/")
@@ -2364,7 +2388,7 @@ async def files_list(brain: str = Query("brain"), path: str = Query(None)):
 @app.get("/files/read")
 async def files_read(brain: str = Query("brain"), path: str = Query(...)):
     try:
-        f = _safe_path(brain, path)
+        f = _safe_serve_path(brain, path)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     if not f.is_file():
@@ -2450,7 +2474,7 @@ async def files_upload(file: UploadFile = File(...), brain: str = Form("brain"),
 @app.get("/files/download")
 async def files_download(brain: str = Query("brain"), path: str = Query(...)):
     try:
-        f = _safe_path(brain, path)
+        f = _safe_serve_path(brain, path)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     if not f.is_file():
@@ -2462,9 +2486,9 @@ async def files_download(brain: str = Query("brain"), path: str = Query(...)):
 async def files_raw(brain: str = Query("brain"), path: str = Query(...), dl: int = Query(0)):
     """Phục vụ file THÔ để XEM INLINE trong trình duyệt: ảnh hiện trong <img>, pdf mở thẳng trên
     tab, mọi file khác có URL tĩnh để mở/tải. Khác /files/download (luôn ép tải về): mặc định
-    inline; truyền dl=1 để ép tải. Cùng rào chống traversal (_safe_path)."""
+    inline; truyền dl=1 để ép tải. Cùng rào chống traversal (_safe_serve_path)."""
     try:
-        f = _safe_path(brain, path)
+        f = _safe_serve_path(brain, path)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     if not f.is_file():
