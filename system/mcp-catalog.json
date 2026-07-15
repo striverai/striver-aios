@@ -632,6 +632,48 @@
       },
       "default_perm": "readonly",
       "risk": "Token App-only chỉ ĐỌC/TÌM bài đăng và hồ sơ công khai của X - không đăng bài, không nhắn tin, nên rất an toàn ở mức Chỉ đọc (mặc định). Tên tool chính xác của X MCP chưa công bố nên phân loại quyền dựa trên heuristic; nếu sau này đấu OAuth để đăng bài thì cân nhắc mức quyền kỹ hơn."
+    },
+    {
+      "id": "substack",
+      "name": "Substack",
+      "icon": "/static/logos/substack.svg",
+      "category": "Marketing",
+      "description": "Tạo BẢN NHÁP bài viết / newsletter trên Substack bằng lời (Javis soạn tiêu đề, phụ đề, nội dung rồi đẩy vào Substack ở dạng nháp để bạn tự bấm đăng). Chạy local qua npx, mỗi tài khoản 1 session token.",
+      "status": "beta",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "substack-mcp@latest"],
+      "requires": { "node": ">=18" },
+      "auth": {
+        "type": "apikey",
+        "fields": [
+          {
+            "key": "publication_url",
+            "label": "Địa chỉ Substack (publication URL)",
+            "placeholder": "https://tencuaban.substack.com",
+            "env": "SUBSTACK_PUBLICATION_URL"
+          },
+          {
+            "key": "session_token",
+            "label": "Session token (cookie substack.sid)",
+            "placeholder": "dán giá trị cookie substack.sid...",
+            "env": "SUBSTACK_SESSION_TOKEN"
+          },
+          {
+            "key": "user_id",
+            "label": "User ID (dãy số)",
+            "placeholder": "vd 12345678",
+            "env": "SUBSTACK_USER_ID"
+          }
+        ],
+        "guide": "Cần Node.js 18+ trên máy chạy Javis và đã đăng nhập Substack trên trình duyệt. (1) Publication URL: địa chỉ trang Substack của bạn, vd https://tencuaban.substack.com. (2) Session token: mở substack.com > F12 (DevTools) > tab Application (Firefox gọi là Storage) > Cookies > chọn https://substack.com > tìm cookie tên 'substack.sid' > copy TOÀN BỘ giá trị (Value) dán vào đây. Coi như mật khẩu; token hết hạn khi bạn đăng xuất. (3) User ID: bấm avatar góc phải > Profile (Hồ sơ), nhìn URL dạng substack.com/profile/12345678-ten-ban - dãy SỐ trước dấu gạch chính là User ID. Tool duy nhất hiện có là tạo BẢN NHÁP - Javis không tự đăng bài.",
+        "guide_url": "https://github.com/marcomoauro/substack-mcp"
+      },
+      "tool_meta": {
+        "write": ["create_draft_post"]
+      },
+      "default_perm": "safe",
+      "risk": "Connector này chỉ TẠO BẢN NHÁP bài viết trên tài khoản Substack của bạn - KHÔNG tự xuất bản, không gửi email cho người đăng ký (bạn tự vào Substack bấm Publish). Session token cho toàn quyền tài khoản Substack nên giữ kín như mật khẩu; hết hạn khi đăng xuất thì kết nối lại. Mức mặc định là Ghi nháp để tool tạo nháp chạy được; loop chạy nền vẫn không được tự tạo."
     }
   ]
 }
