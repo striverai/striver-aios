@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.50] - 2026-07-15
+### Sửa lỗi
+- **CI và build Docker đỏ mỗi lần push (xung đột thư viện trong requirements.txt)**: GitHub Actions cứ gửi mail "Run failed" ở cả workflow CI lẫn Build Docker, fail ngay bước `pip install -r requirements.txt`. Nguyên nhân có từ v0.9.35 (không liên quan Substack): commit thêm engine Agent SDK ghim `starlette<0.39`, nhưng `fastapi==0.115.6` (bump ở bản vá bảo mật v0.9.12) lại đòi `starlette>=0.40` - hai ràng buộc chọi nhau nên pip không giải được. Bản 0.115.6 thực tế chưa từng được cài; app vẫn chạy fastapi 0.115.0 + starlette 0.38.6. Sửa: hạ pin về `fastapi==0.115.0` cho khớp `starlette<0.39` và đúng bản đang chạy thật. Lộ thêm xung đột thứ hai bị che: `uvicorn==0.30.6` chọi với `mcp` (đòi `uvicorn>=0.31.1`) - nâng lên `uvicorn==0.51.0` (bản .venv đang dùng). Đã resolve thử sạch và chạy đủ bộ test cục bộ (8/8 pass) trước khi push. Kèm ghi chú trong requirements.txt về việc fastapi-starlette bị khoá cặp để không tái phạm.
+
 ## [0.9.49] - 2026-07-15
 ### Sửa lỗi
 - **Form Kết nối dài không cuộn được, bị cắt mất nút và ô cuối**: modal Kết nối (vd Substack với 3 ô + phần hướng dẫn dài) tràn quá chiều cao màn hình nhưng không cuộn xuống được, che mất ô User ID và nút Kết nối. Nguyên nhân: `.conn-form` nằm trong `.mp-box` giới hạn `max-height: 86vh` nhưng bản thân nó không có vùng cuộn. Sửa: cho `.conn-form` co lại và cuộn (`flex: 1 1 auto; min-height: 0; overflow-y: auto`), phần đầu đề và hàng nút Kết nối/Huỷ vẫn ghim cố định. Áp dụng cho MỌI connector có form dài, không riêng Substack.
