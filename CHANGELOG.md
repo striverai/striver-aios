@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.57] - 2026-07-16
+### Thêm mới
+- **Đổi tên / xoá file ngay trong trình sửa note**: thanh nút của editor thêm ✎ (đổi tên) và 🗑 (xoá) bên cạnh Lưu/Tab mới/Tải/Phóng/Đóng, thao tác trên đúng file đang mở. Đổi tên sẽ tự lưu nội dung đang gõ trước (không mất chữ) rồi mở lại file ở tên mới; xoá thì đóng editor. Cả hai đều làm mới cây mà giữ nguyên các thư mục đang mở.
+
 ## [0.9.56] - 2026-07-16
 ### Sửa lỗi
 - **Thêm/đổi tên/xoá file trong cây Vault làm SẬP hết các thư mục đang mở**: mỗi thao tác gọi `renderVaultTree()` dựng lại cả cây từ đầu (mọi thư mục về trạng thái đóng), nên đang mở sâu vào thư mục nào là bị đóng mất, rất khó chịu. Sửa: thêm `_vtRebuildReExpand()` - trước khi dựng lại thì GHI LẠI các thư mục đang mở (childBox không ẩn), dựng tươi xong tự mở lại đúng chúng theo thứ tự nông-trước-sâu (cha trước con). Áp cho cả 4 thao tác: thêm file (nút ＋ đầu VAULT và ＋ trên node), đổi tên, xoá. Riêng thêm file còn tự bung thêm tới đúng thư mục vừa tạo để thấy file mới ngay. Nút ↻ làm mới thủ công vẫn thu gọn như cũ.

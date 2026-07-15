@@ -2658,9 +2658,33 @@
     _vtMarkActive(null);
     try { recomputeGraph(); } catch (e) {}   // chạy lại não (đã gate active===home + không lite + studio đóng)
   }
+  // Đổi tên file đang mở: lưu nội dung hiện tại trước (giữ chữ đã gõ), đổi tên, rồi mở lại ở tên mới.
+  async function _neRenameCur(rel, it) {
+    const oldname = (it && it.name) || rel.split("/").pop();
+    const nn = prompt("Tên mới:", oldname);
+    if (!nn || nn === oldname) return;
+    if (_neSaveFn) { try { await _neSaveFn(); } catch (e) {} }
+    const fd = new FormData(); fd.append("brain", fbrain()); fd.append("path", rel); fd.append("newname", nn);
+    try { await fetch("/files/rename", { method: "POST", body: fd }); } catch (e) {}
+    await _vtRebuildReExpand(null);
+    const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
+    const newRel = dir ? dir + "/" + nn : nn;
+    const ext = nn.includes(".") ? "." + nn.split(".").pop().toLowerCase() : ".md";
+    openNote(newRel, { name: nn, ext: ext, type: "file" });
+  }
+  async function _neDeleteCur(rel, it) {
+    const name = (it && it.name) || rel.split("/").pop();
+    if (!confirm(`Xoá "${name}"? Không hoàn tác được.`)) return;
+    const fd = new FormData(); fd.append("brain", fbrain()); fd.append("path", rel);
+    try { await fetch("/files/delete", { method: "POST", body: fd }); } catch (e) {}
+    closeNote();
+    await _vtRebuildReExpand(null);
+  }
   function _neCommonBtns(actions, rel, it) {
     const mk = (label, title, fn) => { const b = document.createElement("button"); b.textContent = label; if (title) b.title = title; b.onclick = fn; return b; };
     const ed = document.getElementById("noteEditor");
+    actions.appendChild(mk("✎", "Đổi tên file", () => _neRenameCur(rel, it)));
+    actions.appendChild(mk("🗑", "Xoá file", () => _neDeleteCur(rel, it)));
     actions.appendChild(mk("↗", "Mở tab mới", () => window.open(_vtRaw(rel), "_blank")));
     actions.appendChild(mk("⤓", "Tải về", () => window.open(_vtRaw(rel, 1), "_blank")));
     actions.appendChild(mk("⛶", "Phóng to / thu nhỏ", () => ed.classList.toggle("ne-full")));
