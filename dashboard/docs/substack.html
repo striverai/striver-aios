@@ -97,8 +97,15 @@
   .way{margin:18px 0 0; padding:14px 16px; background:rgba(0,0,0,.18); border:1px solid var(--border); border-radius:11px}
   .way h4{margin:0 0 6px; font-size:14.5px; color:var(--text)}
   .way h4 .tag{font-size:11.5px; font-weight:700; color:#7fe0a1; background:rgba(63,185,107,.14); border-radius:20px; padding:1px 9px; margin-left:6px; vertical-align:middle}
-  .uidin{width:100%; background:var(--bg); border:1px solid var(--border); border-radius:9px; color:var(--text); padding:11px 13px; font-size:14.5px; font-family:var(--font)}
+  .uidrow2{display:flex; gap:8px; align-items:stretch}
+  .uidin{flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:9px; color:var(--text); padding:11px 13px; font-size:14.5px; font-family:var(--font)}
   .uidin:focus{outline:none; border-color:var(--accent)}
+  #uidgo{white-space:nowrap; flex:none}
+  #uidgo:disabled{opacity:.6; cursor:default}
+  .pubsug{margin-top:12px}
+  .pubsug-h{font-size:13px; color:var(--text3); margin-bottom:6px}
+  .pubchip{display:block; width:100%; text-align:left; background:var(--bg); border:1px solid var(--border); color:var(--text2); border-radius:8px; padding:8px 11px; margin-bottom:6px; font-size:13.5px; cursor:pointer; font-family:var(--font)}
+  .pubchip:hover{border-color:var(--accent); color:var(--text)}
   .uidout-row{margin-top:11px; font-size:14.5px; color:var(--text2); display:flex; align-items:center; gap:10px; flex-wrap:wrap}
   #uidout{font-family:"Cascadia Code",Consolas,monospace; color:#7fe0a1; font-weight:700; font-size:16px}
   #uidout.empty{color:var(--text3); font-weight:400; font-size:13.5px}
@@ -132,9 +139,13 @@
 
     <div class="way">
       <h4>Cách A: dán link trang Hồ sơ <span class="tag">không cần DevTools</span></h4>
-      <p style="margin:6px 0 10px">Vào substack.com, bấm avatar &rsaquo; <b>Profile</b>, copy địa chỉ trên thanh URL rồi dán vào đây:</p>
-      <input class="uidin" id="uidin" type="text" placeholder="vd https://substack.com/profile/12345678-ten-ban" oninput="extractUid()" autocomplete="off">
-      <div class="uidout-row">User ID: <span id="uidout" class="empty">chưa có, dán link vào ô trên</span> <button id="uidcopy" class="copybtn" style="display:none" onclick="copyUid(this)">Copy</button></div>
+      <p style="margin:6px 0 10px">Vào substack.com, bấm avatar &rsaquo; <b>Profile</b>, copy địa chỉ trên thanh URL (dạng <code>substack.com/@ten-cua-ban</code>) rồi dán vào đây và bấm <b>Lấy User ID</b>:</p>
+      <div class="uidrow2">
+        <input class="uidin" id="uidin" type="text" placeholder="vd https://substack.com/@blogminhquy" autocomplete="off" onkeydown="if(event.key==='Enter')resolveUid()">
+        <button class="copybtn" id="uidgo" onclick="resolveUid()">Lấy User ID</button>
+      </div>
+      <div class="uidout-row">User ID: <span id="uidout" class="empty">chưa có, dán link rồi bấm Lấy User ID</span> <button id="uidcopy" class="copybtn" style="display:none" onclick="copyUid(this)">Copy</button></div>
+      <div id="pubsug" class="pubsug"></div>
     </div>
 
     <div class="way">
@@ -162,13 +173,8 @@
   </ol>
   <div class="note warn"><span class="ico">🔒</span><div>Token này giống chìa khoá tài khoản Substack của bạn, hãy giữ kín như mật khẩu. Nó sẽ hết hạn khi bạn <b>đăng xuất</b> Substack, lúc đó chỉ cần lấy lại token mới và cập nhật vào kết nối.</div></div>
 
-  <h3>User ID (dãy số) - cách thủ công</h3>
-  <p class="mini" style="margin-top:0">Nếu không dùng trợ lý ở trên, lấy tay như sau:</p>
-  <ol class="steps">
-    <li>Ở substack.com, bấm ảnh đại diện góc trên phải &rsaquo; <b>Profile</b> (Hồ sơ).</li>
-    <li>Nhìn thanh địa chỉ, URL có dạng <code>substack.com/profile/12345678-ten-ban</code>.</li>
-    <li>Dãy <b>số</b> đứng trước dấu gạch (ví dụ <code>12345678</code>) chính là User ID.</li>
-  </ol>
+  <h3>User ID (dãy số)</h3>
+  <p class="mini" style="margin-top:0">Substack đã đổi link Hồ sơ sang dạng <code>substack.com/@ten</code> (không còn dãy số trong URL), nên dùng <b>Cách A</b> hoặc <b>Cách B</b> ở khung trợ lý phía trên để lấy User ID. Cả hai đều nhả ra đúng dãy số cần điền.</p>
 
   <div class="note ok"><span class="ico">✓</span><div>Điền xong ba ô, bấm <b>Kết nối</b> rồi <b>Test</b>. Javis sẽ thử lấy danh sách nháp để chắc chắn token còn sống. Nếu báo lỗi, thường là token sai hoặc đã hết hạn, hãy lấy lại <code>substack.sid</code>.</div></div>
 
@@ -253,18 +259,49 @@
       });
     };
 
-    window.extractUid = function () {
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    window.resolveUid = async function () {
       var v = (document.getElementById('uidin').value || '').trim();
       var out = document.getElementById('uidout');
       var cp = document.getElementById('uidcopy');
-      var m = v.match(/profile\/(\d{3,})/) || v.match(/(\d{4,})/);
-      if (m) {
-        out.textContent = m[1]; out.className = '';
-        cp.style.display = 'inline-block';
-      } else {
-        out.textContent = v ? 'Khong thay day so - dan link trang Ho so (substack.com/profile/...)' : 'chua co, dan link vao o tren';
-        out.className = 'empty'; cp.style.display = 'none';
-      }
+      var go = document.getElementById('uidgo');
+      var sug = document.getElementById('pubsug');
+      sug.innerHTML = ''; cp.style.display = 'none';
+      if (!v) { out.textContent = 'chưa có, dán link rồi bấm Lấy User ID'; out.className = 'empty'; return; }
+      out.textContent = 'đang lấy...'; out.className = 'empty'; go.disabled = true;
+      try {
+        var r = await fetch('/connect/substack/resolve-uid?q=' + encodeURIComponent(v), { credentials: 'same-origin' });
+        var d = await r.json();
+        if (d && d.ok) {
+          out.textContent = d.user_id; out.className = '';
+          cp.style.display = 'inline-block';
+          if (d.publications && d.publications.length) {
+            sug.innerHTML = '<div class="pubsug-h">Publication URL gợi ý (bấm để copy):</div>' +
+              d.publications.map(function (p) {
+                return '<button class="pubchip" data-url="' + encodeURIComponent(p.url) + '">' +
+                  (p.name ? escapeHtml(p.name) + ': ' : '') + escapeHtml(p.url) + '</button>';
+              }).join('');
+            sug.querySelectorAll('.pubchip').forEach(function (b) {
+              b.addEventListener('click', function () {
+                navigator.clipboard.writeText(decodeURIComponent(b.getAttribute('data-url'))).then(function () {
+                  var o = b.textContent; b.textContent = '✓ đã copy'; setTimeout(function () { b.textContent = o; }, 1200);
+                });
+              });
+            });
+          }
+        } else {
+          out.textContent = (d && d.error) ? d.error : 'Không lấy được. Thử Cách B (Console) bên dưới.';
+          out.className = 'empty';
+        }
+      } catch (e) {
+        out.textContent = 'Lỗi kết nối (bạn đã đăng nhập Javis chưa?). Thử Cách B (Console) bên dưới.';
+        out.className = 'empty';
+      } finally { go.disabled = false; }
     };
 
     window.copyUid = function (btn) {

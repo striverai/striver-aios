@@ -893,6 +893,54 @@ async def connect_test(request: Request):
     return await mcp_hub.validate_connection(data.get("id"))
 
 
+@app.get("/connect/substack/resolve-uid")
+async def connect_substack_resolve_uid(q: str = Query("")):
+    """Tra User ID (+ gợi ý Publication URL) của một tài khoản Substack từ handle hoặc URL trang
+    Hồ sơ. Substack đã đổi URL Hồ sơ sang dạng substack.com/@handle (không còn dãy số), nên trợ lý
+    lấy nhanh ở trang Docs gọi endpoint này - server hỏi API CÔNG KHAI của Substack (không cần đăng
+    nhập Substack, không đụng secret) rồi trả về id. Endpoint vẫn sau auth guard (cần session Javis)."""
+    import re
+    raw = (q or "").strip()
+    m = re.search(r"/profile/(\d{3,})", raw)   # URL /profile/<id>-name kiểu cũ: số chính là user_id
+    if m:
+        return {"ok": True, "user_id": int(m.group(1)), "name": "", "publications": []}
+    m = re.search(r"@([A-Za-z0-9_-]+)", raw) or re.search(r"substack\.com/([A-Za-z0-9_-]+)", raw)
+    handle = (m.group(1) if m else raw).lstrip("@").strip().strip("/")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", handle):
+        return {"ok": False, "error": "Handle không hợp lệ. Dán link trang Hồ sơ (vd substack.com/@ten) hoặc chính handle."}
+    # Substack đứng sau Cloudflare - chặn httpx theo TLS fingerprint (403), nhưng để curl qua.
+    # Dùng curl (có sẵn cả trên Windows lẫn Docker image); handle đã validate + truyền dạng argv
+    # riêng (không qua shell) nên không có nguy cơ chèn lệnh/SSRF.
+    import shutil
+    curl = shutil.which("curl") or "curl"
+    url = f"https://substack.com/api/v1/user/{handle}/public_profile"
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            curl, "-s", "--max-time", "12", "-A", "Mozilla/5.0", "-H", "accept: application/json", url,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout=15)
+    except Exception as e:
+        return {"ok": False, "error": f"Không gọi được Substack ({type(e).__name__}). Dùng Cách B (Console) nếu vẫn lỗi."}
+    try:
+        d = json.loads(out.decode("utf-8", "replace"))
+    except Exception:
+        return {"ok": False, "error": f"Không đọc được hồ sơ '{handle}'. Kiểm tra lại handle, hoặc dùng Cách B (Console)."}
+    if isinstance(d, dict) and d.get("error"):
+        return {"ok": False, "error": f"Substack: {d.get('error')} - kiểm tra lại handle '{handle}'."}
+    uid = d.get("id")
+    if not uid:
+        return {"ok": False, "error": "Hồ sơ Substack không trả về id."}
+    pubs, seen = [], set()
+    for pu in (d.get("publicationUsers") or []):
+        p = pu.get("publication") or {}
+        cd, sub = p.get("custom_domain"), p.get("subdomain")
+        url = f"https://{cd}" if cd else (f"https://{sub}.substack.com" if sub else "")
+        if url and url not in seen:
+            seen.add(url)
+            pubs.append({"name": p.get("name") or sub or "", "url": url})
+    return {"ok": True, "user_id": uid, "name": d.get("name") or "", "handle": handle, "publications": pubs}
+
+
 @app.post("/connect/update")
 async def connect_update(request: Request):
     data = await request.json()

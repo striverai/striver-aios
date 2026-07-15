@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.51] - 2026-07-15
+### Sửa lỗi
+- **Trợ lý lấy User ID của Substack không chạy do Substack đổi định dạng link Hồ sơ**: Substack đã bỏ URL Hồ sơ kiểu `substack.com/profile/12345678-ten` (có dãy số) sang `substack.com/@handle` (không còn số), nên "Cách A" cũ (bóc số từ URL) vô dụng. Thêm endpoint backend `GET /connect/substack/resolve-uid` nhận handle hoặc link Hồ sơ rồi hỏi API công khai của Substack, trả về User ID kèm gợi ý Publication URL. Vì Substack đứng sau Cloudflare (chặn httpx theo TLS fingerprint, trả 403) nên endpoint gọi qua `curl` (có sẵn cả Windows lẫn Docker image) - handle được validate chặt + truyền dạng argv nên không có nguy cơ SSRF/chèn lệnh; endpoint vẫn nằm sau auth guard. Trang Docs cập nhật Cách A: dán link `@handle` rồi bấm "Lấy User ID" là ra số + nút Copy + danh sách Publication URL gợi ý bấm để copy. Đã test end-to-end backend (curl thật) lẫn front-end (mock fetch trong trình duyệt).
+
 ## [0.9.50] - 2026-07-15
 ### Sửa lỗi
 - **CI và build Docker đỏ mỗi lần push (xung đột thư viện trong requirements.txt)**: GitHub Actions cứ gửi mail "Run failed" ở cả workflow CI lẫn Build Docker, fail ngay bước `pip install -r requirements.txt`. Nguyên nhân có từ v0.9.35 (không liên quan Substack): commit thêm engine Agent SDK ghim `starlette<0.39`, nhưng `fastapi==0.115.6` (bump ở bản vá bảo mật v0.9.12) lại đòi `starlette>=0.40` - hai ràng buộc chọi nhau nên pip không giải được. Bản 0.115.6 thực tế chưa từng được cài; app vẫn chạy fastapi 0.115.0 + starlette 0.38.6. Sửa: hạ pin về `fastapi==0.115.0` cho khớp `starlette<0.39` và đúng bản đang chạy thật. Lộ thêm xung đột thứ hai bị che: `uvicorn==0.30.6` chọi với `mcp` (đòi `uvicorn>=0.31.1`) - nâng lên `uvicorn==0.51.0` (bản .venv đang dùng). Đã resolve thử sạch và chạy đủ bộ test cục bộ (8/8 pass) trước khi push. Kèm ghi chú trong requirements.txt về việc fastapi-starlette bị khoá cặp để không tái phạm.
