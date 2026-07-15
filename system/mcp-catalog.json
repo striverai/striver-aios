@@ -661,8 +661,8 @@
             "placeholder": "vd 12345678"
           }
         ],
-        "guide": "Đăng nhập Substack trên trình duyệt rồi lấy 3 thứ. (1) Publication URL: địa chỉ trang Substack của bạn, vd https://tencuaban.substack.com. (2) Session token: mở substack.com > F12 (DevTools) > tab Application (Firefox gọi là Storage) > Cookies > chọn https://substack.com > tìm cookie tên 'substack.sid' > copy TOÀN BỘ giá trị (Value) dán vào đây. Coi như mật khẩu; token hết hạn khi bạn đăng xuất. (3) User ID: bấm avatar góc phải > Profile (Hồ sơ), nhìn URL dạng substack.com/profile/12345678-ten-ban - dãy SỐ trước dấu gạch chính là User ID. Javis dựng nội dung từ markdown gọn (tiêu đề #, gạch đầu dòng -, **đậm**, [chữ](link)...).",
-        "guide_url": "https://github.com/marcomoauro/substack-mcp"
+        "guide": "Đăng nhập Substack trên trình duyệt rồi lấy 3 thứ. (1) Publication URL: địa chỉ trang Substack của bạn, vd https://tencuaban.substack.com. (2) Session token: mở substack.com > F12 (DevTools) > tab Application (Firefox gọi là Storage) > Cookies > chọn https://substack.com > tìm cookie tên 'substack.sid' > copy TOÀN BỘ giá trị (Value) dán vào đây. Coi như mật khẩu; token hết hạn khi bạn đăng xuất. (3) User ID: bấm avatar góc phải > Profile (Hồ sơ), nhìn URL dạng substack.com/profile/12345678-ten-ban - dãy SỐ trước dấu gạch chính là User ID. Bấm 'Hướng dẫn' để xem chi tiết từng bước và cách bật quyền đăng bài.",
+        "guide_url": "/static/docs/substack.html"
       },
       "validate": {
         "tool": "substack_list_drafts",

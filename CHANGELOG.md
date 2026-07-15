@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.48] - 2026-07-15
+### Cải thiện
+- **Substack: hướng dẫn riêng trong Docs của Javis (không trỏ ra GitHub nữa)**: thêm trang hướng dẫn tự chứa `dashboard/docs/substack.html` (khớp giao diện tối của Javis, phục vụ tại `/static/docs/substack.html`) và đổi link "Hướng dẫn" của connector Substack trỏ vào trang này thay vì repo GitHub gốc. Trang gồm các bước lấy 3 thông tin đăng nhập (publication URL, cookie `substack.sid`, User ID), giới thiệu 3 tool, bảng mức quyền và cách bật quyền đăng bài, các lớp an toàn (loop không tự đăng, mặc định không gửi email), và bảng markdown gọn dựng nội dung.
+
 ## [0.9.47] - 2026-07-15
 ### Thêm mới
 - **Substack: thêm quyền ĐĂNG BÀI (không chỉ tạo nháp)**: server MCP cộng đồng `substack-mcp` chỉ có đúng 1 tool tạo nháp và không đăng được, nên Javis thay bằng cầu nối Substack tự dựng (`server/substack_mcp.py`, transport `internal` giống Botcake) gọi thẳng API Substack. Ưu điểm kèm theo: chạy Python thuần, KHÔNG cần cài Node/npx nữa. Bộ tool mới: `substack_list_drafts` (liệt kê nháp - đọc), `substack_create_draft` (tạo nháp - ghi), `substack_publish` (đăng bài - nguy hiểm). Tool đăng tạo mới rồi đăng (title+body) hoặc đăng một nháp có sẵn (draft_id); có bộ chuyển markdown gọn sang định dạng thân bài của Substack (tiêu đề #, danh sách, trích dẫn, **đậm**, *nghiêng*, [link], `code`). An toàn: đăng bài xếp loại NGUY HIỂM nên mức mặc định (Ghi nháp) CHẶN - phải nâng kết nối lên Toàn quyền mới đăng được, và ngay cả khi Toàn quyền thì loop chạy nền vẫn không bao giờ tự đăng (chỉ đăng khi bạn yêu cầu trực tiếp trong chat). Đăng mặc định chỉ lên web, KHÔNG gửi email cho người đăng ký; chỉ khi bạn nói rõ mới bật cờ gửi mail (đã gửi thì không hoàn tác). Nút Test kết nối giờ kiểm tra token thật qua danh sách nháp.
