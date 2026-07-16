@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Javis OS</title>
+  <title>Striver AIOS</title>
   <!-- Favicon = logo hiện tại (/brand-logo): mặc định theo logo.png, và tự đổi theo ảnh user tải lên. -->
   <link rel="icon" href="/brand-logo?v=5">
   <link rel="apple-touch-icon" href="/brand-logo?v=5">
@@ -15,7 +15,7 @@
 
     <!-- ===== TOP BAR ===== -->
     <header class="hud-top">
-      <div class="brand"><span class="brand-icon"><img src="/brand-logo" alt="" style="width:22px;height:22px;border-radius:5px;vertical-align:middle;object-fit:cover"></span> <span class="brand-text">JAVIS OS</span></div>
+      <div class="brand"><span class="brand-icon"><img src="/brand-logo" alt="" style="width:22px;height:22px;border-radius:5px;vertical-align:middle;object-fit:cover"></span> <span class="brand-text">STRIVER AIOS</span></div>
       <!-- Select Brain: dời từ góc graph lên navbar (trái) -->
       <div class="orb-graph-ctl navbar-brain">
         <select id="graphSource" class="graph-select">
@@ -27,7 +27,7 @@
         <span class="graph-stats" id="graphStats">-</span>
       </div>
       <div class="hud-center-title">
-        <span class="ws-name" id="workspaceName">Javis OS</span>
+        <span class="ws-name" id="workspaceName">Striver AIOS</span>
         <span class="ws-date" id="currentDate"></span>
       </div>
       <div class="hud-actions">
@@ -41,7 +41,7 @@
           </svg>
         </button>
         <!-- Voice/tốc độ đã dời xuống sidebar phải (mục CÀI ĐẶT NHANH). -->
-        <button class="hud-icon-btn" id="ttsToggle" title="Bật/tắt giọng Javis">
+        <button class="hud-icon-btn" id="ttsToggle" title="Bật/tắt giọng Striver">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 5L6 9H2v6h4l5 4V5z"/>
             <path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/>
@@ -158,7 +158,7 @@
           VÒNG LẶP TỰ CẢI THIỆN <span class="beta-tag">BETA</span>
         </div>
         <div class="loop-box" style="display:none">
-          <div class="loop-desc">Javis tự đánh thức theo lịch, tìm đòn bẩy cải thiện rồi tự kiểm chứng. An toàn: chỉ soạn nháp/ghi file trong vault - KHÔNG tự gọi MCP tạo đơn, đốt tiền, đăng bài.</div>
+          <div class="loop-desc">Striver tự đánh thức theo lịch, tìm đòn bẩy cải thiện rồi tự kiểm chứng. An toàn: chỉ soạn nháp/ghi file trong vault - KHÔNG tự gọi MCP tạo đơn, đốt tiền, đăng bài.</div>
           <label class="loop-row">
             <span>Bật tự chạy nền</span>
             <label class="toggle"><input type="checkbox" id="loopEnabled"><span></span></label>
@@ -168,7 +168,7 @@
             <select id="loopGoal" class="loop-sel">
               <option value="business">Cải thiện chỉ số kinh doanh</option>
               <option value="brain">Làm dày bộ não (Wiki)</option>
-              <option value="product">Cải thiện Javis hữu dụng hơn</option>
+              <option value="product">Cải thiện Striver hữu dụng hơn</option>
               <option value="custom">Tự định nghĩa…</option>
             </select>
           </label>
@@ -269,7 +269,7 @@
               <div class="popover-label">TÊN MIỀN & SSL</div>
               <div class="opt-sub" style="margin:4px 0 8px">Trỏ tên miền riêng để chạy HTTPS. VPS thường (DigitalOcean/Vultr): bật SSL ngay đây. Hostinger: đặt tên miền qua docker-compose.hostinger.yml (xem DEPLOY.md).</div>
               <div class="dom-field">
-                <input id="setDomain" placeholder="vd: javis.tencuaban.com" autocomplete="off" spellcheck="false">
+                <input id="setDomain" placeholder="vd: striver.tencuaban.com" autocomplete="off" spellcheck="false">
                 <button class="s-btn" id="saveDomain">Lưu</button>
               </div>
               <div class="dom-status" id="domStatusRow" style="display:none">
@@ -335,7 +335,7 @@
         </svg>
       </button>
       <input type="file" id="fileInput" multiple style="display:none">
-      <textarea id="chatInput" class="voice-input" placeholder="Nói với Javis, gõ ở đây, hoặc kéo/dán file vào..." rows="1"></textarea>
+      <textarea id="chatInput" class="voice-input" placeholder="Nói với Striver, gõ ở đây, hoặc kéo/dán file vào..." rows="1"></textarea>
       <button class="stop-btn" id="stopBtn" title="Ngắt lệnh / dừng đọc (Esc)" style="display:none">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
       </button>
@@ -349,7 +349,7 @@
   <nav class="rail" x-data x-cloak>
     <!-- ĐỈNH cố định -->
     <div class="rail-top">
-      <div class="rail-brand"><img src="/brand-logo" alt="Javis" style="width:30px;height:30px;border-radius:8px;display:block;object-fit:cover"></div>
+      <div class="rail-brand"><img src="/brand-logo" alt="Striver" style="width:30px;height:30px;border-radius:8px;display:block;object-fit:cover"></div>
     </div>
     <!-- GIỮA cuộn được - gom theo nhóm; nhóm foot (Hệ thống) tự ghim xuống đáy -->
     <div class="rail-nav">
@@ -401,7 +401,7 @@
   <!-- Vault structure banner -->
   <div class="vault-banner" id="vaultBanner">
     <span class="vb-icon">⚠</span>
-    <span class="vb-text" id="vbText">Cấu trúc vault chưa chuẩn cho Javis.</span>
+    <span class="vb-text" id="vbText">Cấu trúc vault chưa chuẩn cho Striver.</span>
     <button class="vb-init" id="vbInit">Khởi tạo cấu trúc</button>
     <button class="vb-close" id="vbClose">✕</button>
   </div>
@@ -430,7 +430,7 @@
   <!-- Bộ cài đặt lần đầu (hiện khi chưa setup_done) -->
   <div class="modal-overlay" id="setupWizard">
     <div class="settings-modal" style="max-width:460px">
-      <div class="fm-head"><img src="/brand-logo" alt="" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:6px;object-fit:cover"><span>Chào mừng tới Javis</span></div>
+      <div class="fm-head"><img src="/brand-logo" alt="" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:6px;object-fit:cover"><span>Chào mừng tới Striver</span></div>
       <div class="settings-body">
         <style>
         .wz-prov{display:flex;flex-direction:column;gap:8px;margin-top:6px}
@@ -447,7 +447,7 @@
         <div class="set-note">Vài bước nhanh để bắt đầu. Mọi thứ đổi lại được sau trong ⚙ Cài đặt.</div>
         <div class="set-sec">
           <h4>1. Workspace</h4>
-          <label>Tên hiển thị</label><input id="wzWsName" placeholder="Javis OS">
+          <label>Tên hiển thị</label><input id="wzWsName" placeholder="Striver AIOS">
         </div>
         <div class="set-sec">
           <h4>2. Tài khoản admin <span class="dim">(khuyến nghị)</span></h4>
@@ -458,15 +458,15 @@
             <label>Mã thiết lập <span class="dim">(bảo mật)</span></label>
             <input id="wzToken" placeholder="dán MÃ THIẾT LẬP từ log server">
             <div class="wz-tokhelp">
-              <b>❓ Mã thiết lập là gì?</b> Javis đang chạy trên server công khai. Để chắc <b>chính bạn</b> (không phải người lạ vô tình mở link) là người tạo tài khoản admin, bạn dán một mã chỉ in ra <b>log server</b> - nơi duy nhất chủ máy xem được.
+              <b>❓ Mã thiết lập là gì?</b> Striver đang chạy trên server công khai. Để chắc <b>chính bạn</b> (không phải người lạ vô tình mở link) là người tạo tài khoản admin, bạn dán một mã chỉ in ra <b>log server</b> - nơi duy nhất chủ máy xem được.
               <br><b>Cách lấy mã (Hostinger → App terminal):</b>
               <ol>
-                <li>Mở app → bấm <b>App terminal</b> (bạn sẽ vào BÊN TRONG container <code>javis</code>).</li>
+                <li>Mở app → bấm <b>App terminal</b> (bạn sẽ vào BÊN TRONG container <code>striver</code>).</li>
                 <li>Chạy: <code>cat /data/state/.setup_token</code></li>
                 <li>Copy chuỗi hiện ra → dán vào ô trên.</li>
               </ol>
-              <span class="dim">Nếu SSH vào HOST (không phải App terminal): <code>docker compose logs javis | grep "SETUP TOKEN"</code></span><br>
-              💡 <b>Khỏi cần mã:</b> nếu lúc deploy bạn đặt sẵn env <code>JAVIS_ADMIN_PASSWORD</code> (+ <code>JAVIS_ADMIN_USER</code>), mở app ra là <b>đăng nhập luôn</b>, không hỏi mã.
+              <span class="dim">Nếu SSH vào HOST (không phải App terminal): <code>docker compose logs striver | grep "SETUP TOKEN"</code></span><br>
+              💡 <b>Khỏi cần mã:</b> nếu lúc deploy bạn đặt sẵn env <code>AIOS_ADMIN_PASSWORD</code> (+ <code>AIOS_ADMIN_USER</code>), mở app ra là <b>đăng nhập luôn</b>, không hỏi mã.
             </div>
           </div>
         </div>
@@ -482,7 +482,7 @@
             <label class="wz-card" data-prov="openai-oauth">
               <input type="radio" name="wzprov" value="openai-oauth">
               <div><b>💬 ChatGPT (gói subscription)</b>
-                <div class="wz-pdesc">Đăng nhập ChatGPT Plus/Pro (qua Codex) → vẫn dùng được MCP của Javis. Hợp nếu bạn đã có gói ChatGPT.</div></div>
+                <div class="wz-pdesc">Đăng nhập ChatGPT Plus/Pro (qua Codex) → vẫn dùng được MCP của Striver. Hợp nếu bạn đã có gói ChatGPT.</div></div>
             </label>
             <label class="wz-card" data-prov="openrouter">
               <input type="radio" name="wzprov" value="openrouter">
@@ -496,7 +496,7 @@
           </div>
           <div id="wzProvHint"></div>
         </div>
-        <div class="set-actions"><button class="s-btn" id="wzFinish">Bắt đầu dùng Javis →</button></div>
+        <div class="set-actions"><button class="s-btn" id="wzFinish">Bắt đầu dùng Striver →</button></div>
         <div class="auth-err" id="wzErr"></div>
       </div>
     </div>
@@ -505,7 +505,7 @@
   <!-- Đăng nhập (chỉ hiện khi admin đã đặt mật khẩu & chưa đăng nhập) -->
   <div class="modal-overlay" id="authOverlay">
     <div class="folder-modal auth-modal">
-      <div class="fm-head"><img src="/brand-logo" alt="" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:6px;object-fit:cover"><span id="authTitle">Đăng nhập Javis</span></div>
+      <div class="fm-head"><img src="/brand-logo" alt="" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:6px;object-fit:cover"><span id="authTitle">Đăng nhập Striver</span></div>
       <div class="auth-body">
         <input id="authUser" placeholder="Tài khoản" autocomplete="username">
         <input id="authPass" type="password" placeholder="Mật khẩu" autocomplete="current-password">
@@ -514,7 +514,7 @@
         <div class="auth-help"><span id="authForgot">Quên mật khẩu?</span></div>
         <div class="auth-reset" id="authResetInfo" style="display:none">
           Mở file <code>server/settings.json</code>, xóa khối <code>"auth"</code> (hoặc đặt rỗng), rồi
-          chạy <code>stop-javis.bat</code> → <code>start-javis.vbs</code>. Mở lại sẽ về bộ cài đặt để tạo tài khoản mới.
+          chạy <code>stop-striver.bat</code> → <code>start-striver.vbs</code>. Mở lại sẽ về bộ cài đặt để tạo tài khoản mới.
         </div>
       </div>
     </div>
@@ -523,7 +523,7 @@
   <!-- Cài đặt -->
   <div class="modal-overlay" id="settingsOverlay">
     <div class="settings-modal">
-      <div class="fm-head"><span>⚙ Cài đặt Javis</span><button class="fm-close" id="settingsClose">✕</button></div>
+      <div class="fm-head"><span>⚙ Cài đặt Striver</span><button class="fm-close" id="settingsClose">✕</button></div>
       <div class="settings-body">
         <div class="set-sec">
           <h4>Chung</h4>
@@ -559,7 +559,7 @@
           <label>Chat ID được phép dùng <span class="dim">(nhiều ID cách nhau dấu phẩy)</span></label>
           <input id="setTgChat" placeholder="vd 123456789, 987654321">
           <div class="set-note" id="setTgStatus">-</div>
-          <div class="set-note">Nhắn Telegram ↔ Javis. Dùng đúng engine đang chọn (CLI thì có cả MCP để hỏi doanh thu/ads qua điện thoại). Có thể dùng lại token bot Morning Briefing.</div>
+          <div class="set-note">Nhắn Telegram ↔ Striver. Dùng đúng engine đang chọn (CLI thì có cả MCP để hỏi doanh thu/ads qua điện thoại). Có thể dùng lại token bot Morning Briefing.</div>
           <div class="set-actions">
             <button class="s-btn" id="saveTelegram">Lưu & bật</button>
             <button class="s-btn-ghost" id="testTelegram">Gửi test</button>
@@ -575,7 +575,7 @@
             <button class="s-btn-ghost" id="logoutBtn">Đăng xuất</button>
             <button class="s-btn-ghost" id="disableAuthBtn">Tắt đăng nhập</button>
           </div>
-          <div class="set-note">Đặt mật khẩu để chặn người lạ khi đưa Javis lên VPS. Lưu ý: trên VPS nên chạy sau HTTPS (reverse proxy).</div>
+          <div class="set-note">Đặt mật khẩu để chặn người lạ khi đưa Striver lên VPS. Lưu ý: trên VPS nên chạy sau HTTPS (reverse proxy).</div>
         </div>
         <div class="set-note" style="opacity:.7">Ảnh đại diện, tên miền, giọng nói &amp; tốc độ giờ nằm ở mục <b>CÀI ĐẶT NHANH</b> (thanh bên phải).</div>
       </div>
@@ -588,7 +588,7 @@
   <!-- Bảng SỐ LIỆU KINH DOANH đã gỡ khỏi giao diện (thay bằng Vault explorer ở cột trái).
        Vẫn giữ 3 id ở stub ẩn này vì app.js đọc #metricCards/#metricStatus/#refreshMetrics ngay
        lúc nạp (getElementById + addEventListener vô điều kiện) - xoá trần sẽ ném null, hỏng dashboard.
-       Ẩn hoàn toàn: block <!-- JAVIS_METRICS --> nếu có vẫn parse vào đây nhưng không hiển thị. -->
+       Ẩn hoàn toàn: block <!-- AIOS_METRICS --> nếu có vẫn parse vào đây nhưng không hiển thị. -->
   <div id="metricsStub" hidden aria-hidden="true">
     <button id="refreshMetrics" tabindex="-1"></button>
     <div id="metricCards"></div>

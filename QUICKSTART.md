@@ -1,19 +1,19 @@
-# Javis OS - Quick start
+# Striver AIOS - Quick start
 
-Chạy Javis OS trong vài phút. Chi tiết từng phần: [docs/](docs/README.md).
+Chạy Striver AIOS trong vài phút. Chi tiết từng phần: [docs/](docs/README.md).
 
 ## Cách 1 - Hostinger VPS (Docker Manager, 1-click)
 
 1. hPanel → VPS → **Docker Manager** → **Compose** → **Compose from URL**.
 2. Dán URL:
    ```
-   https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.hostinger.yml
+   https://raw.githubusercontent.com/striverai/striver-aios/main/docker-compose.hostinger.yml
    ```
 3. (Tùy chọn, để có HTTPS + tên miền) ở ô **Environment** đặt:
    ```
-   DOMAIN_NAME=javis.<hostname-vps>.hstgr.cloud
+   DOMAIN_NAME=striver.<hostname-vps>.hstgr.cloud
    ```
-   (hostname xem ở hPanel → VPS; ví dụ `javis.srv1782015.hstgr.cloud`.)
+   (hostname xem ở hPanel → VPS; ví dụ `striver.srv1782015.hstgr.cloud`.)
 4. **Deploy**. Đợi 1-3 phút. Mở app bằng nút **Open** (hoặc `https://<DOMAIN_NAME>`).
 5. Lần đầu: màn hình sẽ hỏi tạo tài khoản admin. Sau đó đăng nhập Claude Code trong terminal container 1 lần: `claude auth login --claudeai`.
 
@@ -30,7 +30,7 @@ Mở http://localhost:7777. Muốn HTTPS qua Caddy: thêm `-f docker-compose.htt
 
 1. Cài Python 3.12 + Node 22 + `npm i -g @anthropic-ai/claude-code`.
 2. Trong thư mục dự án: `setup.bat` (tạo .venv + cài deps) một lần.
-3. `start-javis.bat` để chạy nền (tắt: `stop-javis.bat`).
+3. `start-striver.bat` để chạy nền (tắt: `stop-striver.bat`).
 4. Mở http://localhost:7777.
 
 ## Sau khi chạy

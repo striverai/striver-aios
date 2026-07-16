@@ -1,8 +1,8 @@
 // ============================================
-// JAVIS OS - Voice Layer (Web Speech API)
+// STRIVER AIOS - Voice Layer (Web Speech API)
 // ============================================
 
-class JavisVoice {
+class StriverVoice {
   constructor(opts = {}) {
     this.lang = opts.lang || "vi-VN";
     this.onTranscript = opts.onTranscript || (() => {});
@@ -15,7 +15,7 @@ class JavisVoice {
     this.synth = window.speechSynthesis;
     this.isListening = false;
     // Nhớ lựa chọn bật/tắt đọc qua reload (khách hàng nhiều khi không muốn có voice).
-    this.ttsEnabled = (localStorage.getItem("javis.ttsEnabled") !== "0");
+    this.ttsEnabled = (localStorage.getItem("striver.ttsEnabled") !== "0");
     this.vietnameseVoice = null;
 
     // Edge TTS backend (server)
@@ -31,7 +31,7 @@ class JavisVoice {
 
     // Audio analysis - cho hiệu ứng phát sáng theo âm thanh
     this.audioCtx = null;
-    this.outAnalyser = null;   // âm Javis đọc (TTS)
+    this.outAnalyser = null;   // âm Striver đọc (TTS)
     this.inAnalyser = null;    // âm mic (khi nghe)
     this.micStream = null;
     this._freqData = new Uint8Array(64);
@@ -112,9 +112,9 @@ class JavisVoice {
     };
 
     this.recognition.onresult = (event) => {
-      // Đang phát TTS thì BỎ mọi kết quả nhận dạng: đó là mic nghe lại chính giọng Javis
+      // Đang phát TTS thì BỎ mọi kết quả nhận dạng: đó là mic nghe lại chính giọng Striver
       // (SpeechRecognition thu riêng, KHÔNG được khử vọng như luồng đo mức âm), không phải
-      // user nói. Không chặn thì giọng Javis bị chép vào khung chat rồi tự gửi đi.
+      // user nói. Không chặn thì giọng Striver bị chép vào khung chat rồi tự gửi đi.
       if (this.isSpeaking()) return;
       let interim = "", final = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -244,7 +244,7 @@ class JavisVoice {
     else this._speakBrowser(text);                   // fallback Web Speech
   }
 
-  // Javis bắt đầu đọc mà mic đang nghe → tạm NGỪNG nhận dạng (abort, bỏ kết quả dở),
+  // Striver bắt đầu đọc mà mic đang nghe → tạm NGỪNG nhận dạng (abort, bỏ kết quả dở),
   // vì SpeechRecognition sẽ chép chính giọng TTS thành tin nhắn của user. Ngắt lời bằng
   // giọng vẫn hoạt động - barge-in đo mức âm qua luồng mic đã khử vọng, không cần nhận dạng.
   _muteRecognition() {
@@ -458,7 +458,7 @@ class JavisVoice {
 
   toggleTTS() {
     this.ttsEnabled = !this.ttsEnabled;
-    try { localStorage.setItem("javis.ttsEnabled", this.ttsEnabled ? "1" : "0"); } catch (e) {}
+    try { localStorage.setItem("striver.ttsEnabled", this.ttsEnabled ? "1" : "0"); } catch (e) {}
     if (!this.ttsEnabled) this.stopSpeaking();
     return this.ttsEnabled;
   }
@@ -488,4 +488,4 @@ class JavisVoice {
   }
 }
 
-window.JavisVoice = JavisVoice;
+window.StriverVoice = StriverVoice;

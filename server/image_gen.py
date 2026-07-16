@@ -2,11 +2,11 @@
 image_gen.py - Tạo ảnh bằng GÓI ChatGPT (OAuth device-code) - KHÔNG cần OpenAI API key.
 
 Cơ chế (port từ plugin image_gen/openai-codex của nousresearch/hermes-agent): gọi Codex Responses
-API (https://chatgpt.com/backend-api/codex/responses - CÙNG endpoint Javis đã dùng cho chat ChatGPT)
+API (https://chatgpt.com/backend-api/codex/responses - CÙNG endpoint Striver đã dùng cho chat ChatGPT)
 với builtin tool 'image_generation' (model gpt-image-2) + tool_choice=required, stream SSE, lấy ảnh
 base64 trong 'image_generation_call.result'. Token OAuth lấy từ openai_oauth.valid_creds() (tự refresh).
 
-Vì sao Javis trước đây KHÔNG tạo ảnh trực tiếp: đường chat ChatGPT (engine.responses_with_mcp) chỉ
+Vì sao Striver trước đây KHÔNG tạo ảnh trực tiếp: đường chat ChatGPT (engine.responses_with_mcp) chỉ
 gửi function tool, chưa từng gửi builtin tool 'image_generation'. Module này bổ sung đúng chỗ đó.
 
 Ảnh lưu vào <vault>/attachments/ để nhúng thẳng vào chat: ![](attachments/<tên>.png)
@@ -30,8 +30,8 @@ import openai_oauth
 
 CODEX_RESPONSES_URL = "https://chatgpt.com/backend-api/codex/responses"
 # Model chat 'chủ' chỉ để gọi tool; ảnh do IMAGE_MODEL sinh. Override qua env nếu gói đổi tên model.
-HOST_MODEL = os.getenv("JAVIS_IMAGE_HOST_MODEL", "gpt-5.5")
-IMAGE_MODEL = os.getenv("JAVIS_IMAGE_MODEL", "gpt-image-2")
+HOST_MODEL = os.getenv("AIOS_IMAGE_HOST_MODEL", "gpt-5.5")
+IMAGE_MODEL = os.getenv("AIOS_IMAGE_MODEL", "gpt-image-2")
 INSTRUCTIONS = ("You are an assistant that must fulfill image generation and image editing "
                 "requests by using the image_generation tool when provided.")
 
@@ -111,7 +111,7 @@ def _attachments_dir(vault: Path) -> Path:
     return d
 
 
-def save_png_b64(b64: str, vault_root: Optional[str], prefix: str = "javis-img") -> dict:
+def save_png_b64(b64: str, vault_root: Optional[str], prefix: str = "striver-img") -> dict:
     """Giải mã b64 → lưu PNG vào <vault>/attachments. Trả {ok, rel_path, abs_path, file}."""
     try:
         raw = base64.b64decode(b64)
@@ -137,7 +137,7 @@ def _headers(token: str, account_id: str) -> dict:
         "Authorization": f"Bearer {token}", "chatgpt-account-id": account_id or "",
         "OpenAI-Beta": "responses=experimental", "originator": "codex_cli_rs",
         "session_id": str(uuid.uuid4()), "Content-Type": "application/json",
-        "Accept": "text/event-stream", "User-Agent": "javis-os/0.3 (codex)",
+        "Accept": "text/event-stream", "User-Agent": "striver-os/0.3 (codex)",
     }
 
 
@@ -198,7 +198,7 @@ async def generate_chatgpt(prompt: str, aspect_ratio: str = "square", quality: s
     if not b64:
         return {"ok": False, "error": err or "ChatGPT không trả ảnh (gói ChatGPT có thể chưa hỗ trợ tạo ảnh qua Codex)."}
 
-    saved = save_png_b64(b64, vault_root, prefix="javis-img")
+    saved = save_png_b64(b64, vault_root, prefix="striver-img")
     if not saved.get("ok"):
         return saved
     return {"ok": True, "rel_path": saved["rel_path"], "abs_path": saved["abs_path"],

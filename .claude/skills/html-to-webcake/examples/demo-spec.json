@@ -1,7 +1,7 @@
 {
-  "name": "Demo Landing Javis",
+  "name": "Demo Landing Striver",
   "title": "Nhận Cẩm Nang Miễn Phí",
-  "description": "Trang demo do Javis sinh page_source rồi xuất PKE",
+  "description": "Trang demo do Striver sinh page_source rồi xuất PKE",
   "font": "Montserrat",
   "sections": [
     { "background": "rgba(17,17,17,1)", "padTop": 48, "gap": 22, "elements": [

@@ -1,6 +1,6 @@
 """Test image_gen (tạo ảnh qua ChatGPT). Chạy tay / CI:
 
-    cd server && JAVIS_STATE_DIR=<temp> python test_image_gen.py
+    cd server && AIOS_STATE_DIR=<temp> python test_image_gen.py
 
 Không chạm mạng: phần gọi thật được mock (fake httpx + fake creds) để kiểm payload → parse SSE → lưu.
 """
@@ -11,7 +11,7 @@ import os
 import sys
 import tempfile
 
-os.environ["JAVIS_STATE_DIR"] = tempfile.mkdtemp(prefix="javis-imgtest-")
+os.environ["AIOS_STATE_DIR"] = tempfile.mkdtemp(prefix="striver-imgtest-")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import image_gen        # noqa: E402
@@ -54,7 +54,7 @@ check("extract không có ảnh → None", image_gen.extract_image_b64({"type": 
 check("extract list", image_gen.extract_image_b64([{"x": 1}, {"partial_image_b64": "Z"}]) == "Z")
 
 # ---- 4. save_png_b64 lưu đúng chỗ ----
-vault = tempfile.mkdtemp(prefix="javis-vault-")
+vault = tempfile.mkdtemp(prefix="striver-vault-")
 saved = image_gen.save_png_b64(_PNG_B64, vault)
 check("save ok", saved.get("ok") is True)
 check("rel_path vào attachments/", saved["rel_path"].startswith("attachments/") and saved["rel_path"].endswith(".png"))

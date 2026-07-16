@@ -1,6 +1,6 @@
-"""Test bảo mật lõi Javis (P0). Chạy tay / CI:
+"""Test bảo mật lõi Striver (P0). Chạy tay / CI:
 
-    cd server && JAVIS_STATE_DIR=<temp> python test_security.py
+    cd server && AIOS_STATE_DIR=<temp> python test_security.py
 
 Không cần pytest, không chạm mạng. Tự cô lập STATE_DIR sang thư mục tạm.
 Phủ: hash mật khẩu, require_login fail-closed, session TTL, setup token, mã hoá secret at rest,
@@ -10,8 +10,8 @@ import os
 import sys
 import tempfile
 
-os.environ["JAVIS_STATE_DIR"] = tempfile.mkdtemp(prefix="javis-sectest-")
-os.environ.pop("JAVIS_ALLOWED_HOSTS", None)
+os.environ["AIOS_STATE_DIR"] = tempfile.mkdtemp(prefix="striver-sectest-")
+os.environ.pop("AIOS_ALLOWED_HOSTS", None)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import config as cfg           # noqa: E402
@@ -36,18 +36,18 @@ check("password verify sai", not cfg.verify_password("wrong", {"auth": {"passwor
 check("hash không phải plaintext", "hunter2" not in h and len(h) >= 40)
 
 # ---- 2. require_login FAIL-CLOSED theo bind ----
-_saved = {k: os.environ.get(k) for k in ("JAVIS_HOST", "JAVIS_REQUIRE_LOGIN")}
+_saved = {k: os.environ.get(k) for k in ("AIOS_HOST", "AIOS_REQUIRE_LOGIN")}
 try:
-    os.environ.pop("JAVIS_REQUIRE_LOGIN", None)
-    os.environ["JAVIS_HOST"] = "0.0.0.0"
+    os.environ.pop("AIOS_REQUIRE_LOGIN", None)
+    os.environ["AIOS_HOST"] = "0.0.0.0"
     check("public bind → bắt buộc login", cfg.require_login() is True)
-    os.environ["JAVIS_HOST"] = "127.0.0.1"
+    os.environ["AIOS_HOST"] = "127.0.0.1"
     check("localhost bind → không ép login", cfg.require_login() is False)
-    os.environ["JAVIS_HOST"] = "192.168.1.50"
+    os.environ["AIOS_HOST"] = "192.168.1.50"
     check("LAN IP bind → bắt buộc login", cfg.require_login() is True)
-    os.environ["JAVIS_REQUIRE_LOGIN"] = "0"
-    os.environ["JAVIS_HOST"] = "0.0.0.0"
-    check("JAVIS_REQUIRE_LOGIN=0 ép tắt kể cả public", cfg.require_login() is False)
+    os.environ["AIOS_REQUIRE_LOGIN"] = "0"
+    os.environ["AIOS_HOST"] = "0.0.0.0"
+    check("AIOS_REQUIRE_LOGIN=0 ép tắt kể cả public", cfg.require_login() is False)
 finally:
     for k, v in _saved.items():
         if v is None:
@@ -63,13 +63,13 @@ check("session quá hạn bị loại", not cfg.valid_session(tok))
 check("session quá hạn bị xoá khỏi store", tok not in cfg.SESSIONS)
 
 # ---- 4. Setup token (chống chiếm admin lần đầu public) ----
-os.environ["JAVIS_HOST"] = "0.0.0.0"
-os.environ.pop("JAVIS_REQUIRE_LOGIN", None)
+os.environ["AIOS_HOST"] = "0.0.0.0"
+os.environ.pop("AIOS_REQUIRE_LOGIN", None)
 t = cfg.get_or_create_setup_token()
 check("public+chưa admin → có setup token", bool(t))
 check("setup token đúng qua", cfg.check_setup_token(t))
 check("setup token sai chặn", not cfg.check_setup_token("saibet"))
-os.environ["JAVIS_HOST"] = "127.0.0.1"
+os.environ["AIOS_HOST"] = "127.0.0.1"
 
 # ---- 5. secrets_store roundtrip ----
 enc = secrets_store.encrypt("sk-secret-123")
@@ -111,7 +111,7 @@ check("mode auto trần safe (chặn danger dù perm full)",
       mcp_catalog.allowed(conn, "full", "auto", "delete_order")[0] is False)
 
 # ---- 8. Chống path traversal trong vault ----
-base = tempfile.mkdtemp(prefix="javis-vault-")
+base = tempfile.mkdtemp(prefix="striver-vault-")
 ok_path = mcp_hub._safe_path(base, "notes/report.md")
 check("path hợp lệ trong vault", str(ok_path).startswith(os.path.realpath(base)))
 for bad in ("../etc/passwd", "../../secret", "/etc/passwd"):

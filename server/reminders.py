@@ -1,20 +1,20 @@
 """
-reminders.py - Nhắc hẹn từ chat cho Javis: "30 phút nữa nhắc anh...", "8h30 sáng mai...".
+reminders.py - Nhắc hẹn từ chat cho Striver: "30 phút nữa nhắc anh...", "8h30 sáng mai...".
 
-Vá đúng lỗ hổng người dùng nêu: Javis GỬI được Telegram ngay lúc chat, nhưng CHƯA tự
+Vá đúng lỗ hổng người dùng nêu: Striver GỬI được Telegram ngay lúc chat, nhưng CHƯA tự
 hẹn giờ để thức dậy gửi SAU. Module này thêm hàng đợi nhắc hẹn BỀN (JSON trong vault,
 git-backed) + để scheduler nền (main._scheduler_loop, tick 30s) đánh thức đúng giờ:
   - mode "notify" (mặc định): tới giờ bắn thẳng tin nhắc qua Telegram cho ĐÚNG người đã đặt.
   - mode "task"            : tới giờ chạy engine (ĐỌC dữ liệu thật qua MCP + ghi nháp vault,
                              KHÔNG tiền/đơn/đăng bài) rồi gửi kết quả về Telegram.
   - mode "script"          : job KHÔNG cần LLM (rẻ, để giám sát) - chạy script có sẵn trong
-                             <brain>/Javis/scripts, đẩy stdout về Telegram; exit≠0 → cảnh báo lỗi,
+                             <brain>/Striver/scripts, đẩy stdout về Telegram; exit≠0 → cảnh báo lỗi,
                              stdout rỗng hoặc có cờ [SILENT] → im lặng (port ý no_agent của Hermes).
 
 Lịch: hẹn 1-lần (delay_min|at|due_at) HOẶC định kỳ bằng biểu thức CRON 5 trường (cron_util.py,
 tự viết, không phụ thuộc lib). Có cron thì mỗi lần fire xong tự tính due_at kế tiếp.
 
-Tạo nhắc: engine (Javis) tự gọi POST /reminders qua Bash curl từ localhost khi user nói
+Tạo nhắc: engine (Striver) tự gọi POST /reminders qua Bash curl từ localhost khi user nói
 "nhắc anh ..." (endpoint được khai báo trong channel_context). Cũng tạo/huỷ được từ dashboard.
 Thời gian do SERVER tính (giờ VN, UTC+7) từ delay_min | at | due_at → engine chỉ cần map câu
 nói của user, KHỎI cần biết "bây giờ" trong prompt (giữ prompt-cache ổn định).
@@ -52,7 +52,7 @@ MAX_KEEP = 500                 # trần số bản ghi giữ lại mỗi brain
 SCRIPT_TIMEOUT_S = 120         # trần thời gian chạy 1 job script
 SCRIPT_OUT_CAP = 3500          # trần ký tự stdout đẩy về Telegram
 
-# Đuôi file script → trình chạy. Chỉ chạy script CÓ SẴN trong <brain>/Javis/scripts (chủ tự viết),
+# Đuôi file script → trình chạy. Chỉ chạy script CÓ SẴN trong <brain>/Striver/scripts (chủ tự viết),
 # KHÔNG nhận lệnh tuỳ ý từ chat → chặn prompt-injection tạo job phá hoại.
 _SCRIPT_RUNNERS = {
     ".py": [sys.executable],
@@ -159,7 +159,7 @@ class RemindersDeps:
     safe_tools: List[str]
     readonly_tools: List[str]
     scheduler_brains: Callable[[], List[str]]  # () -> danh sách brain scheduler quét
-    apply_mcp: Optional[Callable] = None       # apply_mcp(cli, mode): gắn MCP Javis-quản-lý (đọc thật)
+    apply_mcp: Optional[Callable] = None       # apply_mcp(cli, mode): gắn MCP Striver-quản-lý (đọc thật)
     mcp_allow_patterns: Optional[Callable] = None  # () -> ["mcp__<server>", ...] cho allowlist
 
 
@@ -172,7 +172,7 @@ class RemindersFeature:
 
     # ── store (JSON trong brain) ──
     def _path(self, brain: str) -> Path:
-        return Path(self.deps.brain_root(brain)) / "Javis" / "reminders.json"
+        return Path(self.deps.brain_root(brain)) / "Striver" / "reminders.json"
 
     def _load(self, brain: str) -> dict:
         data = {"reminders": [], "updated": 0.0}
@@ -191,16 +191,16 @@ class RemindersFeature:
         self.deps.atomic_write_text(self._path(brain), json.dumps(data, ensure_ascii=False, indent=2))
 
     def _scripts_dir(self, brain: str) -> Path:
-        return Path(self.deps.brain_root(brain)) / "Javis" / "scripts"
+        return Path(self.deps.brain_root(brain)) / "Striver" / "scripts"
 
     def _resolve_script(self, brain: str, script: str) -> Path:
-        """script CHỈ nhận TÊN FILE nằm trong <brain>/Javis/scripts (không path, không '..').
+        """script CHỈ nhận TÊN FILE nằm trong <brain>/Striver/scripts (không path, không '..').
         Trả path thật đã kiểm tra tồn tại. Ném ValueError nếu không hợp lệ."""
         name = str(script or "").strip().replace("\\", "/")
         if not name:
-            raise ValueError("mode 'script' cần tên file trong Javis/scripts")
+            raise ValueError("mode 'script' cần tên file trong Striver/scripts")
         if "/" in name or name.startswith("."):
-            raise ValueError("script chỉ nhận TÊN FILE trong Javis/scripts (không đường dẫn)")
+            raise ValueError("script chỉ nhận TÊN FILE trong Striver/scripts (không đường dẫn)")
         base = self._scripts_dir(brain)
         p = base / name
         try:
@@ -208,7 +208,7 @@ class RemindersFeature:
         except Exception:
             raise ValueError("đường dẫn script không hợp lệ")
         if rp.parent != rbase or not rp.is_file():
-            raise ValueError(f"không thấy script '{name}' trong Javis/scripts")
+            raise ValueError(f"không thấy script '{name}' trong Striver/scripts")
         if rp.suffix.lower() not in _SCRIPT_RUNNERS and not os.access(rp, os.X_OK):
             raise ValueError(f"đuôi '{rp.suffix}' chưa hỗ trợ (dùng .py/.sh/.ps1/.js/.bat)")
         return rp
@@ -346,7 +346,7 @@ class RemindersFeature:
             async with self.lock:
                 body, err = await self._run_task(brain, text)
             if body:
-                msg = "⏰ Nhắc hẹn (Javis đã làm):\n" + head + "\n\n" + body
+                msg = "⏰ Nhắc hẹn (Striver đã làm):\n" + head + "\n\n" + body
             elif err:
                 msg = "⏰ Nhắc hẹn: " + text + "\n\n⚠ Chưa chạy được nhiệm vụ: " + err[:300]
             else:
@@ -404,7 +404,7 @@ class RemindersFeature:
             self._save(brain, data)
 
     async def _run_script(self, brain: str, script: str):
-        """Job không-LLM: chạy script CÓ SẴN trong Javis/scripts, trả (stdout, stderr, exit_code).
+        """Job không-LLM: chạy script CÓ SẴN trong Striver/scripts, trả (stdout, stderr, exit_code).
         exit_code=-1 nếu không chạy được (thiếu trình chạy / timeout / lỗi khởi tạo)."""
         try:
             rp = self._resolve_script(brain, script)
@@ -419,7 +419,7 @@ class RemindersFeature:
         else:
             argv = [str(rp)]   # file thực thi có shebang (đã kiểm tra os.X_OK lúc tạo)
         env = dict(os.environ)
-        env["JAVIS_BRAIN_ROOT"] = str(self.deps.brain_root(brain))
+        env["AIOS_BRAIN_ROOT"] = str(self.deps.brain_root(brain))
         try:
             proc = await asyncio.create_subprocess_exec(
                 *argv, cwd=self.deps.brain_root(brain), env=env,
@@ -526,7 +526,7 @@ class RemindersFeature:
 
         @router.get("/reminders/scripts")
         async def reminders_scripts(brain: str = Query("brain")):
-            """Liệt kê script chạy được (job không-LLM) đặt trong <brain>/Javis/scripts.
+            """Liệt kê script chạy được (job không-LLM) đặt trong <brain>/Striver/scripts.
             Tự tạo thư mục nếu chưa có để user biết chỗ bỏ file vào."""
             d = self._scripts_dir(brain)
             try:

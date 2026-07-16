@@ -3,7 +3,7 @@
     cd server && python test_files_root.py
 
 KHÔNG mạng. Phủ: localhost mở tới ổ đĩa (out được ra root), public khoá brain,
-JAVIS_FILES_ROOT override, _safe_path chặn vượt trần, điểm vào mặc định = brain,
+AIOS_FILES_ROOT override, _safe_path chặn vượt trần, điểm vào mặc định = brain,
 parent=None khi ở trần (ẩn nút Lên).
 """
 import asyncio
@@ -12,7 +12,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-os.environ.setdefault("JAVIS_STATE_DIR", tempfile.mkdtemp(prefix="javis-filestest-"))
+os.environ.setdefault("AIOS_STATE_DIR", tempfile.mkdtemp(prefix="striver-filestest-"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import main            # noqa: E402
@@ -28,7 +28,7 @@ def check(name, cond):
 
 
 # Brain giả sâu vài cấp để có chỗ "Lên"
-_TMP = Path(tempfile.mkdtemp(prefix="javis-brainroot-")).resolve()
+_TMP = Path(tempfile.mkdtemp(prefix="striver-brainroot-")).resolve()
 BRAIN = _TMP / "brains" / "My Vault"
 (BRAIN / "01 - Daily").mkdir(parents=True)
 (BRAIN / "note.md").write_text("hi", encoding="utf-8")
@@ -40,12 +40,12 @@ main._brain_root = lambda brain: str(BRAIN)
 
 
 def _set_env(host=None, files_root=None):
-    for k, v in (("JAVIS_HOST", host), ("JAVIS_FILES_ROOT", files_root)):
+    for k, v in (("AIOS_HOST", host), ("AIOS_FILES_ROOT", files_root)):
         if v is None:
             os.environ.pop(k, None)
         else:
             os.environ[k] = v
-    os.environ.pop("JAVIS_REQUIRE_LOGIN", None)
+    os.environ.pop("AIOS_REQUIRE_LOGIN", None)
 
 
 try:
@@ -67,7 +67,7 @@ try:
     except ValueError:
         check("public: chặn ../ ra ngoài brain", True)
 
-    # ---- 3. JAVIS_FILES_ROOT override ----
+    # ---- 3. AIOS_FILES_ROOT override ----
     _set_env(host="0.0.0.0", files_root="drive")   # public NHƯNG ép mở ổ đĩa
     check("env=drive: trần = ổ đĩa dù public", main._files_ceiling("brain") == _ANCHOR)
     _set_env(host="127.0.0.1", files_root="brain")  # localhost NHƯNG ép khoá brain

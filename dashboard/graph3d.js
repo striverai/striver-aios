@@ -1,5 +1,5 @@
 // ============================================
-// JAVIS OS - 3D Graph (V.A.U.L.T. nebula HUD)
+// STRIVER AIOS - 3D Graph (V.A.U.L.T. nebula HUD)
 // Node = sprite phát sáng additive (glow) → khối cầu tinh vân như chase.h.ai.
 // Dùng window.THREE global (load trước 3d-force-graph) + ForceGraph3D UMD.
 // ============================================
@@ -62,7 +62,7 @@ function centerGravity3D(strength) {
   return force;
 }
 
-class JavisGraph3D {
+class StriverGraph3D {
   constructor(container, tooltip) {
     this.container = container;
     this.tooltip = tooltip;
@@ -76,14 +76,14 @@ class JavisGraph3D {
     this._births = new Map();   // sprite -> frames còn lại của hiệu ứng "nảy sinh"
     this._paused = false;
     // Expose để Console (console.js) gọi pause()/wake() khi chuyển trang - không cần sửa app.js.
-    window.__javisGraph = this;
-    window.dispatchEvent(new Event("javis-graph-created"));
+    window.__striverGraph = this;
+    window.dispatchEvent(new Event("striver-graph-created"));
   }
 
   async load(query = "source=all") {
     const res = await fetch(`/graph?${query}`);
     const data = await res.json();
-    if (window.JavisCatColorize) window.JavisCatColorize(data.nodes);   // tô màu theo danh mục như 2D
+    if (window.StriverCatColorize) window.StriverCatColorize(data.nodes);   // tô màu theo danh mục như 2D
     const links = data.edges.map(e => ({ source: e.source, target: e.target }));
     const THREE = window.THREE;
 
@@ -425,5 +425,5 @@ class JavisGraph3D {
   isPaused() { return !!this._paused; }
 }
 
-window.JavisGraph3D = JavisGraph3D;
-window.dispatchEvent(new Event("javis-graph3d-ready"));
+window.StriverGraph3D = StriverGraph3D;
+window.dispatchEvent(new Event("striver-graph3d-ready"));

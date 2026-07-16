@@ -1,8 +1,8 @@
 """
-Javis OS - Backend
+Striver AIOS - Backend
 Kiến trúc: Voice (browser) ⇄ FastAPI WebSocket ⇄ Claude Code CLI subprocess
 
-Javis KHÔNG gọi Anthropic API trực tiếp. Mọi reasoning + tool calling đi qua
+Striver KHÔNG gọi Anthropic API trực tiếp. Mọi reasoning + tool calling đi qua
 `claude` CLI đã cài trên máy → tự kế thừa MCP, skills, auth.
 """
 import os
@@ -42,13 +42,13 @@ import oauth_mcp
 import system_sync   # tầng năng lực HỆ THỐNG (skill/loop mặc định) - update theo phiên bản app
 import skill_router   # nguồn chân lý khám phá skill (canonical <brain>/skills) dùng chung mọi engine
 import share_bundle   # xuất/nhập gói agent/skill/workflow (.zip) để chia sẻ giữa brain/người dùng
-import usage_store   # đếm token/chi phí Javis tự đo (đa nhà cung cấp)
+import usage_store   # đếm token/chi phí Striver tự đo (đa nhà cung cấp)
 from telegram_bot import TelegramBot, parse_chat_ids as tg_parse_ids
 import channel_context   # metadata kênh + gom file trả về kênh chat (port gateway hermes-agent)
 from sessions import get_store   # kho phiên hội thoại (sqlite + fts5): list/resume/search
 import compaction   # nén hội thoại dài cho engine API (tóm tắt phần cũ thay vì cắt bỏ)
 
-app = FastAPI(title="Javis OS")
+app = FastAPI(title="Striver AIOS")
 # CORS KHÔNG dùng '*' nữa: dashboard cùng-origin (không cần CORS). Chỉ mở cross-origin cho localhost
 # (tiện dev). Chống trang web độc ĐỌC API qua trình duyệt; phần chống GHI/CSRF ở _csrf_guard bên dưới.
 app.add_middleware(CORSMiddleware,
@@ -91,7 +91,7 @@ async def _auth_guard(request: Request, call_next):
         public = (path in _AUTH_PUBLIC_EXACT
                   or any(path.startswith(p) for p in _AUTH_PUBLIC_PREFIX)
                   or (path in _AUTH_LOCAL_EXACT and client_host in ("127.0.0.1", "::1")))
-        if not public and not cfgmod.valid_session(request.cookies.get("javis_session", "")):
+        if not public and not cfgmod.valid_session(request.cookies.get("striver_session", "")):
             return JSONResponse({"error": "unauthorized", "auth_required": True,
                                  "setup_required": not cfgmod.auth_enabled()}, status_code=401)
     return await call_next(request)
@@ -107,16 +107,16 @@ SYSTEM_PROMPT = CLAUDE_MD_PATH.read_text(encoding="utf-8") if CLAUDE_MD_PATH.exi
 
 # Bộ nhớ dài hạn - lưu TRONG vault đang chọn để đi theo vault
 MEMORY_SEED = (
-    "# Bộ nhớ Javis - Index\n\n"
-    "> Chỉ mục bộ nhớ dài hạn của Javis. Mỗi dòng = 1 ký ức, trỏ tới file trong `facts/`.\n"
-    "> Nội dung file này được nạp vào đầu mỗi câu hỏi để Javis nhớ ngữ cảnh.\n\n"
-    "_(Chưa có ký ức nào. Javis sẽ học dần sau mỗi hội thoại.)_\n"
+    "# Bộ nhớ Striver - Index\n\n"
+    "> Chỉ mục bộ nhớ dài hạn của Striver. Mỗi dòng = 1 ký ức, trỏ tới file trong `facts/`.\n"
+    "> Nội dung file này được nạp vào đầu mỗi câu hỏi để Striver nhớ ngữ cảnh.\n\n"
+    "_(Chưa có ký ức nào. Striver sẽ học dần sau mỗi hội thoại.)_\n"
 )
 
 def _atomic_write_text(path, content: str, encoding: str = "utf-8"):
     """Ghi file nguyên tử: viết ra .tmp cùng thư mục → fsync → os.replace.
 
-    Mặc định write_text() ghi trực tiếp; nếu Javis crash hoặc mất điện
+    Mặc định write_text() ghi trực tiếp; nếu Striver crash hoặc mất điện
     giữa chừng, file (loop_config.json, automations.json, memory .md...)
     sẽ bị cắt cụt → JSON corrupt / frontmatter hỏng. Pattern port từ
     hermes-agent/utils.py:atomic_replace - bảo đảm reader luôn thấy bản
@@ -164,7 +164,7 @@ def _brain_memory_dir(brain: str) -> Path:
     return mem
 
 def build_system_prompt(brain: str = "brain") -> str:
-    """CLAUDE.md + nạp MEMORY.md của vault đang chọn → Javis luôn nhớ ngữ cảnh."""
+    """CLAUDE.md + nạp MEMORY.md của vault đang chọn → Striver luôn nhớ ngữ cảnh."""
     base = CLAUDE_MD_PATH.read_text(encoding="utf-8") if CLAUDE_MD_PATH.exists() else ""
     idx = _brain_memory_dir(brain) / "MEMORY.md"
     mem = ""
@@ -175,7 +175,7 @@ def build_system_prompt(brain: str = "brain") -> str:
         mem = ""
     if mem.strip():
         base += "\n\n# === BỘ NHỚ DÀI HẠN (nạp sẵn) ===\n" + mem
-    # Đường dẫn lớp Agentic của vault đang làm việc (để Javis tạo agent/workflow/loop qua chat)
+    # Đường dẫn lớp Agentic của vault đang làm việc (để Striver tạo agent/workflow/loop qua chat)
     root = _brain_root(brain)
     system_sync.ensure_synced(root)   # brain nào cũng có đủ năng lực hệ thống (1 lần/process, rẻ)
     try:
@@ -185,7 +185,7 @@ def build_system_prompt(brain: str = "brain") -> str:
     except Exception:
         pass
     ag, wf = _agents_dir(brain), _workflows_dir(brain)
-    lp = Path(root) / "Javis" / "loops"
+    lp = Path(root) / "Striver" / "loops"
     sk = _skills_dir(brain)
     base += (
         "\n\n# === LỚP AGENTIC (vault đang làm việc) ===\n"
@@ -199,7 +199,7 @@ def build_system_prompt(brain: str = "brain") -> str:
         "ĐƯỜNG DẪN TUYỆT ĐỐI ở trên. Studio/trang Tự cải thiện sẽ tự nhận file mới."
     )
     try:
-        base += _javis_capability_summary(brain)   # chỉ mục năng lực LIVE (mọi engine biết Javis có gì)
+        base += _striver_capability_summary(brain)   # chỉ mục năng lực LIVE (mọi engine biết Striver có gì)
     except Exception:
         pass
     try:
@@ -207,13 +207,13 @@ def build_system_prompt(brain: str = "brain") -> str:
     except Exception:
         pass
     try:
-        # 1 dòng MỨC DÙNG để Javis TRẢ LỜI được khi user hỏi "token tiêu bao nhiêu" (chi tiết ở panel).
+        # 1 dòng MỨC DÙNG để Striver TRẢ LỜI được khi user hỏi "token tiêu bao nhiêu" (chi tiết ở panel).
         _t = usage_store.summary().get("today", {}).get("total", {})
         if _t.get("in") or _t.get("out"):
             _c = f", ~${_t.get('cost', 0):.4f}" if _t.get("cost") else ""
-            base += (f"\n\n# === MỨC DÙNG HÔM NAY (Javis tự đo) ===\n"
+            base += (f"\n\n# === MỨC DÙNG HÔM NAY (Striver tự đo) ===\n"
                      f"{_t.get('in', 0):,} token vào + {_t.get('out', 0):,} token ra qua "
-                     f"{_t.get('turns', 0)} lượt{_c}. Đây là token Javis TỰ ĐO, KHÔNG phải hạn mức gói "
+                     f"{_t.get('turns', 0)} lượt{_c}. Đây là token Striver TỰ ĐO, KHÔNG phải hạn mức gói "
                      f"thuê bao (đa số nhà cung cấp không cho lấy hạn mức tài khoản qua API). Chi tiết "
                      f"từng nhà cung cấp ở panel 'Mức dùng' trên dashboard.")
     except Exception:
@@ -281,7 +281,7 @@ def _redact_secrets(text: str) -> str:
 # Cap kích thước mỗi message khi ghi conversation log - port head/tail truncation
 # từ hermes-agent/agent/prompt_builder.py::_truncate_content. conversations/*.md là
 # "nguyên liệu để học" (rewire đọc lại) VÀ bị git commit; user paste 1 source dài
-# hoặc Javis trả báo cáo dài → log phình, rewire tốn token, repo nặng. Giữ đầu +
+# hoặc Striver trả báo cáo dài → log phình, rewire tốn token, repo nặng. Giữ đầu +
 # đuôi (đủ ngữ cảnh để học), bỏ giữa, ghi rõ đã cắt bao nhiêu ký tự.
 _LOG_MSG_MAX_CHARS = 4000
 _LOG_HEAD_CHARS = 2800
@@ -296,7 +296,7 @@ def _clip_for_log(text: str, max_chars: int = _LOG_MSG_MAX_CHARS) -> str:
               f"{_LOG_TAIL_CHARS} cuối / tổng {len(text)} …]\n\n")
     return head + marker + tail
 
-def log_conversation(brain: str, user_msg: str, javis_msg: str):
+def log_conversation(brain: str, user_msg: str, striver_msg: str):
     """Ghi log hội thoại vào Memory của vault đang chọn (nguyên liệu để học)."""
     try:
         from datetime import datetime, timezone, timedelta
@@ -304,14 +304,14 @@ def log_conversation(brain: str, user_msg: str, javis_msg: str):
         conv = _brain_memory_dir(brain) / "conversations"
         f = conv / f"{now.strftime('%Y-%m-%d')}.md"
         u = _clip_for_log(_redact_secrets(user_msg))
-        j = _clip_for_log(_redact_secrets(javis_msg))
-        entry = f"\n## {now.strftime('%H:%M')}\n**Bạn:** {u}\n\n**Javis:** {j}\n"
+        j = _clip_for_log(_redact_secrets(striver_msg))
+        entry = f"\n## {now.strftime('%H:%M')}\n**Bạn:** {u}\n\n**Striver:** {j}\n"
         with open(f, "a", encoding="utf-8") as fh:
             fh.write(entry)
     except Exception as e:
         print(f"[memory log error] {e}", file=__import__('sys').stderr)
 
-# Working directory cho Claude CLI - mặc định là root project Javis OS
+# Working directory cho Claude CLI - mặc định là root project Striver AIOS
 # để Claude đọc được CLAUDE.md và truy cập MCPs cài globally
 CLAUDE_CWD = os.getenv("CLAUDE_CWD", str(Path(__file__).parent.parent))
 
@@ -361,8 +361,8 @@ def _session_cookie(resp, token, request=None):
     # KHÔNG tự suy Secure từ X-Forwarded-Proto: nhiều proxy (vd Hostinger port-path http://host/PORT/)
     # phục vụ HTTP → cookie Secure sẽ KHÔNG được trình duyệt gửi lại → KẸT vòng đăng nhập (đăng nhập/
     # tạo tài khoản xong vẫn bị hỏi lại từ đầu). Mặc định TẮT Secure để chạy được cả HTTP lẫn HTTPS.
-    # Chỉ bật khi bạn CHẮC CHẮN HTTPS đầu-cuối: đặt env JAVIS_SECURE_COOKIE=1.
-    secure = os.getenv("JAVIS_SECURE_COOKIE", "").strip().lower() in ("1", "true", "yes", "on")
+    # Chỉ bật khi bạn CHẮC CHẮN HTTPS đầu-cuối: đặt env AIOS_SECURE_COOKIE=1.
+    secure = os.getenv("AIOS_SECURE_COOKIE", "").strip().lower() in ("1", "true", "yes", "on")
     # HTTPS thật qua TÊN MIỀN RIÊNG (Caddy On-Demand TLS): Host khớp custom domain → chắc chắn đi
     # qua Caddy = HTTPS đầu-cuối → bật Secure. An toàn: KHÔNG suy từ X-Forwarded-Proto, và không
     # ảnh hưởng bản localhost/Hostinger (Host khác custom domain → giữ nguyên như cũ).
@@ -374,7 +374,7 @@ def _session_cookie(resp, token, request=None):
                 secure = True
         except Exception:
             pass
-    resp.set_cookie("javis_session", token, httponly=True, samesite="lax",
+    resp.set_cookie("striver_session", token, httponly=True, samesite="lax",
                     secure=secure, max_age=30 * 86400, path="/")
     return resp
 
@@ -384,7 +384,7 @@ async def auth_status(request: Request):
     cfg = cfgmod.read_settings()
     enabled = cfgmod.auth_enabled(cfg)
     require = cfgmod.require_login()
-    has_session = cfgmod.valid_session(request.cookies.get("javis_session", ""))
+    has_session = cfgmod.valid_session(request.cookies.get("striver_session", ""))
     # authed: có session thật; HOẶC bản local không bắt buộc login + chưa đặt mật khẩu (giữ UX cũ).
     authed = has_session or (not enabled and not require)
     return {"needs_setup": not enabled, "auth_required": enabled or require,
@@ -448,9 +448,9 @@ async def auth_login(request: Request, username: str = Form(...), password: str 
 
 @app.post("/auth/logout")
 async def auth_logout(request: Request):
-    cfgmod.drop_session(request.cookies.get("javis_session", ""))
+    cfgmod.drop_session(request.cookies.get("striver_session", ""))
     resp = JSONResponse({"ok": True})
-    resp.delete_cookie("javis_session", path="/")
+    resp.delete_cookie("striver_session", path="/")
     return resp
 
 
@@ -604,7 +604,7 @@ def _hub_enabled():
 
 
 async def _api_stream_mcp(prov, key, model, messages, reasoning="off", brain=None):
-    """Model API/OAuth dùng MCP của Javis qua HUB: đa tài khoản + quyền + audit + builtin tools
+    """Model API/OAuth dùng MCP của Striver qua HUB: đa tài khoản + quyền + audit + builtin tools
     (file vault, use_skill) → engine API cũng là agent thực thụ. anthropic-api giờ CÓ tool loop.
     ChatGPT OAuth (backend Codex responses) không nhận function tool → vẫn chat thuần."""
     tools, route = [], {}
@@ -654,12 +654,12 @@ def _toml_str(s):
 
 
 def _write_codex_profile():
-    """Ghi ~/.codex/javis.config.toml → `codex exec -p javis` thấy MCP của Javis.
+    """Ghi ~/.codex/striver.config.toml → `codex exec -p striver` thấy MCP của Striver.
     Hub bật (mặc định): 1 entry hub - Codex dùng được MỌI transport (cả stdio/internal) + đa tài
-    khoản + quyền. Hub tắt: per-server http như cũ. Trả 'javis' nếu có server, None nếu rỗng."""
+    khoản + quyền. Hub tắt: per-server http như cũ. Trả 'striver' nếu có server, None nếu rỗng."""
     if _hub_enabled():
         return mcp_hub.codex_profile("full")
-    path = Path.home() / ".codex" / "javis.config.toml"
+    path = Path.home() / ".codex" / "striver.config.toml"
     lines, seen = [], set()
     for s in mcp_store.servers_for_client():
         name = re.sub(r"[^A-Za-z0-9_]", "_", (s.get("name") or "").strip())
@@ -680,7 +680,7 @@ def _write_codex_profile():
         if seen:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("\n".join(lines), encoding="utf-8")
-            return "javis"
+            return "striver"
         if path.exists():
             path.unlink()
     except Exception as e:
@@ -689,11 +689,11 @@ def _write_codex_profile():
 
 
 def _apply_mcp(cli, mode="full"):
-    """Gắn MCP do Javis quản lý vào 1 engine Claude (registry rỗng → không đổi gì, dùng MCP sẵn của máy).
-    Hub bật: config 1 entry trỏ hub kèm X-Javis-Mode - deny/perm/audit chặn TẠI hub (lớp cứng),
+    """Gắn MCP do Striver quản lý vào 1 engine Claude (registry rỗng → không đổi gì, dùng MCP sẵn của máy).
+    Hub bật: config 1 entry trỏ hub kèm X-Striver-Mode - deny/perm/audit chặn TẠI hub (lớp cứng),
     không cần --disallowedTools. Hub tắt: per-server + --disallowedTools như cũ."""
     try:
-        cli.javis_mode = mode   # engine SDK dùng để enforce min_mode plugin in-process
+        cli.striver_mode = mode   # engine SDK dùng để enforce min_mode plugin in-process
         if _hub_enabled():
             cli.mcp_config = mcp_hub.claude_config_path(mode)
             cli.mcp_strict = bool(cfgmod.read_settings().get("mcp", {}).get("strict")) and cli.mcp_config is not None
@@ -772,7 +772,7 @@ def claude_logout():
     return claude_auth_logout()
 
 
-# ---- MCP do Javis quản lý (engine Claude Code) ----
+# ---- MCP do Striver quản lý (engine Claude Code) ----
 @app.get("/mcp/list")
 async def mcp_list():
     return {"servers": mcp_store.list_servers(),
@@ -898,7 +898,7 @@ async def connect_substack_resolve_uid(q: str = Query("")):
     """Tra User ID (+ gợi ý Publication URL) của một tài khoản Substack từ handle hoặc URL trang
     Hồ sơ. Substack đã đổi URL Hồ sơ sang dạng substack.com/@handle (không còn dãy số), nên trợ lý
     lấy nhanh ở trang Docs gọi endpoint này - server hỏi API CÔNG KHAI của Substack (không cần đăng
-    nhập Substack, không đụng secret) rồi trả về id. Endpoint vẫn sau auth guard (cần session Javis)."""
+    nhập Substack, không đụng secret) rồi trả về id. Endpoint vẫn sau auth guard (cần session Striver)."""
     import re
     raw = (q or "").strip()
     m = re.search(r"/profile/(\d{3,})", raw)   # URL /profile/<id>-name kiểu cũ: số chính là user_id
@@ -1002,7 +1002,7 @@ async def connect_zalo_cancel(request: Request):
     return zalo_login.cancel(data.get("sid"))
 
 
-# ---- OAuth chuẩn MCP: Javis tự giữ token, không cần terminal ----
+# ---- OAuth chuẩn MCP: Striver tự giữ token, không cần terminal ----
 @app.post("/connect/oauth/start")
 async def connect_oauth_start(request: Request):
     data = await request.json()
@@ -1056,7 +1056,7 @@ async def connect_oauth_callback(state: str = Query(""), code: str = Query("")):
         except Exception as e:
             print(f"[oauth label] {e}")
         html = ("<html><body style='font-family:sans-serif;background:#111;color:#eee;text-align:center;padding-top:80px'>"
-                "<h2>✓ Đã kết nối thành công</h2><p>Đóng tab này và quay lại Javis, bấm Làm mới ở trang Kết nối.</p></body></html>")
+                "<h2>✓ Đã kết nối thành công</h2><p>Đóng tab này và quay lại Striver, bấm Làm mới ở trang Kết nối.</p></body></html>")
     else:
         html = (f"<html><body style='font-family:sans-serif;background:#111;color:#eee;text-align:center;padding-top:80px'>"
                 f"<h2>⚠ Kết nối thất bại</h2><p>{res.get('error', '')}</p></body></html>")
@@ -1103,7 +1103,7 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
 
     if section == "general":
         if "workspace_name" in patch:
-            cfg["workspace_name"] = patch["workspace_name"] or "Javis OS"
+            cfg["workspace_name"] = patch["workspace_name"] or "Striver AIOS"
         if "setup_done" in patch:
             cfg["setup_done"] = bool(patch["setup_done"])
     elif section == "model":
@@ -1441,7 +1441,7 @@ _METRICS_TTL = float(os.getenv("METRICS_TTL", "180"))   # giây
 @app.get("/metrics")
 async def metrics(fresh: int = Query(0, description="1 = bỏ cache, gọi mới")):
     """
-    Số liệu động - Javis tự phát hiện MCP đang kết nối và trả về các card
+    Số liệu động - Striver tự phát hiện MCP đang kết nối và trả về các card
     phù hợp (kinh doanh và/hoặc cuộc sống). Không hardcode ngành nào.
     Có cache TTL: F5 liên tục không gọi lại Claude.
     """
@@ -1453,7 +1453,7 @@ async def metrics(fresh: int = Query(0, description="1 = bỏ cache, gọi mới
 
     cli = claude_engine(system_prompt=SYSTEM_PROMPT, cwd=CLAUDE_CWD, tag="metrics")
     cli.model = _aux_model() or None   # việc nền: dùng model phụ nếu có cấu hình
-    _apply_mcp(cli)   # metrics cần MCP (POS/ads) - dùng server Javis quản lý nếu có
+    _apply_mcp(cli)   # metrics cần MCP (POS/ads) - dùng server Striver quản lý nếu có
     if not cli.is_available():
         return {"error": "Claude CLI chưa cài", "cards": []}
 
@@ -1580,7 +1580,7 @@ def _node_payload(fpath, roots):
 @app.websocket("/ws/graph")
 async def ws_graph(ws: WebSocket):
     """Đẩy realtime mỗi khi brain sinh ra / cập nhật note .md (poll mtime nhẹ)."""
-    if cfgmod.gate_active() and not cfgmod.valid_session(ws.cookies.get("javis_session", "")):
+    if cfgmod.gate_active() and not cfgmod.valid_session(ws.cookies.get("striver_session", "")):
         await ws.close(code=1008)
         return
     await ws.accept()
@@ -1651,7 +1651,7 @@ def _brain_root(brain: str) -> str:
 
 def _brain_sub(root, new_name: str, old_rel: str) -> Path:
     """Subfolder trong brain theo cấu trúc CHUẨN MỚI (phẳng <root>/<new_name>).
-    Fallback cấu trúc CŨ (<root>/<old_rel>, vd Javis/agents, Memory) nếu mới chưa có →
+    Fallback cấu trúc CŨ (<root>/<old_rel>, vd Striver/agents, Memory) nếu mới chưa có →
     không vỡ vault chưa migrate. Chưa có cả hai → tạo mới."""
     root = Path(root)
     new = root / new_name
@@ -1769,19 +1769,19 @@ async def ingest_upload(
                 "folder": os.path.basename(sources)}
     return {"ok": False, "error": "Không tạo được .md", "raw": final[:200]}
 
-# Cấu trúc chuẩn Javis - kiểm tra khi mở vault
+# Cấu trúc chuẩn Striver - kiểm tra khi mở vault
 # detect: regex khớp tên folder top-level (linh hoạt "06 - Sources" / "Sources")
 STANDARD_STRUCTURE = [
     # Nội dung người dùng đưa vào - nguồn lưu trữ (source of truth)
     {"key": "sources", "label": "sources", "kind": "dir", "detect": r"^(\d+\s*[-_.]\s*)?sources$", "create": "sources", "essential": True},
-    # Lớp vận hành Javis (alt = vị trí cũ chưa migrate → không báo thiếu nhầm)
-    {"key": "agents", "label": "agents", "kind": "dir", "detect": r"^agents$", "alt": "Javis/agents", "create": "agents", "essential": True},
-    {"key": "workflows", "label": "workflows", "kind": "dir", "detect": r"^workflows$", "alt": "Javis/workflows", "create": "workflows", "essential": True},
+    # Lớp vận hành Striver (alt = vị trí cũ chưa migrate → không báo thiếu nhầm)
+    {"key": "agents", "label": "agents", "kind": "dir", "detect": r"^agents$", "alt": "Striver/agents", "create": "agents", "essential": True},
+    {"key": "workflows", "label": "workflows", "kind": "dir", "detect": r"^workflows$", "alt": "Striver/workflows", "create": "workflows", "essential": True},
     {"key": "memory", "label": "memory", "kind": "dir", "detect": r"^memory$", "alt": "Memory", "create": "memory", "essential": True},
     # Skill: canonical phẳng skills/<slug>/SKILL.md (mirror sang .claude/skills cho Claude native),
     # chia nhóm bằng field `group` trong frontmatter. alt = .claude/skills (vị trí cũ chưa migrate).
     {"key": "skills", "label": "skills", "kind": "dir", "detect": r"^skills$", "alt": ".claude/skills", "create": "skills", "essential": False},
-    # Tuỳ chọn - Javis chưng cất source → wiki (nuôi graph); đính kèm ảnh/file
+    # Tuỳ chọn - Striver chưng cất source → wiki (nuôi graph); đính kèm ảnh/file
     {"key": "wiki", "label": "wiki", "kind": "dir", "detect": r"^(\d+\s*[-_.]\s*)?wiki$", "create": "wiki", "essential": False},
     {"key": "attachments", "label": "attachments", "kind": "dir", "detect": r"^(\d+\s*[-_.]\s*)?attachments$", "create": "attachments", "essential": False},
 ]
@@ -1814,25 +1814,25 @@ def _check_structure(root: Path):
                       "where": where, "essential": it["essential"]})
     return items
 
-JAVIS_README = (
-    "# Javis\n\nLớp điều phối của Javis OS trong vault này.\n\n"
+AIOS_README = (
+    "# Striver\n\nLớp điều phối của Striver AIOS trong vault này.\n\n"
     "- `agents/` - các Agent (vai trò + skills + bộ nhớ riêng)\n"
     "- `workflows/` - quy trình nhiều agent (status active/off)\n"
     "- Skills dùng chung ở `skills/` (tự mirror sang `.claude/skills` cho Claude Code native)\n"
 )
 SCHEMA_SEED = (
-    "# AGENTS.md - Vault Schema (Javis)\n\n"
-    "> Vault này hoạt động với Javis OS. Cấu trúc:\n\n"
+    "# AGENTS.md - Vault Schema (Striver)\n\n"
+    "> Vault này hoạt động với Striver AIOS. Cấu trúc:\n\n"
     "- `06 - Sources/` - ghi chú thô (source of truth)\n"
     "- `07 - Wiki/` - tri thức đã chưng cất, có `[[wikilink]]`\n"
-    "- `Memory/` - bộ nhớ dài hạn của Javis (facts + conversations)\n"
-    "- `Javis/` - agents + workflows\n\n"
+    "- `Memory/` - bộ nhớ dài hạn của Striver (facts + conversations)\n"
+    "- `Striver/` - agents + workflows\n\n"
     "Nguyên lý: Sources → (ingest) → Wiki. Tri thức tích luỹ, không tái phát hiện.\n"
 )
 
 def _ensure_brain_scaffold(root):
     """Tạo cấu trúc chuẩn cho MỘT brain (idempotent): sources/agents/workflows/memory/wiki/
-    attachments + Javis/README + memory seed. Dùng cho brain mặc định lẫn brain mới tạo."""
+    attachments + Striver/README + memory seed. Dùng cho brain mặc định lẫn brain mới tạo."""
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     present = {i["key"] for i in _check_structure(root) if i["present"]}
@@ -1846,16 +1846,16 @@ def _ensure_brain_scaffold(root):
                 (root / it["create"]).write_text(SCHEMA_SEED, encoding="utf-8")
         except Exception as e:
             print(f"[brain scaffold] {it['key']}: {e}", file=__import__('sys').stderr)
-    jr = root / "Javis" / "README.md"
+    jr = root / "Striver" / "README.md"
     if not jr.exists():
         jr.parent.mkdir(parents=True, exist_ok=True)
-        jr.write_text(JAVIS_README, encoding="utf-8")
+        jr.write_text(AIOS_README, encoding="utf-8")
     try:
         _brain_memory_dir(str(root))   # memory/ + MEMORY.md seed
     except Exception:
         pass
     try:
-        # Năng lực HỆ THỐNG (skill javis-builder/ingest/query/lint + loop tự-cải-tiến): nguồn chuẩn
+        # Năng lực HỆ THỐNG (skill striver-builder/ingest/query/lint + loop tự-cải-tiến): nguồn chuẩn
         # nằm ở tầng app (.claude/skills + system/loops, đi theo phiên bản), mirror vào brain qua
         # manifest - cài nếu thiếu, UPDATE khi app lên bản mới, giữ nguyên nếu user đã sửa.
         system_sync.sync_brain(str(root))
@@ -1871,14 +1871,14 @@ def _ensure_brain_scaffold(root):
     except Exception as e:
         print(f"[meta tools seed] {e}", file=__import__('sys').stderr)
     try:
-        rebuild_javis_index(str(root))   # chỉ mục tầng vận hành (Javis/index.md)
+        rebuild_striver_index(str(root))   # chỉ mục tầng vận hành (Striver/index.md)
     except Exception as e:
-        print(f"[javis index] {e}", file=__import__('sys').stderr)
+        print(f"[striver index] {e}", file=__import__('sys').stderr)
 
 
 def _ensure_default_brain():
     """Seed brain mặc định (<BRAINS_DIR>/Brain Default) lúc khởi động → deploy mới có ngay 'bộ não
-    Javis khởi đầu', không hiện banner 'cấu trúc chưa chuẩn'."""
+    Striver khởi đầu', không hiện banner 'cấu trúc chưa chuẩn'."""
     try:
         _ensure_brain_scaffold(_default_brain_dir())
     except Exception as e:
@@ -1943,7 +1943,7 @@ async def vault_check(brain: str = Query("brain")):
 
 @app.post("/vault/init")
 async def vault_init(brain: str = Form("brain")):
-    """Tạo các mục cấu trúc còn thiếu để vault chạy với Javis. Dùng CHUNG scaffold với brain
+    """Tạo các mục cấu trúc còn thiếu để vault chạy với Striver. Dùng CHUNG scaffold với brain
     mới tạo (đủ bộ: cấu trúc + memory seed + schema/wiki nav + năng lực HỆ THỐNG + index) →
     vault ngoài chọn qua path: cũng có đầy đủ chức năng mặc định, không còn bản seed thiếu."""
     root = Path(_brain_root(brain))
@@ -1962,7 +1962,7 @@ async def brain_migrate(brain: str = Form("brain")):
     import shutil
     root = Path(_brain_root(brain))
     moved, skipped = [], []
-    for old_rel, new_rel in [("Javis/agents", "agents"), ("Javis/workflows", "workflows"), ("Memory", "memory")]:
+    for old_rel, new_rel in [("Striver/agents", "agents"), ("Striver/workflows", "workflows"), ("Memory", "memory")]:
         src, dst = root / old_rel, root / new_rel
         if dst.exists():
             skipped.append(f"{new_rel} (đã tồn tại - bỏ qua)")
@@ -2089,9 +2089,9 @@ def _today():
     return date.today().strftime("%Y-%m-%d")
 
 def _agents_dir(brain):
-    return _brain_sub(_brain_root(brain), "agents", "Javis/agents")
+    return _brain_sub(_brain_root(brain), "agents", "Striver/agents")
 def _workflows_dir(brain):
-    return _brain_sub(_brain_root(brain), "workflows", "Javis/workflows")
+    return _brain_sub(_brain_root(brain), "workflows", "Striver/workflows")
 
 def _agent_memory(brain, slug):
     f = _brain_memory_dir(brain) / "agents" / slug / "MEMORY.md"
@@ -2241,7 +2241,7 @@ async def save_skill(name: str = Form(...), description: str = Form(""), group: 
 @app.post("/skills/delete")
 async def delete_skill(slug: str = Form(...), brain: str = Form("brain")):
     if system_sync.is_system_skill(slug):
-        return JSONResponse({"error": "Skill hệ thống của Javis OS - không xoá được (đi theo "
+        return JSONResponse({"error": "Skill hệ thống của Striver AIOS - không xoá được (đi theo "
                              "phiên bản app, xoá cũng tự cài lại khi cập nhật). Muốn ngừng dùng "
                              "thì TẮT skill (bỏ tích)."}, status_code=400)
     if not skill_router.valid_slug(slug):
@@ -2284,7 +2284,7 @@ async def skill_set_group(slug: str = Form(...), group: str = Form(...), brain: 
 # Quản lý File (File Manager) - duyệt / đọc / sửa / tải / xoá file.
 # TRẦN duyệt (_files_ceiling): mặc định localhost = ổ đĩa chứa brain (out được ra root để
 # đọc/sửa data ngoài vault); public bind (VPS/login) = khoá trong brain. Chỉnh bằng
-# JAVIS_FILES_ROOT. Điểm vào mặc định LUÔN là brain. _safe_path chặn vượt trần (chống ../).
+# AIOS_FILES_ROOT. Điểm vào mặc định LUÔN là brain. _safe_path chặn vượt trần (chống ../).
 # ============================================================
 _TEXT_EXTS = {".md", ".txt", ".json", ".yaml", ".yml", ".csv", ".js", ".ts", ".py",
               ".html", ".css", ".toml", ".ini", ".log", ".sh", ".bat", ".xml", ".svg", ".env"}
@@ -2292,11 +2292,11 @@ _TEXT_EXTS = {".md", ".txt", ".json", ".yaml", ".yml", ".csv", ".js", ".ts", ".p
 
 def _files_ceiling(brain: str) -> Path:
     """Ranh giới trên của File Manager (không cho 'Lên' quá đây). Brain LUÔN nằm trong trần.
-    JAVIS_FILES_ROOT: `brain`/`vault` = khoá trong brain | `drive`/`root` = ổ đĩa chứa brain |
+    AIOS_FILES_ROOT: `brain`/`vault` = khoá trong brain | `drive`/`root` = ổ đĩa chứa brain |
     <đường dẫn tuyệt đối> = trần tuỳ ý (phải chứa brain). KHÔNG đặt: localhost → ổ đĩa (chủ máy
     tin cậy), bind public → khoá brain (fail-closed, tránh hở cả ổ đĩa qua web)."""
     broot = Path(_brain_root(brain)).resolve()
-    env = os.getenv("JAVIS_FILES_ROOT", "").strip()
+    env = os.getenv("AIOS_FILES_ROOT", "").strip()
     ceil = None
     if env:
         low = env.lower()
@@ -2652,7 +2652,7 @@ async def import_capability(file: UploadFile = File(...), brain: str = Form("bra
         except Exception:
             pass
     try:
-        rebuild_javis_index(root)
+        rebuild_striver_index(root)
     except Exception:
         pass
     return {"ok": not res.get("errors"), **res}
@@ -2660,7 +2660,7 @@ async def import_capability(file: UploadFile = File(...), brain: str = Form("bra
 
 @app.get("/usage")
 async def usage_stats():
-    """Token/chi phí Javis TỰ ĐO theo nhà cung cấp (hôm nay + tổng). Kèm số dư THẬT của OpenRouter
+    """Token/chi phí Striver TỰ ĐO theo nhà cung cấp (hôm nay + tổng). Kèm số dư THẬT của OpenRouter
     nếu có key (provider duy nhất lộ số dư qua API); các provider còn lại API không cho lấy hạn mức."""
     out = usage_store.summary()
     orb = None
@@ -2711,7 +2711,7 @@ async def execute_workflow(brain, slug, input="", tools=None):
         if model and _is_codex_model(model) and tools is None and find_codex_cli():
             openai_oauth.write_codex_auth()   # bắc cầu token ChatGPT → ~/.codex/auth.json
             cc = CodexCLI(cwd=vault_root, tag="workflow", model=_codex_safe_model(model), instructions=sysprompt)
-            cc.profile = _write_codex_profile()   # đẩy MCP của Javis (POS...) sang codex
+            cc.profile = _write_codex_profile()   # đẩy MCP của Striver (POS...) sang codex
             return cc
         c = claude_engine(system_prompt=sysprompt, cwd=vault_root, tag="workflow", allowed_tools=tools)
         # Model Claude của AGENT (sonnet/opus/haiku/fable) được ÁP THẬT vào CLI.
@@ -2872,7 +2872,7 @@ SAFE_FILE_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep", "LS"]
 READONLY_TOOLS = ["Read", "Glob", "Grep", "LS"]
 
 # Vòng tự cải thiện đã TÁCH sang module self_improve.py - giờ là MULTI-LOOP: N loop định
-# nghĩa bằng file <vault>/Javis/loops/<slug>.md, state ở <vault>/Javis/loop-state.json,
+# nghĩa bằng file <vault>/Striver/loops/<slug>.md, state ở <vault>/Striver/loop-state.json,
 # thực thi TUẦN TỰ (1 lock). main.py chỉ tiêm helper + giữ shim mỏng cho code cũ.
 # Endpoints /loops/* (mới) + /loop/* (shim legacy) nằm trong router của self_improve.
 import self_improve
@@ -2928,7 +2928,7 @@ async def _tg_send_to(chat_id, text) -> tuple:
 
 
 async def _notify_owner(owner_chat, text) -> tuple:
-    """Báo cáo cho NGƯỜI YÊU CẦU loop/task (mặc định của Javis). Quy tắc:
+    """Báo cáo cho NGƯỜI YÊU CẦU loop/task (mặc định của Striver). Quy tắc:
       - owner_chat có + nằm trong whitelist → gửi ĐÚNG người đó.
       - owner_chat rỗng (vd loop/task tạo trên bản WEB) hoặc không rõ → gửi ID ĐẦU TIÊN
         trong whitelist (chủ bot).
@@ -2954,8 +2954,8 @@ async def _notify_owner(owner_chat, text) -> tuple:
 
 
 def _loop_mcp_allow():
-    """Pattern MCP cho allowlist của loop. Hub bật: mọi tool nằm dưới server 'javis' → 1 pattern;
-    quyền đọc/ghi thật sự do hub chặn theo X-Javis-Mode. Hub tắt: 'mcp__<namespace>' như cũ."""
+    """Pattern MCP cho allowlist của loop. Hub bật: mọi tool nằm dưới server 'striver' → 1 pattern;
+    quyền đọc/ghi thật sự do hub chặn theo X-Striver-Mode. Hub tắt: 'mcp__<namespace>' như cũ."""
     try:
         conns = [c for c in mcp_store.list_connections() if c.get("enabled")]
         if not conns:
@@ -2980,7 +2980,7 @@ loop_feature = self_improve.register(app, self_improve.LoopDeps(
     readonly_tools=READONLY_TOOLS,
     notify=_loop_notify,
     report=_notify_owner,               # báo Telegram cho NGƯỜI YÊU CẦU loop mỗi vòng (web → ID đầu)
-    apply_mcp=_apply_mcp,               # loop ĐỌC được dữ liệu thật qua MCP Javis-quản-lý
+    apply_mcp=_apply_mcp,               # loop ĐỌC được dữ liệu thật qua MCP Striver-quản-lý
     mcp_allow_patterns=_loop_mcp_allow,
 ))
 
@@ -3046,7 +3046,7 @@ learn_feature.deps.enqueue_task = tasks_feature.enqueue
 
 # ============================================================
 # NHẮC HẸN TỪ CHAT (reminders.py) - "30 phút nữa nhắc anh...", "8h30 sáng mai...".
-# Javis tự đặt qua POST /reminders (localhost), scheduler nền đánh thức đúng giờ → bắn Telegram.
+# Striver tự đặt qua POST /reminders (localhost), scheduler nền đánh thức đúng giờ → bắn Telegram.
 # mode notify = nhắn lại · mode task = chạy engine (đọc MCP, ghi nháp) rồi báo. KHÔNG tiền/đơn.
 # ============================================================
 import reminders as reminders_mod
@@ -3094,10 +3094,10 @@ async def lint(brain: str = Query("brain")):
 # ============================================================
 # Automations registry (Hướng 1) - lịch tự động: cron / trigger / routine
 # Backend KHÔNG query được CronList/RemoteTrigger của Claude Code → ta lưu file registry
-# trong vault (Javis/automations.json) + chèn sẵn "Vòng lặp tự cải thiện" (loop nội bộ).
+# trong vault (Striver/automations.json) + chèn sẵn "Vòng lặp tự cải thiện" (loop nội bộ).
 # ============================================================
 def _automations_path(brain):
-    return Path(_brain_root(brain)) / "Javis" / "automations.json"
+    return Path(_brain_root(brain)) / "Striver" / "automations.json"
 
 
 def _read_automations(brain):
@@ -3268,9 +3268,9 @@ async def automations_sync(brain: str = Form("brain")):
 
 
 # ============================================================
-# JAVIS INDEX - chỉ mục tầng vận hành (agents/skills/workflows/loops/automations).
-# Song song wiki/index.md: để MỌI engine (Claude/Codex/OpenRouter) đọc 1 chỗ là hiểu Javis
-# có năng lực gì. SINH TỪ FILE (không sửa tay) → không bao giờ lệch. Ghi Javis/index.md CHỈ KHI
+# AIOS INDEX - chỉ mục tầng vận hành (agents/skills/workflows/loops/automations).
+# Song song wiki/index.md: để MỌI engine (Claude/Codex/OpenRouter) đọc 1 chỗ là hiểu Striver
+# có năng lực gì. SINH TỪ FILE (không sửa tay) → không bao giờ lệch. Ghi Striver/index.md CHỈ KHI
 # nội dung đổi (change-gated → không churn git). Bản LIVE gọn được chèn vào system prompt.
 # ============================================================
 def _gather_capabilities(brain: str) -> dict:
@@ -3317,14 +3317,14 @@ def _gather_capabilities(brain: str) -> dict:
     return caps
 
 
-def _render_javis_index(caps: dict) -> str:
+def _render_striver_index(caps: dict) -> str:
     n_on_loops = sum(1 for l in caps["loops"] if l["enabled"])
     n_on_wf = sum(1 for w in caps["workflows"] if w["status"] == "active")
     plugins = caps.get("plugins", [])
     n_on_plugins = sum(1 for p in plugins if p.get("loaded"))
-    L = ["# Javis Index (tầng vận hành)", "",
-         "> Tự sinh từ file - ĐỪNG sửa tay. Chỉ mục mọi năng lực của Javis trong brain này để bất kỳ "
-         "AI/engine đọc 1 chỗ là hiểu Javis làm được gì. Song song `wiki/index.md` (tri thức).", "",
+    L = ["# Striver Index (tầng vận hành)", "",
+         "> Tự sinh từ file - ĐỪNG sửa tay. Chỉ mục mọi năng lực của Striver trong brain này để bất kỳ "
+         "AI/engine đọc 1 chỗ là hiểu Striver làm được gì. Song song `wiki/index.md` (tri thức).", "",
          f"**Tổng quan:** {len(caps['agents'])} agents · {len(caps['skills'])} skills · "
          f"{len(caps['workflows'])} workflows ({n_on_wf} bật) · {len(caps['loops'])} loops ({n_on_loops} bật) · "
          f"{len(caps['automations'])} lịch · {len(plugins)} plugins ({n_on_plugins} chạy)", ""]
@@ -3372,7 +3372,7 @@ def _render_javis_index(caps: dict) -> str:
             if p.get("loaded"):
                 stt = "chạy"
             elif p.get("gated"):
-                stt = "⚠ chờ env JAVIS_ENABLE_USER_PLUGINS"
+                stt = "⚠ chờ env AIOS_ENABLE_USER_PLUGINS"
             elif p.get("error"):
                 stt = "⚠ lỗi"
             else:
@@ -3403,7 +3403,7 @@ def _render_javis_index(caps: dict) -> str:
         flags.append(f"- Loop tự tạm dừng (cần xem): {', '.join(paused)}")
     p_gated = [p["slug"] for p in plugins if p.get("gated")]
     if p_gated:
-        flags.append(f"- Plugin bật nhưng bị chặn (đặt env JAVIS_ENABLE_USER_PLUGINS=true): {', '.join(p_gated)}")
+        flags.append(f"- Plugin bật nhưng bị chặn (đặt env AIOS_ENABLE_USER_PLUGINS=true): {', '.join(p_gated)}")
     p_err = [p["slug"] for p in plugins if p.get("error")]
     if p_err:
         flags.append(f"- Plugin lỗi nạp: {', '.join(p_err)}")
@@ -3413,11 +3413,11 @@ def _render_javis_index(caps: dict) -> str:
     return "\n".join(L) + "\n"
 
 
-def rebuild_javis_index(brain: str) -> dict:
-    """Dựng lại Javis/index.md từ file. Chỉ ghi KHI nội dung đổi (chống churn git)."""
+def rebuild_striver_index(brain: str) -> dict:
+    """Dựng lại Striver/index.md từ file. Chỉ ghi KHI nội dung đổi (chống churn git)."""
     try:
-        content = _render_javis_index(_gather_capabilities(brain))
-        idx = Path(_brain_root(brain)) / "Javis" / "index.md"
+        content = _render_striver_index(_gather_capabilities(brain))
+        idx = Path(_brain_root(brain)) / "Striver" / "index.md"
         old = idx.read_text(encoding="utf-8") if idx.exists() else ""
         if old != content:
             idx.parent.mkdir(parents=True, exist_ok=True)
@@ -3428,16 +3428,16 @@ def rebuild_javis_index(brain: str) -> dict:
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
-def _javis_capability_summary(brain: str) -> str:
-    """Bản LIVE gọn (capped) chèn vào system prompt: để engine nào cũng biết Javis có gì.
-    Skill nhiều -> chỉ đếm + nhóm (chi tiết ở Javis/index.md), tránh phình context."""
+def _striver_capability_summary(brain: str) -> str:
+    """Bản LIVE gọn (capped) chèn vào system prompt: để engine nào cũng biết Striver có gì.
+    Skill nhiều -> chỉ đếm + nhóm (chi tiết ở Striver/index.md), tránh phình context."""
     try:
         c = _gather_capabilities(brain)
     except Exception:
         return ""
     if not any(c.values()):
         return ""
-    parts = ["\n\n# === NĂNG LỰC JAVIS HIỆN CÓ (đọc `Javis/index.md` để biết chi tiết + trigger) ==="]
+    parts = ["\n\n# === NĂNG LỰC AIOS HIỆN CÓ (đọc `Striver/index.md` để biết chi tiết + trigger) ==="]
     if c["agents"]:
         parts.append("Agents: " + ", ".join(a["name"] for a in c["agents"][:30]))
     if c["skills"]:
@@ -3458,10 +3458,10 @@ def _javis_capability_summary(brain: str) -> str:
 
 def _skill_router_block(brain: str, root: str) -> str:
     """ROUTER SKILL đa-engine (chèn vào system prompt của MỌI engine). Liệt kê skill đang BẬT kèm
-    mô tả (trigger) + chỉ rõ 2 cách nạp: tool javis_use_skill (engine API có tool) HOẶC mở thẳng
+    mô tả (trigger) + chỉ rõ 2 cách nạp: tool striver_use_skill (engine API có tool) HOẶC mở thẳng
     file SKILL.md bằng công cụ đọc file (Claude/Codex - dùng ĐƯỜNG DẪN TUYỆT ĐỐI vì cwd có thể là
     /app). Đây là thứ giúp skill chạy trên cả ChatGPT/Codex, không phụ thuộc cơ chế native của Claude.
-    Cap 15 skill để không phình context (nhiều hơn → trỏ Javis/index.md)."""
+    Cap 15 skill để không phình context (nhiều hơn → trỏ Striver/index.md)."""
     metas = skill_router.list_enabled_meta(root)
     if not metas:
         return ""
@@ -3471,21 +3471,21 @@ def _skill_router_block(brain: str, root: str) -> str:
         desc = (s.get("description") or "").replace("\n", " ")[:100]
         lines.append(f"- {s['slug']} ({s['name']}): {desc}")
     if len(metas) > 15:
-        lines.append(f"…(+{len(metas) - 15} skill nữa - xem `Javis/index.md`)")
+        lines.append(f"…(+{len(metas) - 15} skill nữa - xem `Striver/index.md`)")
     lines.append(
         "CÁCH DÙNG: khi yêu cầu của user KHỚP mô tả 1 skill ở trên, hãy NẠP skill đó rồi LÀM THEO - "
-        "gọi tool `javis_use_skill(name=<slug>)` nếu engine có tool này; nếu không, mở file "
+        "gọi tool `striver_use_skill(name=<slug>)` nếu engine có tool này; nếu không, mở file "
         f"`{sk_dir}/<slug>/SKILL.md` bằng công cụ đọc file rồi tuân theo hướng dẫn trong đó. "
         "Chỉ nạp khi thực sự khớp, không nạp tràn lan."
     )
     return "\n".join(lines)
 
 
-@app.get("/javis/index")
-async def javis_index(brain: str = Query("brain")):
-    """Dựng lại + trả nội dung Javis/index.md (chỉ mục tầng vận hành)."""
-    rebuild_javis_index(brain)
-    idx = Path(_brain_root(brain)) / "Javis" / "index.md"
+@app.get("/striver/index")
+async def striver_index(brain: str = Query("brain")):
+    """Dựng lại + trả nội dung Striver/index.md (chỉ mục tầng vận hành)."""
+    rebuild_striver_index(brain)
+    idx = Path(_brain_root(brain)) / "Striver" / "index.md"
     return {"ok": True, "content": idx.read_text(encoding="utf-8") if idx.exists() else "",
             "counts": {k: len(v) for k, v in _gather_capabilities(brain).items()}}
 
@@ -3494,15 +3494,15 @@ async def javis_index(brain: str = Query("brain")):
 # PLUGINS - tool/hook native cho MỌI engine (port ý tưởng plugin của Hermes).
 # Plugin = thư mục Python (plugin.yaml + plugin.py với register(ctx)) thả vào 1 trong 3 nơi:
 #   - bundled  <project>/system/plugins/<slug>/     (ship theo app, tin cậy)
-#   - user     <JAVIS_STATE_DIR>/plugins/<slug>/    (TOÀN CỤC - chung MỌI brain; nơi cài mặc định)
+#   - user     <AIOS_STATE_DIR>/plugins/<slug>/    (TOÀN CỤC - chung MỌI brain; nơi cài mặc định)
 #   - vault    <brain>/plugins/<slug>/              (riêng 1 brain)
-# user + vault chạy code thật → CHỈ nạp khi env JAVIS_ENABLE_USER_PLUGINS=true (alias cũ *_VAULT_*).
+# user + vault chạy code thật → CHỈ nạp khi env AIOS_ENABLE_USER_PLUGINS=true (alias cũ *_VAULT_*).
 # ============================================================
 @app.post("/image/generate")
 async def image_generate(prompt: str = Form(...), aspect_ratio: str = Form("square"),
                          quality: str = Form("medium"), brain: str = Form("brain")):
     """Tạo ảnh bằng gói ChatGPT (OAuth) → lưu vào attachments/ của vault. Cho UI/gọi trực tiếp;
-    engine LLM dùng tool javis_generate_image (plugin image-chatgpt). Trả rel_path để nhúng ![](...)."""
+    engine LLM dùng tool striver_generate_image (plugin image-chatgpt). Trả rel_path để nhúng ![](...)."""
     res = await image_gen.generate_chatgpt(prompt, aspect_ratio, quality, vault_root=_brain_root(brain))
     return JSONResponse(res, status_code=200 if res.get("ok") else 400)
 
@@ -3529,7 +3529,7 @@ async def plugins_toggle(slug: str = Form(...), enabled: str = Form(...), brain:
         return JSONResponse({"error": res.get("error", "lỗi")}, status_code=400)
     mcp_hub.invalidate_cache()   # tool builtin/plugin nằm trong route cache của hub → phải làm mới
     try:
-        rebuild_javis_index(brain)
+        rebuild_striver_index(brain)
     except Exception:
         pass
     return res
@@ -3545,20 +3545,20 @@ async def _start_scheduler():
     _sync_system_all_brains() # năng lực hệ thống → mọi brain (update theo phiên bản app)
     cfgmod.apply_tool_env()   # secret Cài đặt (key ElevenLabs...) → env cho tool ngoài (video-use)
     try:
-        loop_feature.ensure_migrated()   # loop_config.json cũ → Javis/loops/vong-lap-goc.md (1 lần)
+        loop_feature.ensure_migrated()   # loop_config.json cũ → Striver/loops/vong-lap-goc.md (1 lần)
     except Exception as e:
         print(f"[loops migrate] {e}", file=_sys.stderr)
     try:
         if cfgmod.provision_admin_from_env():
-            print("[auth] Đã tạo tài khoản admin từ JAVIS_ADMIN_PASSWORD (env).", file=_sys.stderr)
+            print("[auth] Đã tạo tài khoản admin từ AIOS_ADMIN_PASSWORD (env).", file=_sys.stderr)
         if cfgmod.setup_token_required():
             _tok = cfgmod.get_or_create_setup_token()
             print("\n" + "=" * 66 +
-                  "\n  [BẢO MẬT] Javis chạy PUBLIC, CHƯA có tài khoản admin."
+                  "\n  [BẢO MẬT] Striver chạy PUBLIC, CHƯA có tài khoản admin."
                   "\n  Mở app → màn tạo tài khoản sẽ hỏi MÃ THIẾT LẬP dưới đây:"
                   f"\n      SETUP TOKEN:  {_tok}"
                   "\n  (Chỉ người xem được log/terminal này tạo được admin. Hoặc đặt"
-                  "\n   JAVIS_ADMIN_PASSWORD env để tạo sẵn admin, khỏi cần mã.)\n" +
+                  "\n   AIOS_ADMIN_PASSWORD env để tạo sẵn admin, khỏi cần mã.)\n" +
                   "=" * 66 + "\n", file=_sys.stderr)
     except Exception as e:
         print(f"[auth bootstrap] {e}", file=_sys.stderr)
@@ -3598,12 +3598,12 @@ async def _start_scheduler():
                             await asyncio.to_thread(_do_backup)   # 1 lần: toàn bộ thư mục brains, 2 chiều
                 except Exception as be:
                     print(f"[backup tick] {type(be).__name__}: {be}", file=__import__('sys').stderr)
-                # 5) Javis index: dựng lại chỉ mục tầng vận hành (chỉ ghi khi đổi → không churn)
+                # 5) Striver index: dựng lại chỉ mục tầng vận hành (chỉ ghi khi đổi → không churn)
                 try:
                     for _ib in loop_feature.scheduler_brains():
-                        await asyncio.to_thread(rebuild_javis_index, _ib)
+                        await asyncio.to_thread(rebuild_striver_index, _ib)
                 except Exception as ie:
-                    print(f"[javis index tick] {type(ie).__name__}: {ie}", file=__import__('sys').stderr)
+                    print(f"[striver index tick] {type(ie).__name__}: {ie}", file=__import__('sys').stderr)
             except Exception as e:
                 print(f"[scheduler] {type(e).__name__}: {e}", file=__import__('sys').stderr)
     asyncio.create_task(_scheduler_loop())
@@ -3659,7 +3659,7 @@ async def browse(path: str = Query("", description="Thư mục cần liệt kê;
 async def config():
     s = cfgmod.read_settings()
     return {
-        "workspace_name": s.get("workspace_name") or os.getenv("WORKSPACE_NAME", "Javis OS"),
+        "workspace_name": s.get("workspace_name") or os.getenv("WORKSPACE_NAME", "Striver AIOS"),
         "user_name": os.getenv("USER_NAME", "Bạn"),
         "tts_voice": os.getenv("TTS_VOICE", "vi-VN-HoaiMyNeural"),
         "tts_rate": os.getenv("TTS_RATE", "+5%"),
@@ -3669,7 +3669,7 @@ async def config():
 # ============================================
 # Phiên bản + cập nhật trong UI
 # ============================================
-GITHUB_REPO = "blogminhquy/javis-os"
+GITHUB_REPO = "striverai/striver-aios"
 _UPDATE_TASKS = set()   # giữ ref mạnh cho asyncio.create_task (tránh GC nuốt mất task)
 
 
@@ -3704,7 +3704,7 @@ def _ver_newer(latest, cur) -> bool:
 
 def _deploy_mode() -> str:
     """docker | windows | native - quyết định cách cập nhật."""
-    if os.path.exists("/.dockerenv") or os.getenv("JAVIS_STATE_DIR", "").startswith("/data"):
+    if os.path.exists("/.dockerenv") or os.getenv("AIOS_STATE_DIR", "").startswith("/data"):
         return "docker"
     if os.name == "nt":
         return "windows"
@@ -3812,7 +3812,7 @@ async def do_update():
                 f.write("@echo off\r\n")
                 f.write(f'cd /d "{root}"\r\n')
                 f.write(f'git pull --ff-only > "{logf}" 2>&1\r\n')
-                f.write('wscript.exe "start-javis.vbs"\r\n')
+                f.write('wscript.exe "start-striver.vbs"\r\n')
             subprocess.Popen(["cmd", "/c", bat], cwd=root,
                              creationflags=0x00000008 | 0x00000200)  # DETACHED_PROCESS|NEW_PROCESS_GROUP
         else:
@@ -3826,16 +3826,16 @@ async def do_update():
 
 # ============================================================
 # Tự khởi động cùng máy (autostart) - Windows: ghi HKCU Run key trỏ wscript chạy
-# start-javis.vbs (đã tự tắt bản cũ + chạy NỀN ẩn). Per-user, KHÔNG cần quyền admin.
+# start-striver.vbs (đã tự tắt bản cũ + chạy NỀN ẩn). Per-user, KHÔNG cần quyền admin.
 # Registry là nguồn sự thật duy nhất - không lưu trùng vào settings.json.
 # ============================================================
-_AUTOSTART_NAME = "JavisOS"
+_AUTOSTART_NAME = "StriverOS"
 _AUTOSTART_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 
 def _autostart_command() -> str:
-    """Lệnh chạy khi đăng nhập Windows: wscript chạy start-javis.vbs ẩn (kill cũ + chạy nền)."""
-    vbs = str(PROJECT_ROOT / "start-javis.vbs")
+    """Lệnh chạy khi đăng nhập Windows: wscript chạy start-striver.vbs ẩn (kill cũ + chạy nền)."""
+    vbs = str(PROJECT_ROOT / "start-striver.vbs")
     return f'wscript.exe //nologo "{vbs}"'
 
 
@@ -4091,7 +4091,7 @@ async def tls_check(domain: str = ""):
 async def domain_set(domain: str = Form("")):
     d = _norm_domain(domain)
     if d and not _DOMAIN_RE.match(d):
-        return JSONResponse({"ok": False, "error": "Tên miền không hợp lệ (vd: javis.tencuaban.com)"}, status_code=400)
+        return JSONResponse({"ok": False, "error": "Tên miền không hợp lệ (vd: striver.tencuaban.com)"}, status_code=400)
     cfg = cfgmod.read_settings()
     cfg.setdefault("domain", {})
     cfg["domain"]["custom"] = d
@@ -4286,7 +4286,7 @@ async def tts_voices():
 # ============================================
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
-    if cfgmod.gate_active() and not cfgmod.valid_session(ws.cookies.get("javis_session", "")):
+    if cfgmod.gate_active() and not cfgmod.valid_session(ws.cookies.get("striver_session", "")):
         await ws.close(code=1008)
         return
     await ws.accept()
@@ -4344,13 +4344,13 @@ async def websocket_endpoint(ws: WebSocket):
 
             await ws.send_text(json.dumps({
                 "type": "status",
-                "content": "Javis đang suy nghĩ..."
+                "content": "Striver đang suy nghĩ..."
             }))
 
-            # Nạp bộ nhớ của vault đang chọn vào system prompt (Javis luôn nhớ)
+            # Nạp bộ nhớ của vault đang chọn vào system prompt (Striver luôn nhớ)
             # + block kênh (port gateway hermes): engine biết đang trả lời qua dashboard web
             sysprompt = build_system_prompt(brain) + channel_context.build_channel_block(
-                "dashboard", telegram_running=bool(_TG_BOT), port=_javis_port())
+                "dashboard", telegram_running=bool(_TG_BOT), port=_striver_port())
 
             final_text = ""
             if prov == "openai-oauth":
@@ -4364,11 +4364,11 @@ async def websocket_endpoint(ws: WebSocket):
                     except Exception as _e:
                         print(f"[codex model self-heal] {_e}", file=__import__('sys').stderr)
                 openai_oauth.write_codex_auth()   # bắc cầu token đã nối ở Models → ~/.codex/auth.json (codex dùng được)
-                # cwd=brain (để Codex đọc được Javis/skills + .claude/skills mirror bằng tool file
+                # cwd=brain (để Codex đọc được Striver/skills + .claude/skills mirror bằng tool file
                 # native, như nhánh workflow) + instructions=sysprompt (kèm ROUTER SKILL) → Codex
                 # dùng được skill. CodexCLI stateless (không --resume) nên đổi cwd an toàn.
                 ccli = CodexCLI(cwd=_brain_root(brain), model=actual_model, tag=conn_tag, instructions=sysprompt)
-                ccli.profile = _write_codex_profile()   # đẩy MCP của Javis (POSCake...) sang codex
+                ccli.profile = _write_codex_profile()   # đẩy MCP của Striver (POSCake...) sang codex
                 if not ccli.is_available():
                     await ws.send_text(json.dumps({"type": "error", "content": "Chưa cài Codex CLI trong container. ChatGPT subscription là THỬ NGHIỆM - dùng Claude Code hoặc OpenRouter cho ổn định (đổi ở Models)."}))
                 else:
@@ -4426,7 +4426,7 @@ async def websocket_endpoint(ws: WebSocket):
                 # ===== PROVIDER anthropic-cli - qua Claude Code, đầy đủ MCP / skill / session =====
                 cli.system_prompt = sysprompt
                 cli.model = api_model or mcfg.get("claude_model") or None   # alias opus/sonnet/haiku/fable
-                _apply_mcp(cli)   # gắn MCP do Javis quản lý (nhiều shop POSCake...)
+                _apply_mcp(cli)   # gắn MCP do Striver quản lý (nhiều shop POSCake...)
                 async for event in cli.query(_cli_think(reasoning, user_message)):
                     etype = event["type"]
                     if etype == "tool_call":
@@ -4551,7 +4551,7 @@ async def sessions_delete(session_id: str):
 
 
 # ============================================================
-# Telegram bot - nhắn Telegram ↔ Javis (dùng engine theo Settings; CLI thì có cả MCP)
+# Telegram bot - nhắn Telegram ↔ Striver (dùng engine theo Settings; CLI thì có cả MCP)
 # ============================================================
 _TG_BOT = None
 # ĐA PHIÊN theo tài khoản: mỗi chat_id giữ NGỮ CẢNH RIÊNG để không lẫn hội thoại giữa
@@ -4604,9 +4604,9 @@ def _tg_chat_busy(chat) -> bool:
     return bool(t and not t.done())
 
 
-def _javis_port() -> int:
+def _striver_port() -> int:
     try:
-        return int(os.getenv("JAVIS_PORT", "7777"))
+        return int(os.getenv("AIOS_PORT", "7777"))
     except ValueError:
         return 7777
 
@@ -4632,7 +4632,7 @@ async def _tg_answer(text, meta=None, progress=None):
     # Block kênh (port gateway hermes-agent): engine biết đang trả lời qua Telegram,
     # ai đang nhắn, và cách gửi file trả về (auto-attach + endpoint send-file).
     sysprompt = build_system_prompt(brain) + channel_context.build_channel_block(
-        "telegram", meta, telegram_running=True, port=_javis_port())
+        "telegram", meta, telegram_running=True, port=_striver_port())
     if (kind == "api" and api_key) or kind == "oauth":
         label = _api_label(prov)
         if sess["or"] is None:
@@ -4695,7 +4695,7 @@ async def _tg_answer(text, meta=None, progress=None):
 
 async def _tg_help_text(brain):
     return (
-        "🤖 Javis Telegram\n\n"
+        "🤖 Striver Telegram\n\n"
         "Lệnh:\n"
         "/status - engine, model, vault, trạng thái\n"
         "/skills - liệt kê skill\n"
@@ -4707,8 +4707,8 @@ async def _tg_help_text(brain):
         "/or - engine OpenRouter (chat thuần)\n"
         "/retry - gửi lại câu gần nhất\n"
         "/reset - hội thoại mới · /stop - dừng\n\n"
-        "Gửi tin thường để hỏi Javis. Gõ /tên-skill để gọi skill (cần engine Claude CLI).\n"
-        "Gửi file/ảnh vào đây để Javis đọc. File Javis tạo ra sẽ tự gửi lại cho bạn ở đây."
+        "Gửi tin thường để hỏi Striver. Gõ /tên-skill để gọi skill (cần engine Claude CLI).\n"
+        "Gửi file/ảnh vào đây để Striver đọc. File Striver tạo ra sẽ tự gửi lại cho bạn ở đây."
     )
 
 
@@ -4961,7 +4961,7 @@ async def _tg_command(cmd, arg, chat=None):
         prov, model = _model_current()
         busy = _tg_chat_busy(chat_key)
         bname = Path(_brain_root(brain)).name
-        return {"reply": ("📊 Trạng thái Javis\n"
+        return {"reply": ("📊 Trạng thái Striver\n"
                           f"Provider: {prov}\n"
                           f"Model: {model}\n"
                           f"Brain: {bname} (đổi bằng /brain)\n"
@@ -5081,7 +5081,7 @@ async def telegram_test():
             for cid in ids:
                 try:
                     r = await c.post(f"https://api.telegram.org/bot{t['token']}/sendMessage",
-                                     json={"chat_id": cid, "text": "✅ Javis Telegram đã kết nối. Nhắn câu hỏi bất kỳ nhé."})
+                                     json={"chat_id": cid, "text": "✅ Striver Telegram đã kết nối. Nhắn câu hỏi bất kỳ nhé."})
                     d = r.json()
                     if d.get("ok"):
                         sent += 1
@@ -5149,7 +5149,7 @@ async def _shutdown_mcp_pool():
 if __name__ == "__main__":
     import uvicorn
     # 127.0.0.1: chỉ máy này truy cập được (an toàn - tránh người khác trong mạng LAN
-    # chạy Claude full quyền trên máy + vault của bạn). Đổi qua JAVIS_HOST nếu cần.
-    host = os.getenv("JAVIS_HOST", "127.0.0.1")
-    port = int(os.getenv("JAVIS_PORT", "7777"))
+    # chạy Claude full quyền trên máy + vault của bạn). Đổi qua AIOS_HOST nếu cần.
+    host = os.getenv("AIOS_HOST", "127.0.0.1")
+    port = int(os.getenv("AIOS_PORT", "7777"))
     uvicorn.run("main:app", host=host, port=port, reload=False)

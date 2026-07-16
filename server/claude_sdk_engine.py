@@ -7,7 +7,7 @@ Engine Claude qua claude-agent-sdk CHÍNH CHỦ (Phase 1-2 của docs/dev/2026-0
   - .query(prompt) -> async yield dict {type: text|tool_call|tool_result|final|error}
   - cancel_all(tag) interrupt theo họ tag (claude_cli.cancel_all gọi hộ)
 
-Bật bằng env JAVIS_CLAUDE_ENGINE=sdk (mặc định cli - qua factory claude_cli.claude_engine).
+Bật bằng env AIOS_CLAUDE_ENGINE=sdk (mặc định cli - qua factory claude_cli.claude_engine).
 Auth kế thừa đăng nhập Claude Code CLI (subscription) - không cần API key.
 
 Nâng cấp so với CLI Popen: khi có allowed_tools (fork nền an toàn của loop/workflow),
@@ -135,7 +135,7 @@ class ClaudeSDK:
         self.mcp_strict = False
         self.disallowed_tools = None
         self.max_wall_s = None
-        self.javis_mode = None    # _apply_mcp đặt (suggest|auto|full) - enforce min_mode plugin in-process
+        self.striver_mode = None    # _apply_mcp đặt (suggest|auto|full) - enforce min_mode plugin in-process
         self._tmp_files = []      # file tạm (system prompt) dọn sau mỗi query
 
     def is_available(self) -> bool:
@@ -149,7 +149,7 @@ class ClaudeSDK:
 
     async def _permission_gate(self, tool_name, input_data, context):
         """can_use_tool: whitelist THẬT per-call khi chạy chế độ nền an toàn (allowed_tools).
-        Hỗ trợ pattern fnmatch (vd 'mcp__javis__pos_*')."""
+        Hỗ trợ pattern fnmatch (vd 'mcp__striver__pos_*')."""
         from claude_agent_sdk import PermissionResultAllow, PermissionResultDeny
         allowed = self.allowed_tools or []
         ok = any(tool_name == p or fnmatch.fnmatch(tool_name, p) for p in allowed)
@@ -165,7 +165,7 @@ class ClaudeSDK:
         min_mode enforce sẵn trong route của plugin_tools(mode); hook pre/post bọc như hub."""
         import plugins_host
         from claude_agent_sdk import tool as sdk_tool, create_sdk_mcp_server
-        mode = (self.javis_mode or "full").strip().lower()
+        mode = (self.striver_mode or "full").strip().lower()
         p_tools, p_route = plugins_host.plugin_tools(mode, None)   # None = plugin toàn cục, như hub phục vụ CLI
         if not p_tools:
             return None
@@ -183,7 +183,7 @@ class ClaudeSDK:
 
             sdk_tools.append(sdk_tool(fn, t.get("description") or fn,
                                       t.get("schema") or {"type": "object", "properties": {}})(_handler))
-        return create_sdk_mcp_server("javis-plugins", tools=sdk_tools)
+        return create_sdk_mcp_server("striver-plugins", tools=sdk_tools)
 
     def _mcp_servers(self):
         """(mcp_servers cho options, strict) - đọc file config (đường _apply_mcp) thành dict,
@@ -206,13 +206,13 @@ class ClaudeSDK:
             plug = None
         if plug is not None:
             servers = dict(servers or {})
-            servers["javis-plugins"] = plug
-            hub = servers.get("javis")
+            servers["striver-plugins"] = plug
+            hub = servers.get("striver")
             if isinstance(hub, dict) and hub.get("headers") is not None:
                 # Báo hub bỏ nhóm plugin - model không thấy 2 tool trùng chức năng
                 hub = dict(hub); hub["headers"] = dict(hub["headers"])
-                hub["headers"]["X-Javis-No-Plugins"] = "1"
-                servers["javis"] = hub
+                hub["headers"]["X-Striver-No-Plugins"] = "1"
+                servers["striver"] = hub
         return servers, self.mcp_strict
 
     def _write_sysprompt_file(self, text):
@@ -222,9 +222,9 @@ class ClaudeSDK:
         try:
             d = STATE_DIR / "tmp"
             d.mkdir(parents=True, exist_ok=True)
-            fd, path = tempfile.mkstemp(suffix=".txt", prefix="javis-sysprompt-", dir=str(d))
+            fd, path = tempfile.mkstemp(suffix=".txt", prefix="striver-sysprompt-", dir=str(d))
         except Exception:
-            fd, path = tempfile.mkstemp(suffix=".txt", prefix="javis-sysprompt-")
+            fd, path = tempfile.mkstemp(suffix=".txt", prefix="striver-sysprompt-")
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(text)
         self._tmp_files.append(path)
@@ -247,7 +247,7 @@ class ClaudeSDK:
             if not d.exists():
                 return
             now = time.time()
-            for f in d.glob("javis-sysprompt-*.txt"):
+            for f in d.glob("striver-sysprompt-*.txt"):
                 try:
                     if now - f.stat().st_mtime > max_age_s:
                         f.unlink()
@@ -262,7 +262,7 @@ class ClaudeSDK:
         kw = {"cwd": self.cwd}
         # System prompt đẩy qua FILE (--append-system-prompt-file) thay vì nhét vào THAM SỐ dòng lệnh.
         # Trên Windows tổng dòng lệnh > 32767 ký tự thì CreateProcess CHẾT: Python báo FileNotFoundError,
-        # SDK dán nhãn nhầm "Claude Code not found at ...\\_bundled\\claude.exe". System prompt của Javis
+        # SDK dán nhãn nhầm "Claude Code not found at ...\\_bundled\\claude.exe". System prompt của Striver
         # (CLAUDE.md + bộ nhớ brain nhiều note) dễ vượt ngưỡng -> đây là gốc lỗi đó. Đọc qua file thì
         # không còn giới hạn độ dài. SDK cũ không có extra_args thì fallback nhét inline (chỉ hợp prompt ngắn).
         if self.system_prompt and "extra_args" in fields:
@@ -306,11 +306,11 @@ class ClaudeSDK:
                                                "+ cài/đăng nhập Claude Code CLI)."}
             return
         from claude_agent_sdk import ClaudeSDKClient, ResultMessage
-        IDLE = float(os.getenv("JAVIS_CLAUDE_IDLE_TIMEOUT", "180"))
+        IDLE = float(os.getenv("AIOS_CLAUDE_IDLE_TIMEOUT", "180"))
         # Trần RIÊNG khi đang chờ TOOL chạy: SDK im lặng suốt lúc tool chạy là BÌNH THƯỜNG
         # (render video, tách nền, build... có thể cả tiếng) - không phải Claude treo.
         # Trước đây dùng chung IDLE 180s nên tác vụ dài bị chém oan giữa chừng.
-        TOOL_IDLE = float(os.getenv("JAVIS_CLAUDE_TOOL_TIMEOUT", "3600"))
+        TOOL_IDLE = float(os.getenv("AIOS_CLAUDE_TOOL_TIMEOUT", "3600"))
         self._sweep_stale_tmp()   # dọn file prompt tạm sót từ lượt trước bị crash/kill
         loop = asyncio.get_running_loop()
         client = ClaudeSDKClient(options=self._options())
@@ -338,10 +338,10 @@ class ClaudeSDK:
                         err = f"Fork vượt trần {int(self.max_wall_s)}s - đã dừng (cap wall-clock nền)."
                     elif waiting_tool:
                         err = (f"Tool chạy quá {int(TOOL_IDLE)}s chưa xong - đã dừng để tránh treo server. "
-                               f"(tăng JAVIS_CLAUDE_TOOL_TIMEOUT nếu tác vụ thật sự dài hơn)")
+                               f"(tăng AIOS_CLAUDE_TOOL_TIMEOUT nếu tác vụ thật sự dài hơn)")
                     else:
                         err = (f"Claude không phản hồi {int(IDLE)}s - đã dừng để tránh treo server. "
-                               f"(tăng JAVIS_CLAUDE_IDLE_TIMEOUT nếu tác vụ thật sự dài)")
+                               f"(tăng AIOS_CLAUDE_IDLE_TIMEOUT nếu tác vụ thật sự dài)")
                     try:
                         await client.interrupt()
                     except Exception:

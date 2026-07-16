@@ -9,8 +9,8 @@ Bố trí thư mục skill trong 1 brain:
         <brain>/.agents/<slug>          - vị trí rất cũ
   - Skill TẮT: <base>/.disabled/<slug>
 
-Nguyên tắc độc lập engine: đây là router do Javis SỞ HỮU. Mọi engine (Claude/Codex/OpenRouter/
-OpenAI/Anthropic API) dùng skill qua router này (list bơm vào system prompt + tool javis_use_skill),
+Nguyên tắc độc lập engine: đây là router do Striver SỞ HỮU. Mọi engine (Claude/Codex/OpenRouter/
+OpenAI/Anthropic API) dùng skill qua router này (list bơm vào system prompt + tool striver_use_skill),
 KHÔNG phụ thuộc cơ chế native của Claude. `.claude/skills` chỉ là bản mirror phái sinh (bonus).
 
 Mọi hàm ở đây CHỈ ĐỌC, an toàn OSError. Việc GHI/DI CHUYỂN (migration legacy → canonical, mirror
@@ -140,7 +140,7 @@ def list_skills(root) -> list:
 
 
 def list_enabled_meta(root) -> list:
-    """Chỉ các skill đang BẬT (dùng để bơm router vào system prompt + mô tả tool javis_use_skill)."""
+    """Chỉ các skill đang BẬT (dùng để bơm router vào system prompt + mô tả tool striver_use_skill)."""
     return [s for s in list_skills(root) if s.get("enabled")]
 
 

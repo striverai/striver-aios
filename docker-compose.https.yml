@@ -15,18 +15,18 @@
 # Cần Docker Compose v2.23.1+ (hỗ trợ configs.content). Kiểm tra: docker compose version
 # ============================================================================
 configs:
-  javis_caddyfile:
+  striver_caddyfile:
     content: |
       {
         on_demand_tls {
-          ask http://javis:7777/tls-check
+          ask http://striver:7777/tls-check
         }
       }
       https:// {
         tls {
           on_demand
         }
-        reverse_proxy javis:7777
+        reverse_proxy striver:7777
       }
       http:// {
         redir https://{host}{uri}
@@ -36,15 +36,15 @@ services:
   # Backend giữ nguyên; cookie Secure tự bật khi Host khớp tên miền (server tự xử, không cần env).
   caddy:
     image: caddy:2-alpine
-    container_name: javis-caddy
+    container_name: striver-caddy
     restart: unless-stopped
     depends_on:
-      - javis
+      - striver
     ports:
       - "80:80"
       - "443:443"
     configs:
-      - source: javis_caddyfile
+      - source: striver_caddyfile
         target: /etc/caddy/Caddyfile
     volumes:
       - caddy-data:/data       # chứng chỉ đã cấp - giữ qua restart, không xin lại

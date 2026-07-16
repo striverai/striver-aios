@@ -1,12 +1,12 @@
 ---
-name: Javis Builder
-description: Kích hoạt khi người dùng muốn TẠO hoặc SỬA một năng lực của Javis - agent, skill, workflow, loop, hoặc plugin (vd "tạo agent chuyên X", "thêm kỹ năng Y", "dựng workflow nghiên cứu rồi viết", "tạo loop mỗi 2 tiếng làm Z", "viết tool/plugin tính ...", "làm cho Javis biết làm ..."). Đây là hướng dẫn cách ghi đúng file chuẩn của Javis.
+name: Striver Builder
+description: Kích hoạt khi người dùng muốn TẠO hoặc SỬA một năng lực của Striver - agent, skill, workflow, loop, hoặc plugin (vd "tạo agent chuyên X", "thêm kỹ năng Y", "dựng workflow nghiên cứu rồi viết", "tạo loop mỗi 2 tiếng làm Z", "viết tool/plugin tính ...", "làm cho Striver biết làm ..."). Đây là hướng dẫn cách ghi đúng file chuẩn của Striver.
 group: AI
 ---
 
-# Javis Builder - tạo agent / skill / workflow / loop
+# Striver Builder - tạo agent / skill / workflow / loop
 
-Khi người dùng muốn Javis có thêm một năng lực, bạn TỰ GHI FILE .md đúng chuẩn dưới đây vào
+Khi người dùng muốn Striver có thêm một năng lực, bạn TỰ GHI FILE .md đúng chuẩn dưới đây vào
 vault (brain đang chọn). Studio / trang tương ứng tự nhận file mới. Luôn báo cáo ngắn sau khi tạo.
 
 ## Quy trình (làm đúng thứ tự)
@@ -28,7 +28,7 @@ vault (brain đang chọn). Studio / trang tương ứng tự nhận file mới.
 
 ## Mẫu file (ghi CHÍNH XÁC theo đây)
 
-### Agent -> `Javis/agents/<slug>.md`
+### Agent -> `Striver/agents/<slug>.md`
 ```
 ---
 type: agent
@@ -61,7 +61,7 @@ group: <Marketing|Bán hàng|Nội dung|Vận hành|Tài chính|AI|Năng suất|
 <hướng dẫn chi tiết cho AI khi skill kích hoạt>
 ```
 
-### Workflow -> `Javis/workflows/<slug>.md`
+### Workflow -> `Striver/workflows/<slug>.md`
 ```
 ---
 type: workflow
@@ -80,7 +80,7 @@ updated: <YYYY-MM-DD>
 ```
 Nếu workflow tham chiếu agent chưa tồn tại -> TẠO agent đó trước.
 
-### Loop -> `Javis/loops/<slug>.md`
+### Loop -> `Striver/loops/<slug>.md`
 ```
 ---
 type: loop
@@ -94,7 +94,7 @@ updated: <YYYY-MM-DD>
 <mô tả nhiệm vụ: mỗi vòng loop làm ĐÚNG việc này - đây chính là prompt của loop, viết tự-đủ>
 ```
 
-### Plugin -> mặc định TOÀN CỤC `<JAVIS_STATE_DIR>/plugins/<slug>/` (chung mọi brain); riêng 1 brain thì `<vault>/plugins/<slug>/`. 2 file: plugin.yaml + plugin.py
+### Plugin -> mặc định TOÀN CỤC `<AIOS_STATE_DIR>/plugins/<slug>/` (chung mọi brain); riêng 1 brain thì `<vault>/plugins/<slug>/`. 2 file: plugin.yaml + plugin.py
 `plugin.yaml`:
 ```
 name: <Tên tiếng Việt>
@@ -126,11 +126,11 @@ ctx có `ctx.vault_root`, `ctx.data_dir` (state riêng plugin, không đụng va
   ngay khi user yêu cầu RÕ RÀNG, và phải cảnh báo rủi ro (full = tự tạo đơn/tiêu tiền/đăng bài).
 - KHÔNG tạo năng lực tự làm hành động tiền/đơn/quảng cáo/gửi tin/đăng bài mà không có người duyệt.
 - KHÔNG bao giờ để một loop/automation tự tạo hoặc tự bật loop khác (chống phình vô hạn) - chỉ ĐỀ XUẤT.
-- Skill do engine TỰ HỌC sinh ra -> tạo BẬT sẵn (đánh dấu `origin: javis-learned`), nhưng KHÔNG ghi
+- Skill do engine TỰ HỌC sinh ra -> tạo BẬT sẵn (đánh dấu `origin: striver-learned`), nhưng KHÔNG ghi
   đè skill đã có và KHÔNG hồi sinh skill user đã tắt; agent tự động -> để nháp chờ duyệt. Skill do
   user yêu cầu trực tiếp -> tạo bật luôn nhưng phải kiểm trùng + `description` trigger rõ (skill rác
-  làm Javis chọn skill sai). Đừng tạo skill trùng chức năng skill đã có.
+  làm Striver chọn skill sai). Đừng tạo skill trùng chức năng skill đã có.
 - Plugin user (toàn cục lẫn vault) chạy CODE PYTHON THẬT trong tiến trình server -> tạo `enabled: false`,
-  `min_mode: readonly`, và NÓI RÕ với user: plugin chỉ chạy khi họ đặt env `JAVIS_ENABLE_USER_PLUGINS=true`
+  `min_mode: readonly`, và NÓI RÕ với user: plugin chỉ chạy khi họ đặt env `AIOS_ENABLE_USER_PLUGINS=true`
   rồi khởi động lại (rào chống chạy code lạ). KHÔNG viết plugin làm hành động tiền/đơn/gửi tin; việc đó để MCP + mức quyền lo.
 - Sau khi tạo, KHÔNG tự chạy thứ có side-effect; để user xem trước.

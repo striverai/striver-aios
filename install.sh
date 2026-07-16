@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Javis OS - Linux/macOS native installer (no Docker)
+# Striver AIOS - Linux/macOS native installer (no Docker)
 #   ./install.sh
 # Installs python3 + node + Claude Code CLI, creates a venv, installs deps,
 # seeds .env, and registers a systemd service (or falls back to nohup).
@@ -52,12 +52,12 @@ if need_node; then
     arch=$(uname -m); case "$arch" in x86_64) na=x64;; aarch64|arm64) na=arm64;; *) err "unsupported arch $arch"; exit 1;; esac
     tb=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/ | grep -oE "node-v22\.[0-9]+\.[0-9]+-linux-${na}\.tar\.xz" | head -1)
     tmp=$(mktemp -d); curl -fsSL "https://nodejs.org/dist/latest-v22.x/${tb}" -o "$tmp/n.tar.xz"
-    mkdir -p "$HOME/.javis"; rm -rf "$HOME/.javis/node"
-    tar xf "$tmp/n.tar.xz" -C "$tmp"; mv "$tmp"/node-v22* "$HOME/.javis/node"; rm -rf "$tmp"
+    mkdir -p "$HOME/.striver"; rm -rf "$HOME/.striver/node"
+    tar xf "$tmp/n.tar.xz" -C "$tmp"; mv "$tmp"/node-v22* "$HOME/.striver/node"; rm -rf "$tmp"
     mkdir -p "$HOME/.local/bin"
-    ln -sf "$HOME/.javis/node/bin/node" "$HOME/.local/bin/node"
-    ln -sf "$HOME/.javis/node/bin/npm"  "$HOME/.local/bin/npm"
-    ln -sf "$HOME/.javis/node/bin/npx"  "$HOME/.local/bin/npx"
+    ln -sf "$HOME/.striver/node/bin/node" "$HOME/.local/bin/node"
+    ln -sf "$HOME/.striver/node/bin/npm"  "$HOME/.local/bin/npm"
+    ln -sf "$HOME/.striver/node/bin/npx"  "$HOME/.local/bin/npx"
     export PATH="$HOME/.local/bin:$PATH"
   fi
 fi
@@ -90,7 +90,7 @@ if [ -t 0 ]; then
     if grep -q '^OBSIDIAN_VAULT_PATH=' .env; then sed -i.bak "s|^OBSIDIAN_VAULT_PATH=.*|OBSIDIAN_VAULT_PATH=$VP|" .env && rm -f .env.bak; else echo "OBSIDIAN_VAULT_PATH=$VP" >> .env; fi
   fi
 fi
-grep -q '^JAVIS_HOST=' .env || echo "JAVIS_HOST=127.0.0.1" >> .env
+grep -q '^AIOS_HOST=' .env || echo "AIOS_HOST=127.0.0.1" >> .env
 
 # --- 8. one-time Claude auth reminder ---
 if ! claude auth status >/dev/null 2>&1; then
@@ -102,9 +102,9 @@ fi
 PY="$APP_DIR/.venv/bin/python"
 if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
   log "Installing systemd service..."
-  $SUDO tee /etc/systemd/system/javis.service >/dev/null <<UNIT
+  $SUDO tee /etc/systemd/system/striver.service >/dev/null <<UNIT
 [Unit]
-Description=Javis OS
+Description=Striver AIOS
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=0
@@ -113,9 +113,9 @@ StartLimitIntervalSec=0
 Type=simple
 User=$(whoami)
 WorkingDirectory=$APP_DIR/server
-Environment="JAVIS_HOST=127.0.0.1"
-Environment="JAVIS_PORT=7777"
-Environment="JAVIS_STATE_DIR=$APP_DIR/server"
+Environment="AIOS_HOST=127.0.0.1"
+Environment="AIOS_PORT=7777"
+Environment="AIOS_STATE_DIR=$APP_DIR/server"
 Environment="PATH=$APP_DIR/.venv/bin:/usr/local/bin:/usr/bin:/bin"
 ExecStart=$PY -m uvicorn main:app --host 127.0.0.1 --port 7777
 Restart=always
@@ -128,16 +128,16 @@ StandardError=journal
 WantedBy=multi-user.target
 UNIT
   $SUDO systemctl daemon-reload
-  $SUDO systemctl enable --now javis.service
-  ok "Service installed. Logs: journalctl -u javis -f"
+  $SUDO systemctl enable --now striver.service
+  ok "Service installed. Logs: journalctl -u striver -f"
 else
   warn "systemd not available - starting under nohup..."
-  ( cd "$APP_DIR/server" && JAVIS_STATE_DIR="$APP_DIR/server" nohup "$PY" -m uvicorn main:app --host 127.0.0.1 --port 7777 > "$APP_DIR/server/javis.log" 2>&1 & )
-  ok "Started. Logs: $APP_DIR/server/javis.log"
+  ( cd "$APP_DIR/server" && AIOS_STATE_DIR="$APP_DIR/server" nohup "$PY" -m uvicorn main:app --host 127.0.0.1 --port 7777 > "$APP_DIR/server/striver.log" 2>&1 & )
+  ok "Started. Logs: $APP_DIR/server/striver.log"
 fi
 
 echo ""
-ok "Javis OS is up at: http://127.0.0.1:7777"
+ok "Striver AIOS is up at: http://127.0.0.1:7777"
 log "Remote access (SSH tunnel): ssh -L 7777:localhost:7777 $(whoami)@<vps-ip>"
 echo ""
 log "Truy cập từ xa qua Cloudflare Tunnel (không cần mở port, có HTTPS - như Hermes):"

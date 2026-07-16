@@ -2,7 +2,7 @@
 git_brain.py - Lớp an toàn dữ liệu cho engine tự học (learn.py / self_improve.py).
 
 Vì sao tồn tại: mọi cơ chế rollback của việc học (snapshot / undo / diff-scope) dựa trên
-brain là 1 git repo. NHƯNG mặc định Docker mount `javis-brains:/brains` là named volume
+brain là 1 git repo. NHƯNG mặc định Docker mount `striver-brains:/brains` là named volume
 KHÔNG có git (backup git chỉ là bước thủ công comment trong docker-compose). Do đó:
 
   - Fail-closed: write-mode học CHỈ chạy khi brain là git checkout (is_git_checkout).
@@ -60,12 +60,12 @@ def is_git_checkout(root: str) -> bool:
 
 
 _GITIGNORE = (
-    "# Javis brain - KHÔNG commit: khoá, log thô (có thể chứa secret), nhật ký nền.\n"
+    "# Striver brain - KHÔNG commit: khoá, log thô (có thể chứa secret), nhật ký nền.\n"
     "# Git chỉ version TRI THỨC ĐÃ CHƯNG CẤT (facts/wiki/skills/MEMORY.md) → undo sạch, an toàn.\n"
-    ".javis-learn.lock\n"
-    "Javis/learn-staging/\n"
-    "Javis/learn-log/\n"
-    "Javis/loop-log/\n"
+    ".striver-learn.lock\n"
+    "Striver/learn-staging/\n"
+    "Striver/learn-log/\n"
+    "Striver/loop-log/\n"
     "memory/conversations/\n"
     "Memory/conversations/\n"
     "*.tmp\n"
@@ -86,8 +86,8 @@ def ensure_git_repo(root: str) -> dict:
         if r.returncode != 0:
             return {"ok": False, "created": False, "error": (r.stderr or "git init lỗi")[:200]}
         # Cấu hình identity cục bộ (repo có thể chạy trong container không có global config)
-        _git(root, "config", "user.email", "javis@localhost")
-        _git(root, "config", "user.name", "Javis Learn")
+        _git(root, "config", "user.email", "striver@localhost")
+        _git(root, "config", "user.name", "Striver Learn")
         gi = Path(root) / ".gitignore"
         if not gi.exists():
             gi.write_text(_GITIGNORE, encoding="utf-8")
@@ -265,7 +265,7 @@ def remote_reachable(repo_url: str, token: str, timeout: int = 30) -> dict:
 # hội thoại gốc/log/khoá (có thể chứa secret), file tạm.
 _BACKUP_SKIP_DIRS = {".git"}
 _BACKUP_SKIP_SUBSTR = ("/memory/conversations/", "/Memory/conversations/",
-                       "/Javis/loop-log/", "/Javis/learn-log/", "/Javis/learn-staging/")
+                       "/Striver/loop-log/", "/Striver/learn-log/", "/Striver/learn-staging/")
 
 
 def _backup_skip(rel: str) -> bool:
@@ -273,7 +273,7 @@ def _backup_skip(rel: str) -> bool:
     if any(s in r for s in _BACKUP_SKIP_SUBSTR):
         return True
     name = rel.replace("\\", "/").rsplit("/", 1)[-1]
-    return name == ".javis-learn.lock" or name.endswith(".tmp")
+    return name == ".striver-learn.lock" or name.endswith(".tmp")
 
 
 def _sync_mirror(src: str, mirror: str) -> None:
@@ -430,7 +430,7 @@ def _integrate_remote(root: str, pre_head: Optional[str]) -> dict:
     if pre_head is None:
         r = _git(root, "reset", "--hard", "FETCH_HEAD")
         if r.returncode != 0:   # nhánh chưa sinh (repo rỗng) trên vài bản git → fallback checkout
-            r = _git(root, "checkout", "-f", "-B", "javis-sync", "FETCH_HEAD")
+            r = _git(root, "checkout", "-f", "-B", "striver-sync", "FETCH_HEAD")
             if r.returncode != 0:
                 return {"error": "nhận bản remote lỗi: " + ((r.stderr or "?").strip())[:200]}
         return {"merged": True, "conflicts": []}
@@ -486,7 +486,7 @@ def _apply_back(mirror: str, brains_dir: str, changed: set, sync_start: float) -
                         continue   # local vừa sửa trong lúc sync → local thắng vòng này
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     # đuôi .tmp → nằm trong _backup_skip: crash giữa chừng không sinh rác vào backup
-                    tmp = dst.parent / (dst.name + ".javis-sync.tmp")
+                    tmp = dst.parent / (dst.name + ".striver-sync.tmp")
                     shutil.copy2(src, tmp)
                     os.replace(tmp, dst)
                     rep["applied"] += 1
@@ -562,8 +562,8 @@ def _sync_brains_locked(brains_dir: str, mirror_dir: str, repo_url: str, token: 
         r = _git(mirror_dir, "init")
         if r.returncode != 0:
             return {**rep, "error": (r.stderr or "git init lỗi")[:200]}
-    _git(mirror_dir, "config", "user.email", "javis@localhost")
-    _git(mirror_dir, "config", "user.name", f"Javis Sync ({_host_tag()})")
+    _git(mirror_dir, "config", "user.email", "striver@localhost")
+    _git(mirror_dir, "config", "user.name", f"Striver Sync ({_host_tag()})")
     # Sync truyền BYTE NGUYÊN VĂN giữa các máy: tắt autocrlf để git Windows không tự đổi
     # LF↔CRLF lúc add/checkout (nếu không, cùng 1 file sẽ lệch byte giữa local và VPS mãi mãi).
     _git(mirror_dir, "config", "core.autocrlf", "false")
@@ -635,12 +635,12 @@ def _sync_brains_locked(brains_dir: str, mirror_dir: str, repo_url: str, token: 
 # BrainLock - khoá cấp file cross-platform (serialize ghi giữa CÁC tiến trình)
 # ============================================================
 class BrainLock:
-    """Khoá độc quyền theo brain, dựa trên file <root>/.javis-learn.lock.
+    """Khoá độc quyền theo brain, dựa trên file <root>/.striver-learn.lock.
     POSIX: fcntl.flock; Windows: msvcrt.locking. Non-blocking + retry tới timeout.
     Dùng như context manager (chạy trong worker THREAD, không block event loop)."""
 
     def __init__(self, root: str, timeout: float = 30.0):
-        self.path = Path(root) / ".javis-learn.lock"
+        self.path = Path(root) / ".striver-learn.lock"
         self.timeout = timeout
         self._fh = None
         self._locked = False

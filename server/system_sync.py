@@ -1,7 +1,7 @@
 """
-system_sync.py - Tầng NĂNG LỰC HỆ THỐNG của Javis OS (tách khỏi dữ liệu người dùng trong brain).
+system_sync.py - Tầng NĂNG LỰC HỆ THỐNG của Striver AIOS (tách khỏi dữ liệu người dùng trong brain).
 
-Vấn đề giải quyết: trước đây các chức năng mặc định (skill javis-builder, ingest/query/lint,
+Vấn đề giải quyết: trước đây các chức năng mặc định (skill striver-builder, ingest/query/lint,
 loop tự-cải-tiến) được seed create-if-missing vào TỪNG brain → brain tạo ở bản cũ không bao
 giờ nhận bản skill mới; brain ngoài (path:) không có gì; đổi brain là "mất" chức năng hệ thống.
 
@@ -16,9 +16,9 @@ Kiến trúc mới - 2 tầng rõ ràng:
 Skill trong brain có CANONICAL phẳng <brain>/skills/<slug>/SKILL.md (cùng hướng agents/workflows/
 memory). Tầng hệ thống được cài vào canonical đó qua sync có manifest, rồi MIRROR sang
 <brain>/.claude/skills để Claude Code nạp NATIVE ở ngữ cảnh cwd=brain (workflow/loop/learn/lint) -
-mirror chỉ là bản phái sinh (bonus), router chính của Javis không phụ thuộc nó. Brain cũ để skill
+mirror chỉ là bản phái sinh (bonus), router chính của Striver không phụ thuộc nó. Brain cũ để skill
 ở .claude/skills được migrate_brain() dời sang skills/ (idempotent, 1 chiều, không mất data):
-  - Manifest <brain>/.javis/system-manifest.json ghi hash bản đã cài của từng file hệ thống.
+  - Manifest <brain>/.striver/system-manifest.json ghi hash bản đã cài của từng file hệ thống.
   - Thiếu → cài (kể cả khi user lỡ xoá: file hệ thống tự hồi phục như file HĐH; muốn ngừng
     dùng thì TẮT skill - chuyển vào skills/.disabled - sync tôn trọng, không bật lại).
   - Có + CHƯA bị user sửa (hash khớp manifest, hoặc khớp bộ hash các bản đã ship LEGACY_HASHES)
@@ -51,7 +51,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).parent.parent
 SYSTEM_SKILLS_DIR = PROJECT_ROOT / ".claude" / "skills"
 SYSTEM_LOOPS_DIR = PROJECT_ROOT / "system" / "loops"
-MANIFEST_REL = Path(".javis") / "system-manifest.json"
+MANIFEST_REL = Path(".striver") / "system-manifest.json"
 
 # Frontmatter key của loop mà user/UI chỉnh trong vận hành bình thường → KHÔNG tính là "đã sửa"
 # và được BẢO TOÀN khi update. (self_improve.save_loop rewrite các key này khi user bật/tắt.)
@@ -306,7 +306,7 @@ def sync_brain(brain_root) -> dict:
                     enabled_p, disabled_p = _skill_paths(root, slug)
                     dst = enabled_p if enabled_p.exists() else (disabled_p if disabled_p.exists() else enabled_p)
                 else:
-                    dst = root / "Javis" / "loops" / f"{slug}.md"
+                    dst = root / "Striver" / "loops" / f"{slug}.md"
 
                 entry = files.get(key) or {}
                 if not dst.exists():
@@ -385,13 +385,13 @@ def ensure_synced(brain_root) -> Optional[dict]:
 # Hash các bản seed đã ship TRƯỚC khi có manifest (v0.7.9 → v0.8.3; nội dung không đổi giữa
 # các bản nên mỗi item 1 hash). Sinh từ git history meta_tools.py (fe33c2c/703fe54/0d3c953/f4fe71c).
 LEGACY_HASHES.update({
-    "loops/tu-cai-tien-javis": {
+    "loops/tu-cai-tien-striver": {
         "4028fbc34972449c072e750d7b2fe3c458b97ff7eee35d9d486af7efe98625bb",
     },
     "skills/ingest-source": {
         "313675bc61ad2aae69b282e9289a1a126ce89eb7688e1e2bfa3cfa409428878d",
     },
-    "skills/javis-builder": {
+    "skills/striver-builder": {
         "24081f68ed0152b09fc482dc79680e68e249e8153bc1c442f4a01af15b7f012f",
         # bản v0.9.32 (trước khi thêm khung metaprompt v0.9.33)
         "6f040dde409adf27ee69fed22c2c0490a5717c53a640d02d02fd670ee1bbfd76",

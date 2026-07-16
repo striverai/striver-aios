@@ -89,9 +89,9 @@ async def _summarize(old, chunk, prov, api_key, model, api_stream):
         c = m.get("content") or ""
         if len(c) > _MSG_CLIP:
             c = c[:_MSG_CLIP] + " (...)"
-        lines.append(("User: " if m.get("role") == "user" else "Javis: ") + c)
+        lines.append(("User: " if m.get("role") == "user" else "Striver: ") + c)
     prompt = (
-        "Bạn đang nén lịch sử hội thoại giữa User và trợ lý Javis để tiết kiệm context.\n\n"
+        "Bạn đang nén lịch sử hội thoại giữa User và trợ lý Striver để tiết kiệm context.\n\n"
         f"TÓM TẮT HIỆN CÓ (các phần trước đó nữa):\n{old or '(chưa có)'}\n\n"
         "ĐOẠN HỘI THOẠI MỚI CẦN GỘP THÊM:\n" + "\n\n".join(lines) + "\n\n"
         "Viết TÓM TẮT MỚI gộp cả hai (tối đa ~350 từ), giữ lại: chủ đề chính, quyết định đã chốt, "

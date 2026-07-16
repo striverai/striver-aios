@@ -1,5 +1,5 @@
 """
-MCP client của Javis - để MỌI bộ não (API/OAuth lẫn hub) dùng được MCP.
+MCP client của Striver - để MỌI bộ não (API/OAuth lẫn hub) dùng được MCP.
 v2: SESSION POOL sống lâu giữa các tin nhắn (hết cảnh mỗi tool call mở session mới),
 thêm transport stdio (MCP local như zalo-agent-cli, webcake-landing-mcp) và
 "internal" (cầu nối Python nội bộ như botcake_mcp).
@@ -127,7 +127,7 @@ class McpHttpSession:
                 return
             await self._rpc("initialize", {
                 "protocolVersion": PROTOCOL, "capabilities": {},
-                "clientInfo": {"name": "javis-os", "version": "1.0"},
+                "clientInfo": {"name": "striver-os", "version": "1.0"},
             })
             await self._rpc("notifications/initialized", notify=True)
             self._init_done = True
@@ -165,7 +165,7 @@ class McpStdioSession:
         self._init_done = False
 
     def _argv(self):
-        # Tìm cả trong Scripts/bin của venv Javis: uvx/uv cài theo requirements nằm ở đó
+        # Tìm cả trong Scripts/bin của venv Striver: uvx/uv cài theo requirements nằm ở đó
         # (PATH hệ thống thường không có) → connector PyPI (uvx ...) chạy được out-of-the-box.
         venv_bin = str(Path(sys.executable).parent)
         search = venv_bin + os.pathsep + os.environ.get("PATH", "")
@@ -234,7 +234,7 @@ class McpStdioSession:
                 continue   # noise (log npx...) → bỏ qua
             if obj.get("id") == msg["id"]:
                 return obj
-            # notification/request từ server → bỏ qua (Javis không hỗ trợ sampling)
+            # notification/request từ server → bỏ qua (Striver không hỗ trợ sampling)
 
     async def ensure_init(self):
         async with self._lock:
@@ -245,7 +245,7 @@ class McpStdioSession:
             # npx lần đầu phải TẢI package → init cho timeout dài
             await self._rpc("initialize", {
                 "protocolVersion": PROTOCOL, "capabilities": {},
-                "clientInfo": {"name": "javis-os", "version": "1.0"},
+                "clientInfo": {"name": "striver-os", "version": "1.0"},
             }, timeout=90)
             await self._rpc("notifications/initialized", notify=True)
             self._init_done = True

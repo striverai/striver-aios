@@ -1,9 +1,9 @@
 """
-share_bundle.py - Xuất/Nhập năng lực Javis (agent / skill / workflow) dưới dạng gói .zip để
+share_bundle.py - Xuất/Nhập năng lực Striver (agent / skill / workflow) dưới dạng gói .zip để
 CHIA SẺ giữa các brain / người dùng.
 
-Gói "javis-bundle" = 1 file .zip:
-  javis-bundle.json          - manifest (kind, primary, items, app_version)
+Gói "striver-bundle" = 1 file .zip:
+  striver-bundle.json          - manifest (kind, primary, items, app_version)
   agents/<slug>.md           - agent (1 file)
   workflows/<slug>.md        - workflow (1 file)
   skills/<slug>/...          - skill (cả thư mục: SKILL.md + asset)
@@ -11,7 +11,7 @@ Gói "javis-bundle" = 1 file .zip:
 Gói KÈM PHỤ THUỘC để bên nhận chạy được ngay:
   workflow -> các agent nó tham chiếu (step.agent + verify_agent) -> skill của các agent đó
   agent    -> skill của agent
-Skill HỆ THỐNG (javis-builder/ingest/query/lint...) KHÔNG gói (bên nhận đã có sẵn theo app).
+Skill HỆ THỐNG (striver-builder/ingest/query/lint...) KHÔNG gói (bên nhận đã có sẵn theo app).
 
 Nhập: đọc gói .zip (hoặc 1 file .md lẻ cho agent/workflow), ghi vào đúng thư mục brain. Rào an toàn:
   - chống zip-slip / path traversal (chỉ nhận agents/ workflows/ skills/, chặn '..', path tuyệt đối).
@@ -132,17 +132,17 @@ def build_bundle(kind, slug, *, agents_dir, workflows_dir, skills_root,
 
     prim = next((i for i in items if i["type"] == kind and i["slug"] == slug), None)
     manifest = {
-        "format": "javis-bundle", "version": 1, "kind": kind,
+        "format": "striver-bundle", "version": 1, "kind": kind,
         "primary": {"type": kind, "slug": slug, "name": (prim or {}).get("name", slug)},
         "items": items, "app_version": app_version,
         "created": datetime.now(timezone(timedelta(hours=7))).isoformat(timespec="seconds"),
     }
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("javis-bundle.json", json.dumps(manifest, ensure_ascii=False, indent=1))
+        z.writestr("striver-bundle.json", json.dumps(manifest, ensure_ascii=False, indent=1))
         for arc, data in files.items():
             z.writestr(arc, data)
-    return buf.getvalue(), f"{_safe_name((prim or {}).get('name') or slug)}.javis.zip"
+    return buf.getvalue(), f"{_safe_name((prim or {}).get('name') or slug)}.striver.zip"
 
 
 # ────────────────────────── NHẬP ──────────────────────────
@@ -237,13 +237,13 @@ def import_bundle(data: bytes, filename, *, agents_dir, workflows_dir, skills_ro
             return False
 
         arcs = [i.filename.replace("\\", "/") for i in infos]
-        is_javis = "javis-bundle.json" in arcs or any(a.startswith(_ALLOWED_TOP) for a in arcs)
+        is_striver = "striver-bundle.json" in arcs or any(a.startswith(_ALLOWED_TOP) for a in arcs)
 
-        if is_javis:
+        if is_striver:
             skip_skill = set()   # slug skill đã có (bỏ qua cả thư mục khi không ghi đè)
             for i in infos:
                 arc = i.filename.replace("\\", "/")
-                if arc == "javis-bundle.json" or _bad(arc, i):
+                if arc == "striver-bundle.json" or _bad(arc, i):
                     continue
                 dst = _dst_for(arc, agents_dir, workflows_dir, skills_root)
                 if not dst:
@@ -259,7 +259,7 @@ def import_bundle(data: bytes, filename, *, agents_dir, workflows_dir, skills_ro
             # Gói SKILL kiểu CLAUDE (.skill / .zip): SKILL.md ở gốc hoặc trong 1 thư mục con.
             cand = sorted([a for a in arcs if a.rsplit("/", 1)[-1] == "SKILL.md"], key=lambda a: a.count("/"))
             if not cand:
-                res["errors"].append("Gói .zip không phải javis-bundle và không có SKILL.md - không rõ nhập gì.")
+                res["errors"].append("Gói .zip không phải striver-bundle và không có SKILL.md - không rõ nhập gì.")
                 return res
             prefix = cand[0][:-len("SKILL.md")]   # "" (gốc) hoặc "thu-muc/"
             try:

@@ -1,17 +1,17 @@
 # Kết nối & số liệu kinh doanh
 
-Trang **Kết nối** là nơi bạn "đấu" Javis vào các công cụ bạn đang dùng: Pancake POS, Zalo, Webcake Landing, Botcake, quảng cáo Meta/Google/TikTok, lịch, CRM... Sau khi đấu, Javis đọc được số liệu THẬT và (nếu bạn cho quyền) thao tác thật trên các công cụ đó. Trang này hướng dẫn: kết nối một dịch vụ từ Kho, nối nhiều tài khoản, phân quyền, xem nhật ký, và cách đọc số liệu.
+Trang **Kết nối** là nơi bạn "đấu" Striver vào các công cụ bạn đang dùng: Pancake POS, Zalo, Webcake Landing, Botcake, quảng cáo Meta/Google/TikTok, lịch, CRM... Sau khi đấu, Striver đọc được số liệu THẬT và (nếu bạn cho quyền) thao tác thật trên các công cụ đó. Trang này hướng dẫn: kết nối một dịch vụ từ Kho, nối nhiều tài khoản, phân quyền, xem nhật ký, và cách đọc số liệu.
 
 ## Tính năng này là gì
 
-Bên dưới, mỗi kết nối là một "đường ống" MCP (Model Context Protocol) nối Javis tới dịch vụ ngoài - nhưng bạn không cần biết chi tiết đó. Điểm mới từ bản 0.9:
+Bên dưới, mỗi kết nối là một "đường ống" MCP (Model Context Protocol) nối Striver tới dịch vụ ngoài - nhưng bạn không cần biết chi tiết đó. Điểm mới từ bản 0.9:
 
-- **Kho kết nối cài sẵn**: chọn dịch vụ, dán API key (hoặc quét QR với Zalo) là xong. Javis tự kiểm tra key và tự đặt tên tài khoản (ví dụ lấy đúng tên cửa hàng từ Pancake POS). Không còn phải gõ URL hay header.
+- **Kho kết nối cài sẵn**: chọn dịch vụ, dán API key (hoặc quét QR với Zalo) là xong. Striver tự kiểm tra key và tự đặt tên tài khoản (ví dụ lấy đúng tên cửa hàng từ Pancake POS). Không còn phải gõ URL hay header.
 - **Một dịch vụ, nhiều tài khoản**: 3 cửa hàng Pancake = 3 tài khoản trong cùng một thẻ Pancake POS. 2 số Zalo = 2 tài khoản Zalo chạy song song. Mỗi tài khoản bật/tắt, phân quyền, đặt mặc định riêng.
-- **Mọi bộ não dùng chung**: Claude Code, ChatGPT (Codex), OpenRouter, OpenAI API, Anthropic API đều dùng chung kho Kết nối này qua "hub" của Javis - đấu một lần, đổi model thoải mái.
-- **Phân quyền cứng**: mỗi tài khoản có mức quyền. Javis CHẶN thật sự (không phải chỉ nhắc bằng lời) các thao tác vượt quyền, ví dụ tạo đơn khi đang ở mức Chỉ đọc.
+- **Mọi bộ não dùng chung**: Claude Code, ChatGPT (Codex), OpenRouter, OpenAI API, Anthropic API đều dùng chung kho Kết nối này qua "hub" của Striver - đấu một lần, đổi model thoải mái.
+- **Phân quyền cứng**: mỗi tài khoản có mức quyền. Striver CHẶN thật sự (không phải chỉ nhắc bằng lời) các thao tác vượt quyền, ví dụ tạo đơn khi đang ở mức Chỉ đọc.
 
-## Mở ở đâu trong Javis
+## Mở ở đâu trong Striver
 
 1. Vào dashboard (cổng mặc định `7777`).
 2. Thanh bên trái, bấm mục **Kết nối** (biểu tượng phích cắm, phụ đề "Nguồn dữ liệu & công cụ").
@@ -23,112 +23,112 @@ Bên dưới, mỗi kết nối là một "đường ống" MCP (Model Context P
 
 1. Ở **Kho kết nối**, tìm thẻ **Pancake POS**, bấm **Kết nối**.
 2. Làm theo hướng dẫn trong cửa sổ: mở Pancake POS > Cấu hình cửa hàng > Ứng dụng & API > tạo API key, rồi dán vào ô.
-3. Bấm **Kết nối**. Javis tự kiểm tra key - đúng thì hiện "✓ Đã kết nối: <tên cửa hàng>" và tài khoản xuất hiện ở khu Đã kết nối. Key sai thì báo lỗi ngay tại chỗ.
+3. Bấm **Kết nối**. Striver tự kiểm tra key - đúng thì hiện "✓ Đã kết nối: <tên cửa hàng>" và tài khoản xuất hiện ở khu Đã kết nối. Key sai thì báo lỗi ngay tại chỗ.
 4. Có nhiều cửa hàng? Bấm **+ Thêm tài khoản** trên thẻ Pancake POS, dán key của shop tiếp theo. Mỗi shop một chip riêng.
 
-Pancake POS mặc định ở mức **Chỉ đọc** - Javis xem được doanh thu, đơn, khách... nhưng không thể tạo đơn hay đụng tiền. Muốn Javis thao tác thật, xem mục Phân quyền bên dưới.
+Pancake POS mặc định ở mức **Chỉ đọc** - Striver xem được doanh thu, đơn, khách... nhưng không thể tạo đơn hay đụng tiền. Muốn Striver thao tác thật, xem mục Phân quyền bên dưới.
 
 ### 2. Kết nối Zalo (quét QR)
 
-Cần Node.js 20+ trên máy chạy Javis (tải tại nodejs.org, cài một lần).
+Cần Node.js 20+ trên máy chạy Striver (tải tại nodejs.org, cài một lần).
 
 1. Ở Kho kết nối, bấm **Kết nối** trên thẻ **Zalo (tài khoản cá nhân)**.
 2. Đọc cảnh báo rủi ro: đây là công cụ KHÔNG chính thức, tài khoản Zalo có thể bị hạn chế hoặc khoá - khuyến nghị dùng tài khoản phụ. Bấm "Tôi hiểu rủi ro, hiện mã QR".
-3. Mở Zalo trên điện thoại > biểu tượng QR góc trên > quét mã trong màn hình Javis.
+3. Mở Zalo trên điện thoại > biểu tượng QR góc trên > quét mã trong màn hình Striver.
 4. Quét xong, tài khoản tự xuất hiện. Nối thêm số Zalo khác bằng **+ Thêm tài khoản** - các tài khoản chạy cô lập, không giẫm nhau.
 
-Zalo mặc định được cả đọc lẫn gửi tin (Toàn quyền) theo lựa chọn của bạn khi kết nối - Javis chỉ gửi tin khi bạn yêu cầu trực tiếp trong chat, và loop chạy nền KHÔNG bao giờ được tự gửi. Có giới hạn tần suất tự động để tránh spam gây khoá tài khoản.
+Zalo mặc định được cả đọc lẫn gửi tin (Toàn quyền) theo lựa chọn của bạn khi kết nối - Striver chỉ gửi tin khi bạn yêu cầu trực tiếp trong chat, và loop chạy nền KHÔNG bao giờ được tự gửi. Có giới hạn tần suất tự động để tránh spam gây khoá tài khoản.
 
 ### 3b. Kết nối Slack / Systeme.io
 
 - **Slack** (MCP chính chủ, chỉ cần đăng nhập trong dashboard): Slack bắt buộc MCP đi qua một app của chính bạn nên hơi nhiều bước một lần: vào api.slack.com/apps tạo app trong workspace, ở "OAuth & Permissions" thêm Redirect URL `http://localhost:7777/connect/oauth/callback` (VPS thì thêm địa chỉ tên miền) và thêm các "User Token Scopes" (search, channels, users, chat:write, canvases...), rồi copy Client ID + Secret dán vào cửa sổ kết nối. Nếu workspace bắt duyệt app thì cần admin chấp thuận. Mặc định Chỉ đọc - gửi tin phải nâng Toàn quyền.
-- **Systeme.io** (MCP chính chủ, dán key là xong): vào systeme.io > Cài đặt hồ sơ > "MCP & API keys" > tạo MCP key (hạn tối đa 90 ngày), dán vào. Javis quản lý được liên hệ, tag, newsletter, phễu. Mặc định Chỉ đọc.
-- **Lark** (MCP chính chủ, chạy local, cần Node.js 18+): nhắn tin, tài liệu, bảng dữ liệu Base, wiki, danh bạ trong Lark. Tạo một Lark app tại open.larksuite.com/app, cấp quyền (im, docx, bitable, contact...), lấy App ID + App Secret dán vào. Javis chỉ làm được đúng phạm vi quyền bạn cấp cho app. Mặc định Chỉ đọc - gửi tin nhắn và cấp quyền file phải nâng Toàn quyền.
+- **Systeme.io** (MCP chính chủ, dán key là xong): vào systeme.io > Cài đặt hồ sơ > "MCP & API keys" > tạo MCP key (hạn tối đa 90 ngày), dán vào. Striver quản lý được liên hệ, tag, newsletter, phễu. Mặc định Chỉ đọc.
+- **Lark** (MCP chính chủ, chạy local, cần Node.js 18+): nhắn tin, tài liệu, bảng dữ liệu Base, wiki, danh bạ trong Lark. Tạo một Lark app tại open.larksuite.com/app, cấp quyền (im, docx, bitable, contact...), lấy App ID + App Secret dán vào. Striver chỉ làm được đúng phạm vi quyền bạn cấp cho app. Mặc định Chỉ đọc - gửi tin nhắn và cấp quyền file phải nâng Toàn quyền.
 
 ### 3. Kết nối Webcake Landing / Botcake
 
-- **Webcake Landing**: lấy JWT tại webcake.io > Cài đặt > Mã truy cập > Tạo API keys, dán vào. Javis sẽ thiết kế/sửa landing page bằng lời nói. Cần Node.js 18+.
-- **Botcake**: mở Botcake > Cấu hình > Tích hợp > Public API > Tạo API Key; dán Page ID + key. Javis đọc được khách hàng, tag, flow và (nếu cho Toàn quyền) gửi flow tới khách.
+- **Webcake Landing**: lấy JWT tại webcake.io > Cài đặt > Mã truy cập > Tạo API keys, dán vào. Striver sẽ thiết kế/sửa landing page bằng lời nói. Cần Node.js 18+.
+- **Botcake**: mở Botcake > Cấu hình > Tích hợp > Public API > Tạo API Key; dán Page ID + key. Striver đọc được khách hàng, tag, flow và (nếu cho Toàn quyền) gửi flow tới khách.
 
 ### 4. Kết nối bộ Google (Sheets, Search Console, Workspace)
 
 - **Google Sheets**: đổ báo cáo doanh thu/tồn kho/công nợ ra bảng tính. Tạo service account trong Google Cloud (hướng dẫn có trong cửa sổ kết nối), share thư mục Drive cho email service account, dán nội dung file key JSON + ID thư mục là xong - không cần đăng nhập gì thêm.
 - **Google Search Console**: số liệu SEO website (khách tìm từ khoá gì, lượt bấm). Cũng dán service account JSON, thêm email đó làm người dùng trong Search Console.
-- **Google Calendar** và **Gmail** (2 kết nối riêng, MCP chính chủ của Google, chạy remote nên dùng được cả trên VPS): Calendar xem lịch, tìm chỗ trống, tạo/sửa/xoá sự kiện, nhắc hẹn; Gmail đọc/tìm thư, soạn NHÁP, gắn nhãn. Điểm an toàn: server Gmail chính chủ KHÔNG có tool gửi thẳng, nên Javis luôn dừng ở bản nháp để bạn tự bấm gửi. Cần tạo OAuth client một lần (console.cloud.google.com > Thông tin xác thực > OAuth client ID loại "Ứng dụng web", thêm URI chuyển hướng đúng như cửa sổ kết nối chỉ, và thêm email mình vào Test users). Dán Client ID + Secret, bấm Kết nối là trình duyệt mở cho bạn đăng nhập Google. Dùng CHUNG một OAuth client cho cả Calendar lẫn Gmail (chỉ cần bật thêm API tương ứng). Cả hai mặc định Chỉ đọc; nâng lên Ghi nháp để tạo sự kiện/soạn nháp, Toàn quyền mới xoá được sự kiện.
-- **Google Workspace** (Gmail + Lịch + Drive + Docs trong 1 kết nối, chạy local): cần tạo OAuth client trong Google Cloud một lần (~10 phút, hướng dẫn từng bước trong cửa sổ kết nối); lần đầu dùng, trình duyệt mở để bạn bấm đồng ý. Mặc định ở mức Ghi nháp: Javis soạn nháp mail, tạo lịch, tạo tài liệu được nhưng KHÔNG tự gửi mail hay xoá gì - bật Toàn quyền phải xác nhận rủi ro. Chọn cái này nếu muốn CẢ Drive/Docs/Sheets trong một mối; nếu chỉ cần Lịch + Gmail thì 2 kết nối riêng ở trên gọn hơn (ít công cụ, chạy remote).
+- **Google Calendar** và **Gmail** (2 kết nối riêng, MCP chính chủ của Google, chạy remote nên dùng được cả trên VPS): Calendar xem lịch, tìm chỗ trống, tạo/sửa/xoá sự kiện, nhắc hẹn; Gmail đọc/tìm thư, soạn NHÁP, gắn nhãn. Điểm an toàn: server Gmail chính chủ KHÔNG có tool gửi thẳng, nên Striver luôn dừng ở bản nháp để bạn tự bấm gửi. Cần tạo OAuth client một lần (console.cloud.google.com > Thông tin xác thực > OAuth client ID loại "Ứng dụng web", thêm URI chuyển hướng đúng như cửa sổ kết nối chỉ, và thêm email mình vào Test users). Dán Client ID + Secret, bấm Kết nối là trình duyệt mở cho bạn đăng nhập Google. Dùng CHUNG một OAuth client cho cả Calendar lẫn Gmail (chỉ cần bật thêm API tương ứng). Cả hai mặc định Chỉ đọc; nâng lên Ghi nháp để tạo sự kiện/soạn nháp, Toàn quyền mới xoá được sự kiện.
+- **Google Workspace** (Gmail + Lịch + Drive + Docs trong 1 kết nối, chạy local): cần tạo OAuth client trong Google Cloud một lần (~10 phút, hướng dẫn từng bước trong cửa sổ kết nối); lần đầu dùng, trình duyệt mở để bạn bấm đồng ý. Mặc định ở mức Ghi nháp: Striver soạn nháp mail, tạo lịch, tạo tài liệu được nhưng KHÔNG tự gửi mail hay xoá gì - bật Toàn quyền phải xác nhận rủi ro. Chọn cái này nếu muốn CẢ Drive/Docs/Sheets trong một mối; nếu chỉ cần Lịch + Gmail thì 2 kết nối riêng ở trên gọn hơn (ít công cụ, chạy remote).
 
-Mẹo: nếu chỉ cần Gmail/Lịch/Drive và bạn dùng engine Claude Code, cách nhanh hơn là bấm Connect ngay trong app Claude (claude.ai > Settings > Connectors) - Javis tự thấy chúng ở khu "MCP từ Claude Code".
+Mẹo: nếu chỉ cần Gmail/Lịch/Drive và bạn dùng engine Claude Code, cách nhanh hơn là bấm Connect ngay trong app Claude (claude.ai > Settings > Connectors) - Striver tự thấy chúng ở khu "MCP từ Claude Code".
 
 ### 5. Kết nối quảng cáo (Meta Ads, Google Ads, TikTok Ads)
 
-Cả 3 mặc định ở mức **Chỉ đọc** - Javis xem báo cáo, phân tích chi phí/hiệu quả nhưng không đụng được vào chiến dịch.
+Cả 3 mặc định ở mức **Chỉ đọc** - Striver xem báo cáo, phân tích chi phí/hiệu quả nhưng không đụng được vào chiến dịch.
 
 - **Meta Ads (Facebook & Instagram)** có HAI kết nối trong kho, chọn 1:
-  - **Meta Ads (MCP chính chủ)**: MCP hosted của Meta. Hiện đang beta GIỚI HẠN: Meta chỉ cho vài ứng dụng được cấp phép sẵn (trợ lý ChatGPT/Claude/Perplexity) kết nối và đã tắt tự đăng ký, nên Javis - và cả công cụ khác - CHƯA nối tự phục vụ được. Không phải lỗi máy bạn; chờ Meta mở thêm theo tài khoản. Xem chi tiết bên dưới.
-  - **Meta Ads (tự tạo app - Graph API)**: cách CHẠY ĐƯỢC ngay hôm nay (giống Composio/byadsco dùng) - Javis gọi thẳng Marketing API của Meta bằng một Facebook App do BẠN tạo. CHỈ ĐỌC số liệu, không tiêu tiền. Hướng dẫn tạo app ở mục bên dưới.
+  - **Meta Ads (MCP chính chủ)**: MCP hosted của Meta. Hiện đang beta GIỚI HẠN: Meta chỉ cho vài ứng dụng được cấp phép sẵn (trợ lý ChatGPT/Claude/Perplexity) kết nối và đã tắt tự đăng ký, nên Striver - và cả công cụ khác - CHƯA nối tự phục vụ được. Không phải lỗi máy bạn; chờ Meta mở thêm theo tài khoản. Xem chi tiết bên dưới.
+  - **Meta Ads (tự tạo app - Graph API)**: cách CHẠY ĐƯỢC ngay hôm nay (giống Composio/byadsco dùng) - Striver gọi thẳng Marketing API của Meta bằng một Facebook App do BẠN tạo. CHỈ ĐỌC số liệu, không tiêu tiền. Hướng dẫn tạo app ở mục bên dưới.
 - **Google Ads**: MCP chính chủ của Google, thuần chỉ đọc (truy vấn số liệu GAQL: chiến dịch, chi phí, chuyển đổi, từ khoá). Cài đặt kỹ thuật nhất trong kho: cần developer token (lấy trong Google Ads API Center của tài khoản quản lý MCC) + project Google Cloud + đăng nhập gcloud một lần - cửa sổ kết nối có hướng dẫn từng bước. Chạy ads qua agency/MCC thì điền thêm ID tài khoản quản lý.
-- **TikTok Ads**: TikTok chưa mở MCP chính chủ (mới công bố tại TikTok World 5/2026), nên Javis dùng server cộng đồng chạy trên Marketing API chính thức - thuần chỉ đọc (tài khoản, chiến dịch, báo cáo). Tạo app Marketing API tại business-api.tiktok.com, lấy App ID + Secret + Access Token dán vào. Khi TikTok mở bản chính chủ sẽ thay trong kho.
+- **TikTok Ads**: TikTok chưa mở MCP chính chủ (mới công bố tại TikTok World 5/2026), nên Striver dùng server cộng đồng chạy trên Marketing API chính thức - thuần chỉ đọc (tài khoản, chiến dịch, báo cáo). Tạo app Marketing API tại business-api.tiktok.com, lấy App ID + Secret + Access Token dán vào. Khi TikTok mở bản chính chủ sẽ thay trong kho.
 
-Google Ads và TikTok Ads chạy local qua công cụ `uv` - máy chạy Javis cần cài một lần: `winget install astral-sh.uv` (Windows) hoặc xem docs.astral.sh/uv.
+Google Ads và TikTok Ads chạy local qua công cụ `uv` - máy chạy Striver cần cài một lần: `winget install astral-sh.uv` (Windows) hoặc xem docs.astral.sh/uv.
 
 #### Kết nối Meta Ads qua Graph API (tự tạo Facebook App) - làm 1 lần, ~10 phút
 
-Đây là con đường tự phục vụ chạy được ngay, không phụ thuộc beta MCP của Meta. Bạn tạo một Facebook App của riêng mình, Javis dùng nó để đọc số liệu ad account của bạn. Vì app do chính bạn làm và giữ ở chế độ thử nghiệm, bạn tự cấp được quyền đọc mà KHÔNG cần Meta duyệt.
+Đây là con đường tự phục vụ chạy được ngay, không phụ thuộc beta MCP của Meta. Bạn tạo một Facebook App của riêng mình, Striver dùng nó để đọc số liệu ad account của bạn. Vì app do chính bạn làm và giữ ở chế độ thử nghiệm, bạn tự cấp được quyền đọc mà KHÔNG cần Meta duyệt.
 
-1. Vào [developers.facebook.com/apps](https://developers.facebook.com/apps) > **Create App**. Chọn loại **Business** (hoặc "Other"), đặt tên bất kỳ (vd "Javis đọc ads").
+1. Vào [developers.facebook.com/apps](https://developers.facebook.com/apps) > **Create App**. Chọn loại **Business** (hoặc "Other"), đặt tên bất kỳ (vd "Striver đọc ads").
 2. Trong app, vào **Add Product** > thêm **Facebook Login** (bản THƯỜNG, KHÔNG phải "Facebook Login for Business").
 3. Vào **Facebook Login > Settings**, ô **Valid OAuth Redirect URIs** dán CHÍNH XÁC dòng này rồi Save:
    `http://localhost:7777/connect/oauth/callback`
-   Lưu ý phải là **localhost** chứ không phải 127.0.0.1 (Meta chỉ miễn HTTP cho localhost). Nếu bạn chạy Javis ở cổng khác 7777 thì đổi số cổng cho khớp.
+   Lưu ý phải là **localhost** chứ không phải 127.0.0.1 (Meta chỉ miễn HTTP cho localhost). Nếu bạn chạy Striver ở cổng khác 7777 thì đổi số cổng cho khớp.
 4. Giữ app ở chế độ **Development** (công tắc góc trên cùng để ở "In development"). Đảm bảo bạn là **Admin** của app và của tài khoản quảng cáo muốn đọc - khi đó quyền `ads_read` tự cấp được, không cần App Review.
 5. Vào **App settings > Basic**, copy **App ID** và **App Secret**.
-6. Về Javis, trang **Kết nối** > thẻ **Meta Ads (tự tạo app - Graph API)** > dán App ID + App Secret > **Kết nối**. Trình duyệt mở trang Facebook để bạn đồng ý; xong quay lại Javis bấm làm mới.
+6. Về Striver, trang **Kết nối** > thẻ **Meta Ads (tự tạo app - Graph API)** > dán App ID + App Secret > **Kết nối**. Trình duyệt mở trang Facebook để bạn đồng ý; xong quay lại Striver bấm làm mới.
 
-Sau khi kết nối, hỏi Javis bằng lời: "tài khoản quảng cáo Facebook của tôi tuần này tiêu bao nhiêu, hiệu quả thế nào?". Javis có sẵn các công cụ đọc: danh sách tài khoản ads, hiệu suất (chi tiêu/hiển thị/click/CTR/CPC/reach/chuyển đổi) theo kỳ, và danh sách chiến dịch. Tất cả CHỈ ĐỌC - Javis không tạo/sửa chiến dịch, không tiêu tiền của bạn.
+Sau khi kết nối, hỏi Striver bằng lời: "tài khoản quảng cáo Facebook của tôi tuần này tiêu bao nhiêu, hiệu quả thế nào?". Striver có sẵn các công cụ đọc: danh sách tài khoản ads, hiệu suất (chi tiêu/hiển thị/click/CTR/CPC/reach/chuyển đổi) theo kỳ, và danh sách chiến dịch. Tất cả CHỈ ĐỌC - Striver không tạo/sửa chiến dịch, không tiêu tiền của bạn.
 
-Về thời hạn: token Facebook sống khoảng 60 ngày, Javis tự gia hạn khi còn dùng. Nếu quá lâu không dùng và token hết hạn, chỉ cần bấm Kết nối lại để đăng nhập Facebook một lần nữa.
+Về thời hạn: token Facebook sống khoảng 60 ngày, Striver tự gia hạn khi còn dùng. Nếu quá lâu không dùng và token hết hạn, chỉ cần bấm Kết nối lại để đăng nhập Facebook một lần nữa.
 
 ### 6. Quản lý một tài khoản (chip)
 
 Bấm vào chip tài khoản ở khu Đã kết nối để mở menu:
 
 - **Test kết nối**: gọi thử, báo số công cụ khả dụng.
-- **Đặt làm mặc định**: khi có nhiều tài khoản cùng dịch vụ, Javis ưu tiên tài khoản mặc định khi bạn không nói rõ shop nào.
+- **Đặt làm mặc định**: khi có nhiều tài khoản cùng dịch vụ, Striver ưu tiên tài khoản mặc định khi bạn không nói rõ shop nào.
 - **Đổi tên** / **Tắt tạm** / **Xoá**.
 - **Đổi quyền**: xem mục Phân quyền.
 - **Chặn tool cụ thể**: dành cho người rành - gõ tên tool muốn cấm hẳn.
-- **Nhật ký gọi tool**: xem Javis đã gọi gì, lúc nào, bị chặn gì.
+- **Nhật ký gọi tool**: xem Striver đã gọi gì, lúc nào, bị chặn gì.
 
 ### 7. Phân quyền 3 mức (quan trọng)
 
-Mỗi tài khoản có một mức quyền, Javis chặn CỨNG tại chỗ:
+Mỗi tài khoản có một mức quyền, Striver chặn CỨNG tại chỗ:
 
 - **Chỉ đọc**: chỉ xem số liệu. Tạo đơn, sửa dữ liệu, gửi tin... đều bị chặn. An toàn nhất, mặc định cho POS.
 - **Ghi nháp**: được ghi/sửa dữ liệu thường (ghi chú, sản phẩm...), vẫn CHẶN hành động tiền/đơn/gửi tin.
 - **Toàn quyền**: thao tác THẬT - tạo đơn, gửi tin, publish trang. Khi bật phải tick "Tôi hiểu rủi ro"; với Zalo có cảnh báo riêng.
 
-Thông minh hơn bản cũ: Javis hiểu cả công cụ "2 trong 1" của Pancake - cùng tool đơn hàng, hỏi `danh sách đơn` thì cho qua, `tạo đơn` thì chặn nếu chưa đủ quyền.
+Thông minh hơn bản cũ: Striver hiểu cả công cụ "2 trong 1" của Pancake - cùng tool đơn hàng, hỏi `danh sách đơn` thì cho qua, `tạo đơn` thì chặn nếu chưa đủ quyền.
 
 Loop chạy nền còn bị siết thêm theo mode của loop: loop `suggest` chỉ đọc, loop `auto` không bao giờ đụng tiền/đơn/gửi tin - bất kể tài khoản đặt quyền gì.
 
 ### 8. Tự thêm dịch vụ ngoài kho (nâng cao)
 
-Dịch vụ chưa có trong Kho? Bấm thẻ **Tự thêm (nâng cao)** - form kỹ thuật như bản cũ (URL/lệnh + header/env, hỗ trợ HTTP, SSE, stdio). Dịch vụ đăng nhập kiểu OAuth chuẩn MCP thì Javis tự mở trang đăng nhập và tự giữ token, chạy được cả trên VPS.
+Dịch vụ chưa có trong Kho? Bấm thẻ **Tự thêm (nâng cao)** - form kỹ thuật như bản cũ (URL/lệnh + header/env, hỗ trợ HTTP, SSE, stdio). Dịch vụ đăng nhập kiểu OAuth chuẩn MCP thì Striver tự mở trang đăng nhập và tự giữ token, chạy được cả trên VPS.
 
-### 9. Chế độ "Chỉ dùng kết nối của Javis" (strict)
+### 9. Chế độ "Chỉ dùng kết nối của Striver" (strict)
 
-Tick ô này ở khu Đã kết nối nếu muốn Javis CHỈ dùng các kết nối khai ở đây, bỏ qua MCP cài sẵn trong Claude Code trên máy - kiểm soát chặt, tránh gọi nhầm công cụ của tài khoản Claude.
+Tick ô này ở khu Đã kết nối nếu muốn Striver CHỈ dùng các kết nối khai ở đây, bỏ qua MCP cài sẵn trong Claude Code trên máy - kiểm soát chặt, tránh gọi nhầm công cụ của tài khoản Claude.
 
 ## Đọc số liệu
 
-Không đổi so với trước: hỏi trực tiếp trong chat ("hôm nay bán được bao nhiêu, so hôm qua thế nào?"), Javis gọi đúng nguồn, trả lời theo công thức số liệu + so kỳ trước + nguyên nhân + đề xuất, và tự đẩy 3-6 chỉ số lên bảng số liệu cột trái trang Javis. Kỳ đã đóng lưu cache trong `05 - Data Cache/` của brain. Có nhiều shop thì nói rõ tên shop, không nói thì Javis dùng tài khoản mặc định.
+Không đổi so với trước: hỏi trực tiếp trong chat ("hôm nay bán được bao nhiêu, so hôm qua thế nào?"), Striver gọi đúng nguồn, trả lời theo công thức số liệu + so kỳ trước + nguyên nhân + đề xuất, và tự đẩy 3-6 chỉ số lên bảng số liệu cột trái trang Striver. Kỳ đã đóng lưu cache trong `05 - Data Cache/` của brain. Có nhiều shop thì nói rõ tên shop, không nói thì Striver dùng tài khoản mặc định.
 
 ## Mẹo
 
 - Đặt tên tài khoản theo cửa hàng cho dễ gọi trong chat ("shop Kim Khí" vs "shop 2").
-- POS cứ để Chỉ đọc nếu bạn chỉ cần xem báo cáo - không lo Javis vô tình tạo đơn.
-- Tin nhắn đầu sau khi bật máy có thể hơi chậm với kết nối dạng chạy local (Zalo, Webcake) do phải khởi động công cụ - các lượt sau nhanh vì Javis giữ kết nối sống.
-- Nhật ký gọi tool là chỗ đầu tiên nên xem khi nghi Javis "làm gì đó lạ".
+- POS cứ để Chỉ đọc nếu bạn chỉ cần xem báo cáo - không lo Striver vô tình tạo đơn.
+- Tin nhắn đầu sau khi bật máy có thể hơi chậm với kết nối dạng chạy local (Zalo, Webcake) do phải khởi động công cụ - các lượt sau nhanh vì Striver giữ kết nối sống.
+- Nhật ký gọi tool là chỗ đầu tiên nên xem khi nghi Striver "làm gì đó lạ".
 
 ## Sự cố thường gặp
 
@@ -139,7 +139,7 @@ Không đổi so với trước: hỏi trực tiếp trong chat ("hôm nay bán 
 - **Meta Ads (Graph API) báo "Facebook từ chối / redirect_uri"**: kiểm tra 3 điểm - (1) ô Valid OAuth Redirect URIs trong app khớp CHÍNH XÁC `http://localhost:7777/connect/oauth/callback` (dùng localhost, đúng cổng); (2) app đang ở chế độ Development và bạn là Admin/Developer/Tester; (3) App ID + App Secret dán đúng.
 - **Meta Ads (Graph API) báo "không thấy tài khoản quảng cáo"**: token thiếu quyền `ads_read` hoặc tài khoản Facebook đăng nhập không phải admin của ad account nào - kiểm tra vai trò trong Business/Ads Manager.
 - **Mã QR hết hạn**: bấm thử lại để lấy QR mới (QR Zalo sống ~3 phút).
-- **Tool bị chặn kèm dòng "đang ở mức quyền hạn chế"**: đúng thiết kế - nâng quyền tài khoản trong menu chip nếu bạn thật sự muốn Javis làm việc đó.
+- **Tool bị chặn kèm dòng "đang ở mức quyền hạn chế"**: đúng thiết kế - nâng quyền tài khoản trong menu chip nếu bạn thật sự muốn Striver làm việc đó.
 - **Sau khi cập nhật từ bản cũ**: các server MCP cũ tự chuyển thành tài khoản trong trang Kết nối (bản gốc backup ở `mcp_servers.v1.bak.json`), không phải khai lại.
 - **Muốn quay về cơ chế cũ** (mỗi server một entry, không qua hub): đặt `"mcp": {"hub": false}` trong `server/settings.json` rồi khởi động lại.
 

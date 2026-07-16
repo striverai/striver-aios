@@ -1,13 +1,13 @@
 """
-tasks.py - Kanban Task Backlog + Dispatcher (Loop Engineering) cho Javis.
+tasks.py - Kanban Task Backlog + Dispatcher (Loop Engineering) cho Striver.
 
 Biến "Tự cải thiện" từ 1 loop monolithic thành BỘ NÃO điều phối: giữ 1 backlog task,
 mỗi nhịp chọn task ưu tiên cao nhất rồi ĐIỀU PHỐI xuống bộ máy workflow/agent (ĐÔI TAY)
 để thực thi. Đây là sợi dây "lịch → workflow" còn thiếu.
 
 Học state-machine từ Hermes Kanban (VALID_STATUSES, typed block, atomic claim, dispatcher
-pass "reclaim stale → promote ready → run") nhưng bản Javis:
-  - Đơn người dùng, 1 board/brain, lưu JSON trong vault (Javis/kanban.json) → portable + git-backed.
+pass "reclaim stale → promote ready → run") nhưng bản Striver:
+  - Đơn người dùng, 1 board/brain, lưu JSON trong vault (Striver/kanban.json) → portable + git-backed.
   - Tái dùng execute_workflow() headless (không dựng orchestrator mới).
   - AN TOÀN MẶC ĐỊNH: dispatch chạy nền = tool FILE-ONLY (execute_workflow(tools=SAFE)) → agent
     KHÔNG đụng MCP tiền/đơn. Task cần hành động ra ngoài → dừng ở 'review' cho người duyệt.
@@ -82,7 +82,7 @@ class TasksFeature:
 
     # ── store (JSON trong brain) ──
     def _path(self, brain: str) -> Path:
-        return Path(self.deps.brain_root(brain)) / "Javis" / "kanban.json"
+        return Path(self.deps.brain_root(brain)) / "Striver" / "kanban.json"
 
     def _load(self, brain: str) -> dict:
         p = self._path(brain)
@@ -212,7 +212,7 @@ class TasksFeature:
                         t["status"] = "done"; self._log(t, "xong → done")
                     self._recompute_ready(board)
                     self._save(brain, board)
-            # BÁO CÁO cho NGƯỜI YÊU CẦU task khi chạy xong (mặc định của Javis). chat_id rỗng
+            # BÁO CÁO cho NGƯỜI YÊU CẦU task khi chạy xong (mặc định của Striver). chat_id rỗng
             # (task tạo trên web) → helper report tự gửi ID Telegram đầu tiên.
             if t and self.deps.report:
                 st = (t or {}).get("status")
@@ -271,7 +271,7 @@ class TasksFeature:
         prompt = (
             "NHIỆM VỤ NỀN (chỉ thao tác FILE trong vault, KHÔNG gọi MCP tiền/đơn, KHÔNG đăng bài):\n"
             + intent + "\n\n"
-            "Tạo/cập nhật file NHÁP kết quả trong vault (vd '05 - Projects' hoặc Javis/). "
+            "Tạo/cập nhật file NHÁP kết quả trong vault (vd '05 - Projects' hoặc Striver/). "
             "Nếu việc BẮT BUỘC cần người quyết (thiếu thông tin/quyền/hành động ra ngoài) → ghi rõ '[[NEEDS_INPUT]]' + lý do. "
             "Cuối cùng báo cáo NGẮN: đã làm gì, ghi file nào."
         )

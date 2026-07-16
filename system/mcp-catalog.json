@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "_doc": "Kho connector MCP mẫu của Javis OS. Connector = MẪU (url/command + cách đăng nhập + phân loại tool). Tài khoản cụ thể user đấu = connection, lưu ở mcp_servers.json (xem server/mcp_store.py). status: ready | beta | soon. Đã xác minh chi tiết 2026-07-04 (research notes: docs/dev/2026-07-ke-hoach-ket-noi-hub.md).",
+  "_doc": "Kho connector MCP mẫu của Striver AIOS. Connector = MẪU (url/command + cách đăng nhập + phân loại tool). Tài khoản cụ thể user đấu = connection, lưu ở mcp_servers.json (xem server/mcp_store.py). status: ready | beta | soon. Đã xác minh chi tiết 2026-07-04 (research notes: docs/dev/2026-07-ke-hoach-ket-noi-hub.md).",
   "connectors": [
     {
       "id": "pancake-pos",
@@ -21,7 +21,7 @@
             "header": "Authorization: Bearer {api_key}"
           }
         ],
-        "guide": "Mở Pancake POS > Cấu hình cửa hàng > Ứng dụng & API > tạo API key, rồi dán vào đây. Javis sẽ tự kiểm tra và lấy tên cửa hàng.",
+        "guide": "Mở Pancake POS > Cấu hình cửa hàng > Ứng dụng & API > tạo API key, rồi dán vào đây. Striver sẽ tự kiểm tra và lấy tên cửa hàng.",
         "guide_url": "https://docs.pancake.biz/pos/st-f13/st-p2?lang=vi"
       },
       "validate": {
@@ -60,7 +60,7 @@
       "auth": {
         "type": "qr",
         "fields": [],
-        "guide": "Bấm Kết nối rồi quét mã QR bằng app Zalo trên điện thoại (Zalo > biểu tượng QR góc trên). Cần Node.js 20+ trên máy chạy Javis.",
+        "guide": "Bấm Kết nối rồi quét mã QR bằng app Zalo trên điện thoại (Zalo > biểu tượng QR góc trên). Cần Node.js 20+ trên máy chạy Striver.",
         "guide_url": "https://github.com/PhucMPham/zalo-agent-cli"
       },
       "tool_meta": {
@@ -68,7 +68,7 @@
         "danger": ["*send*"]
       },
       "default_perm": "full",
-      "risk": "Zalo KHÔNG hỗ trợ chính thức công cụ này (API không chính thức qua zca-js). Tài khoản của bạn CÓ THỂ bị Zalo hạn chế hoặc KHOÁ, nhất là khi gửi tin tự động số lượng lớn. Khuyến nghị dùng tài khoản phụ. Quyền GỬI TIN đang bật - Javis chỉ gửi khi bạn yêu cầu trực tiếp trong chat; loop chạy nền không bao giờ được tự gửi.",
+      "risk": "Zalo KHÔNG hỗ trợ chính thức công cụ này (API không chính thức qua zca-js). Tài khoản của bạn CÓ THỂ bị Zalo hạn chế hoặc KHOÁ, nhất là khi gửi tin tự động số lượng lớn. Khuyến nghị dùng tài khoản phụ. Quyền GỬI TIN đang bật - Striver chỉ gửi khi bạn yêu cầu trực tiếp trong chat; loop chạy nền không bao giờ được tự gửi.",
       "rate_limit": { "calls_per_min": 20 }
     },
     {
@@ -118,7 +118,7 @@
       "name": "Botcake",
       "icon": "/static/logos/botcake.png",
       "category": "Nhắn tin",
-      "description": "Khách hàng, tag, flow và gửi tin từ chatbot Botcake (qua Public API - Javis tự dựng cầu nối, không cần cài gì thêm).",
+      "description": "Khách hàng, tag, flow và gửi tin từ chatbot Botcake (qua Public API - Striver tự dựng cầu nối, không cần cài gì thêm).",
       "status": "beta",
       "transport": "internal",
       "internal": "botcake",
@@ -248,7 +248,7 @@
             "optional": true
           }
         ],
-        "guide": "Làm 1 lần (~10 phút): console.cloud.google.com > tạo project > bật Gmail API, Calendar API, Drive API, Docs API > OAuth consent screen (External, thêm email mình vào Test users) > Credentials > Create OAuth client ID (Desktop app) > copy Client ID + Secret vào đây. LẦN ĐẦU Javis gọi tool Google, trình duyệt trên máy chạy Javis sẽ mở để bạn bấm đồng ý quyền - làm trên máy có màn hình.",
+        "guide": "Làm 1 lần (~10 phút): console.cloud.google.com > tạo project > bật Gmail API, Calendar API, Drive API, Docs API > OAuth consent screen (External, thêm email mình vào Test users) > Credentials > Create OAuth client ID (Desktop app) > copy Client ID + Secret vào đây. LẦN ĐẦU Striver gọi tool Google, trình duyệt trên máy chạy Striver sẽ mở để bạn bấm đồng ý quyền - làm trên máy có màn hình.",
         "guide_url": "https://github.com/taylorwilsdon/google_workspace_mcp"
       },
       "tool_meta": {
@@ -256,7 +256,7 @@
         "danger": ["*send*", "*delete*"]
       },
       "default_perm": "safe",
-      "risk": "Mức Toàn quyền cho phép Javis GỬI EMAIL THẬT và XOÁ file/thư/lịch bằng tài khoản Google của bạn. Mức Ghi nháp (mặc định) chỉ soạn nháp, tạo lịch, tạo tài liệu - an toàn hơn."
+      "risk": "Mức Toàn quyền cho phép Striver GỬI EMAIL THẬT và XOÁ file/thư/lịch bằng tài khoản Google của bạn. Mức Ghi nháp (mặc định) chỉ soạn nháp, tạo lịch, tạo tài liệu - an toàn hơn."
     },
     {
       "id": "meta-ads",
@@ -270,7 +270,7 @@
       "auth": {
         "type": "oauth",
         "fields": [],
-        "guide": "Kết nối Meta Ads MCP hiện CHƯA tự phục vụ được - đây là giới hạn phía Meta, không phải lỗi máy bạn. Máy chủ mcp.facebook.com/ads của Meta chỉ chấp nhận vài ứng dụng được Meta cấp phép sẵn (trợ lý của ChatGPT, Claude, Perplexity...) và đã TẮT tự đăng ký ứng dụng (DCR), nên Javis - và cả các công cụ khác - chưa nối trực tiếp được. Meta đang mở beta dần theo từng tài khoản (ưu tiên US / chi tiêu cao). Bạn có thể bấm Kết nối để thử xem tài khoản mình đã được mở chưa; nếu báo 'chưa mở đăng ký' thì chờ Meta mở thêm. Cần số liệu quảng cáo Facebook ngay thì nhắn Javis để dựng nguồn khác (gọi thẳng Marketing API bằng app bạn tự tạo).",
+        "guide": "Kết nối Meta Ads MCP hiện CHƯA tự phục vụ được - đây là giới hạn phía Meta, không phải lỗi máy bạn. Máy chủ mcp.facebook.com/ads của Meta chỉ chấp nhận vài ứng dụng được Meta cấp phép sẵn (trợ lý của ChatGPT, Claude, Perplexity...) và đã TẮT tự đăng ký ứng dụng (DCR), nên Striver - và cả các công cụ khác - chưa nối trực tiếp được. Meta đang mở beta dần theo từng tài khoản (ưu tiên US / chi tiêu cao). Bạn có thể bấm Kết nối để thử xem tài khoản mình đã được mở chưa; nếu báo 'chưa mở đăng ký' thì chờ Meta mở thêm. Cần số liệu quảng cáo Facebook ngay thì nhắn Striver để dựng nguồn khác (gọi thẳng Marketing API bằng app bạn tự tạo).",
         "guide_url": "https://www.facebook.com/business/help/1456422242197840"
       },
       "validate": {
@@ -284,14 +284,14 @@
         "danger": ["ads_create_*", "ads_update_entity", "ads_activate_entity"]
       },
       "default_perm": "readonly",
-      "risk": "Mức Toàn quyền cho phép Javis tạo/sửa chiến dịch quảng cáo tiêu TIỀN THẬT trên tài khoản của bạn (chiến dịch tạo qua đây luôn ở trạng thái TẠM DỪNG, bạn phải tự bật trong Ads Manager). Chỉ cần xem số liệu thì giữ mức Chỉ đọc."
+      "risk": "Mức Toàn quyền cho phép Striver tạo/sửa chiến dịch quảng cáo tiêu TIỀN THẬT trên tài khoản của bạn (chiến dịch tạo qua đây luôn ở trạng thái TẠM DỪNG, bạn phải tự bật trong Ads Manager). Chỉ cần xem số liệu thì giữ mức Chỉ đọc."
     },
     {
       "id": "meta-ads-graph",
       "name": "Meta Ads (tự tạo app - Graph API)",
       "icon": "/static/logos/meta-ads.webp",
       "category": "Quảng cáo",
-      "description": "Số liệu quảng cáo Facebook/Instagram gọi THẲNG Marketing API của Meta (KHÔNG qua MCP beta bị khoá). Bạn tạo 1 Facebook App, dán App ID + App Secret, Javis đọc tài khoản ads, chiến dịch và hiệu suất của bạn. CHỈ ĐỌC - không tạo/sửa chiến dịch, không tiêu tiền. Đây là cách các nền tảng như Composio dùng.",
+      "description": "Số liệu quảng cáo Facebook/Instagram gọi THẲNG Marketing API của Meta (KHÔNG qua MCP beta bị khoá). Bạn tạo 1 Facebook App, dán App ID + App Secret, Striver đọc tài khoản ads, chiến dịch và hiệu suất của bạn. CHỈ ĐỌC - không tạo/sửa chiến dịch, không tiêu tiền. Đây là cách các nền tảng như Composio dùng.",
       "status": "beta",
       "transport": "http",
       "url": "",
@@ -305,7 +305,7 @@
           { "key": "client_id", "label": "App ID (Facebook)", "placeholder": "vd 1122334455667788" },
           { "key": "client_secret", "label": "App Secret (Facebook)", "placeholder": "vd a1b2c3d4e5f6..." }
         ],
-        "guide": "Làm 1 lần (~10 phút): (1) Vào developers.facebook.com/apps > Create App > chọn loại 'Business' (hoặc 'Other'), đặt tên bất kỳ. (2) Trong app, thêm sản phẩm 'Facebook Login' THƯỜNG (không phải 'for Business'). (3) Facebook Login > Settings > 'Valid OAuth Redirect URIs' dán CHÍNH XÁC: http://localhost:7777/connect/oauth/callback (dùng 'localhost' KHÔNG phải 127.0.0.1; nếu bạn chạy Javis cổng khác thì đổi 7777). (4) GIỮ app ở chế độ Development (góc trên), và đảm bảo bạn là Admin của app + ad account - khi đó tự cấp được quyền ads_read mà KHÔNG cần App Review. (5) App Settings > Basic: copy App ID + App Secret, dán vào ô dưới rồi bấm Kết nối. Token sống ~60 ngày, Javis tự gia hạn khi còn dùng; hết hạn thì bấm Kết nối lại.",
+        "guide": "Làm 1 lần (~10 phút): (1) Vào developers.facebook.com/apps > Create App > chọn loại 'Business' (hoặc 'Other'), đặt tên bất kỳ. (2) Trong app, thêm sản phẩm 'Facebook Login' THƯỜNG (không phải 'for Business'). (3) Facebook Login > Settings > 'Valid OAuth Redirect URIs' dán CHÍNH XÁC: http://localhost:7777/connect/oauth/callback (dùng 'localhost' KHÔNG phải 127.0.0.1; nếu bạn chạy Striver cổng khác thì đổi 7777). (4) GIỮ app ở chế độ Development (góc trên), và đảm bảo bạn là Admin của app + ad account - khi đó tự cấp được quyền ads_read mà KHÔNG cần App Review. (5) App Settings > Basic: copy App ID + App Secret, dán vào ô dưới rồi bấm Kết nối. Token sống ~60 ngày, Striver tự gia hạn khi còn dùng; hết hạn thì bấm Kết nối lại.",
         "guide_url": "https://developers.facebook.com/docs/marketing-api/get-started/authorization"
       },
       "tool_meta": {
@@ -446,7 +446,7 @@
         "danger": ["delete_event"]
       },
       "default_perm": "readonly",
-      "risk": "Mức Ghi nháp cho phép Javis TẠO và SỬA sự kiện thật trên lịch của bạn (tiện để nhờ 'nhắc tôi gọi nhà cung cấp thứ 5'). Mức Toàn quyền thêm quyền XOÁ sự kiện. Chỉ cần xem lịch thì giữ mức Chỉ đọc."
+      "risk": "Mức Ghi nháp cho phép Striver TẠO và SỬA sự kiện thật trên lịch của bạn (tiện để nhờ 'nhắc tôi gọi nhà cung cấp thứ 5'). Mức Toàn quyền thêm quyền XOÁ sự kiện. Chỉ cần xem lịch thì giữ mức Chỉ đọc."
     },
     {
       "id": "gmail",
@@ -481,7 +481,7 @@
         "danger": []
       },
       "default_perm": "readonly",
-      "risk": "Mức Ghi nháp cho phép Javis SOẠN NHÁP thư và gắn/gỡ nhãn trong hộp thư của bạn. Server Gmail chính chủ không có tool gửi thẳng nên Javis không tự gửi được - luôn dừng ở bản nháp để bạn tự bấm gửi. Chỉ cần đọc/tìm thư thì giữ mức Chỉ đọc."
+      "risk": "Mức Ghi nháp cho phép Striver SOẠN NHÁP thư và gắn/gỡ nhãn trong hộp thư của bạn. Server Gmail chính chủ không có tool gửi thẳng nên Striver không tự gửi được - luôn dừng ở bản nháp để bạn tự bấm gửi. Chỉ cần đọc/tìm thư thì giữ mức Chỉ đọc."
     },
     {
       "id": "slack",
@@ -511,7 +511,7 @@
         "danger": ["*send*", "*post*", "*add_message*", "*create*", "*update*", "*archive*", "*upload*", "*invite*"]
       },
       "default_perm": "readonly",
-      "risk": "Mức Toàn quyền cho phép Javis GỬI TIN NHẮN THẬT và tạo/sửa canvas bằng tài khoản Slack của bạn. Chỉ cần đọc/tìm tin thì giữ mức Chỉ đọc. Lưu ý: tên tool chính xác của Slack MCP chưa công bố nên phân loại quyền dựa trên heuristic (mọi tool có động từ hành động bị coi là GHI và chặn ở mức Chỉ đọc); nếu một công cụ đọc bị chặn nhầm, nâng quyền hoặc báo lại để chỉnh."
+      "risk": "Mức Toàn quyền cho phép Striver GỬI TIN NHẮN THẬT và tạo/sửa canvas bằng tài khoản Slack của bạn. Chỉ cần đọc/tìm tin thì giữ mức Chỉ đọc. Lưu ý: tên tool chính xác của Slack MCP chưa công bố nên phân loại quyền dựa trên heuristic (mọi tool có động từ hành động bị coi là GHI và chặn ở mức Chỉ đọc); nếu một công cụ đọc bị chặn nhầm, nâng quyền hoặc báo lại để chỉnh."
     },
     {
       "id": "systeme-io",
@@ -540,7 +540,7 @@
         "danger": ["delete_*", "*_delete"]
       },
       "default_perm": "readonly",
-      "risk": "Mức Ghi nháp cho phép Javis TẠO/SỬA liên hệ, tag, newsletter, phễu thật trên Systeme.io. Mức Toàn quyền thêm quyền XOÁ. Chỉ cần xem dữ liệu thì giữ mức Chỉ đọc. Lưu ý: tên tool chính xác chưa công bố nên phân loại dựa trên heuristic (tool có động từ hành động bị coi là GHI, xoá là NGUY HIỂM); nếu công cụ đọc bị chặn nhầm ở mức Chỉ đọc, báo lại để chỉnh."
+      "risk": "Mức Ghi nháp cho phép Striver TẠO/SỬA liên hệ, tag, newsletter, phễu thật trên Systeme.io. Mức Toàn quyền thêm quyền XOÁ. Chỉ cần xem dữ liệu thì giữ mức Chỉ đọc. Lưu ý: tên tool chính xác chưa công bố nên phân loại dựa trên heuristic (tool có động từ hành động bị coi là GHI, xoá là NGUY HIỂM); nếu công cụ đọc bị chặn nhầm ở mức Chỉ đọc, báo lại để chỉnh."
     },
     {
       "id": "lark",
@@ -569,7 +569,7 @@
             "env": "APP_SECRET"
           }
         ],
-        "guide": "Cần Node.js 18+ trên máy chạy Javis. Làm 1 lần: vào open.larksuite.com/app > Create custom app > ở 'Credentials & Basic Info' lấy App ID + App Secret. Vào 'Permissions & Scopes' cấp các quyền cần dùng (vd im:message, im:chat, docx:document, bitable:app, contact:user.id) rồi 'Create version' để phát hành app (có thể cần admin duyệt). Dán App ID + App Secret vào đây. Javis chỉ đọc/làm được đúng những quyền bạn đã cấp cho app.",
+        "guide": "Cần Node.js 18+ trên máy chạy Striver. Làm 1 lần: vào open.larksuite.com/app > Create custom app > ở 'Credentials & Basic Info' lấy App ID + App Secret. Vào 'Permissions & Scopes' cấp các quyền cần dùng (vd im:message, im:chat, docx:document, bitable:app, contact:user.id) rồi 'Create version' để phát hành app (có thể cần admin duyệt). Dán App ID + App Secret vào đây. Striver chỉ đọc/làm được đúng những quyền bạn đã cấp cho app.",
         "guide_url": "https://open.larksuite.com/document/uAjLw4CM/ukTMukTMukTM/mcp_integration/mcp_introduction"
       },
       "tool_meta": {
@@ -578,7 +578,7 @@
         "danger": ["im_v1_message_create", "drive_v1_permissionMember_create"]
       },
       "default_perm": "readonly",
-      "risk": "Mức Ghi nháp cho phép Javis TẠO/SỬA bảng dữ liệu, tài liệu, nhóm chat thật trong Lark. Mức Toàn quyền thêm quyền GỬI TIN NHẮN vào chat và CẤP QUYỀN truy cập file. Chỉ cần xem/tìm thì giữ mức Chỉ đọc. Javis chỉ làm được đúng phạm vi quyền bạn cấp cho Lark app."
+      "risk": "Mức Ghi nháp cho phép Striver TẠO/SỬA bảng dữ liệu, tài liệu, nhóm chat thật trong Lark. Mức Toàn quyền thêm quyền GỬI TIN NHẮN vào chat và CẤP QUYỀN truy cập file. Chỉ cần xem/tìm thì giữ mức Chỉ đọc. Striver chỉ làm được đúng phạm vi quyền bạn cấp cho Lark app."
     },
     {
       "id": "higgsfield",
@@ -592,7 +592,7 @@
       "auth": {
         "type": "oauth",
         "fields": [],
-        "guide": "Bấm Kết nối rồi đăng nhập tài khoản Higgsfield và cấp quyền - Javis tự đăng ký ứng dụng theo chuẩn OAuth của Higgsfield (không cần tạo app hay dán key). Cần có credit trong tài khoản Higgsfield để tạo ảnh/video. Xong là Javis vẽ được ngay trong chat.",
+        "guide": "Bấm Kết nối rồi đăng nhập tài khoản Higgsfield và cấp quyền - Striver tự đăng ký ứng dụng theo chuẩn OAuth của Higgsfield (không cần tạo app hay dán key). Cần có credit trong tài khoản Higgsfield để tạo ảnh/video. Xong là Striver vẽ được ngay trong chat.",
         "guide_url": "https://higgsfield.ai/mcp"
       },
       "tool_meta": {
@@ -601,7 +601,7 @@
         "danger": ["*delete*", "*cancel*", "*billing*", "*purchase*", "*subscription*"]
       },
       "default_perm": "safe",
-      "risk": "Higgsfield là công cụ TẠO nội dung - mỗi lần sinh/chỉnh ảnh hoặc video sẽ TIÊU CREDIT trả trước trong tài khoản Higgsfield của bạn (không trừ tiền trực tiếp mỗi lần). Mặc định để mức Ghi nháp để Javis tạo được nội dung ngay và chặn các thao tác xoá/thanh toán. Muốn Javis chỉ xem lịch sử/kết quả mà không tự tạo (đỡ tốn credit) thì hạ xuống Chỉ đọc; muốn mở tất cả thì nâng Toàn quyền. Tên tool chính xác của Higgsfield chưa công bố nên phân loại quyền dựa trên heuristic."
+      "risk": "Higgsfield là công cụ TẠO nội dung - mỗi lần sinh/chỉnh ảnh hoặc video sẽ TIÊU CREDIT trả trước trong tài khoản Higgsfield của bạn (không trừ tiền trực tiếp mỗi lần). Mặc định để mức Ghi nháp để Striver tạo được nội dung ngay và chặn các thao tác xoá/thanh toán. Muốn Striver chỉ xem lịch sử/kết quả mà không tự tạo (đỡ tốn credit) thì hạ xuống Chỉ đọc; muốn mở tất cả thì nâng Toàn quyền. Tên tool chính xác của Higgsfield chưa công bố nên phân loại quyền dựa trên heuristic."
     },
     {
       "id": "x-twitter",
@@ -622,7 +622,7 @@
             "header": "Authorization: Bearer {bearer_token}"
           }
         ],
-        "guide": "Vào developer.x.com > Developer Portal > Projects & Apps > chọn App (hoặc Create Project/App nếu chưa có) > tab 'Keys and tokens' > mục 'Bearer Token' > Generate rồi copy dán vào đây. Đây là token App-only: đọc/tìm bài đăng và hồ sơ công khai. Muốn ĐĂNG bài / thao tác theo tài khoản người dùng thì cần OAuth ngữ cảnh người dùng (hiện chưa hỗ trợ trong Javis, báo em nếu cần bổ sung).",
+        "guide": "Vào developer.x.com > Developer Portal > Projects & Apps > chọn App (hoặc Create Project/App nếu chưa có) > tab 'Keys and tokens' > mục 'Bearer Token' > Generate rồi copy dán vào đây. Đây là token App-only: đọc/tìm bài đăng và hồ sơ công khai. Muốn ĐĂNG bài / thao tác theo tài khoản người dùng thì cần OAuth ngữ cảnh người dùng (hiện chưa hỗ trợ trong Striver, báo em nếu cần bổ sung).",
         "guide_url": "https://docs.x.com/tools/mcp"
       },
       "tool_meta": {
@@ -638,7 +638,7 @@
       "name": "Substack",
       "icon": "/static/logos/substack.svg",
       "category": "Marketing",
-      "description": "Soạn và ĐĂNG bài viết / newsletter trên Substack bằng lời: liệt kê nháp, tạo nháp, và đăng bài (tuỳ chọn gửi email cho người đăng ký). Javis tự bọc thẳng API Substack (chạy Python nội bộ, KHÔNG cần cài Node/npx), mỗi tài khoản 1 session token.",
+      "description": "Soạn và ĐĂNG bài viết / newsletter trên Substack bằng lời: liệt kê nháp, tạo nháp, và đăng bài (tuỳ chọn gửi email cho người đăng ký). Striver tự bọc thẳng API Substack (chạy Python nội bộ, KHÔNG cần cài Node/npx), mỗi tài khoản 1 session token.",
       "status": "beta",
       "transport": "internal",
       "internal": "substack",
@@ -674,7 +674,7 @@
         "danger": ["substack_publish"]
       },
       "default_perm": "safe",
-      "risk": "Mức Ghi nháp (mặc định) cho phép Javis TẠO NHÁP bài viết trên Substack của bạn - chưa đăng, chưa gửi ai. Muốn Javis ĐĂNG BÀI THẬT thì phải nâng kết nối này lên Toàn quyền; khi đó Javis vẫn chỉ đăng khi bạn yêu cầu trực tiếp trong chat (loop chạy nền không bao giờ tự đăng). Đăng mặc định chỉ lên web, KHÔNG gửi email; chỉ khi bạn nói rõ 'gửi email cho người đăng ký' thì Javis mới bật cờ gửi mail - và việc đã gửi mail KHÔNG hoàn tác được. Session token cho toàn quyền tài khoản Substack nên giữ kín như mật khẩu; hết hạn khi đăng xuất thì kết nối lại."
+      "risk": "Mức Ghi nháp (mặc định) cho phép Striver TẠO NHÁP bài viết trên Substack của bạn - chưa đăng, chưa gửi ai. Muốn Striver ĐĂNG BÀI THẬT thì phải nâng kết nối này lên Toàn quyền; khi đó Striver vẫn chỉ đăng khi bạn yêu cầu trực tiếp trong chat (loop chạy nền không bao giờ tự đăng). Đăng mặc định chỉ lên web, KHÔNG gửi email; chỉ khi bạn nói rõ 'gửi email cho người đăng ký' thì Striver mới bật cờ gửi mail - và việc đã gửi mail KHÔNG hoàn tác được. Session token cho toàn quyền tài khoản Substack nên giữ kín như mật khẩu; hết hạn khi đăng xuất thì kết nối lại."
     }
   ]
 }

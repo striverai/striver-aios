@@ -44,14 +44,14 @@ def _date_add(args, ctx):
 
 def register(ctx):
     ctx.register_tool(
-        name="javis_now",
+        name="striver_now",
         description=("Ngày giờ hiện tại theo múi giờ Việt Nam (UTC+7): iso, date, time, thứ trong tuần. "
                      "Dùng khi cần biết 'hôm nay', 'bây giờ mấy giờ', đặt nhắc hẹn, hay đóng dấu thời gian báo cáo."),
         handler=_now, min_mode="readonly",
         schema={"type": "object", "properties": {}},
     )
     ctx.register_tool(
-        name="javis_date_add",
+        name="striver_date_add",
         description=("Tính ngày cách hôm nay (hoặc cách ngày 'from') N ngày. Tham số: days (số nguyên, "
                      "âm = trước), from (YYYY-MM-DD, tuỳ chọn). Dùng cho 'ngày mai', '3 ngày nữa', 'tuần trước'."),
         handler=_date_add, min_mode="readonly",

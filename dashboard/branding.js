@@ -192,7 +192,7 @@
   }
 
   // Cho trang Cài đặt (console.js) gọi nạp lại giá trị avatar/tên miền khi mở trang.
-  window.__javisRefreshExtras = loadExtras;
+  window.__striverRefreshExtras = loadExtras;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bind);

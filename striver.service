@@ -1,11 +1,11 @@
-# /etc/systemd/system/javis.service - native (non-Docker) systemd unit.
+# /etc/systemd/system/striver.service - native (non-Docker) systemd unit.
 # Install:
-#   sudo cp javis.service /etc/systemd/system/javis.service
-#   sudo sed -i "s|__APP_DIR__|$(pwd)|g; s|__USER__|$(whoami)|g" /etc/systemd/system/javis.service
-#   sudo systemctl daemon-reload && sudo systemctl enable --now javis
-#   journalctl -u javis -f
+#   sudo cp striver.service /etc/systemd/system/striver.service
+#   sudo sed -i "s|__APP_DIR__|$(pwd)|g; s|__USER__|$(whoami)|g" /etc/systemd/system/striver.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now striver
+#   journalctl -u striver -f
 [Unit]
-Description=Javis OS
+Description=Striver AIOS
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=0
@@ -14,9 +14,9 @@ StartLimitIntervalSec=0
 Type=simple
 User=__USER__
 WorkingDirectory=__APP_DIR__/server
-Environment="JAVIS_HOST=127.0.0.1"
-Environment="JAVIS_PORT=7777"
-Environment="JAVIS_STATE_DIR=__APP_DIR__/server"
+Environment="AIOS_HOST=127.0.0.1"
+Environment="AIOS_PORT=7777"
+Environment="AIOS_STATE_DIR=__APP_DIR__/server"
 Environment="PATH=__APP_DIR__/.venv/bin:/usr/local/bin:/usr/bin:/bin"
 ExecStart=__APP_DIR__/.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 7777
 Restart=always

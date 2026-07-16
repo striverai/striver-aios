@@ -1,12 +1,12 @@
 /* chat-zoom.js - phóng to khung chat thành CHAT WORKSPACE (kiểu Claude/Cowork):
    gần full màn hình, 2 cột = sidebar Lịch sử trái (sessions-ui.js render qua
-   window.JavisChatSide) + cột chat chính. Di chuyển CHÍNH các node #chatArea +
+   window.StriverChatSide) + cột chat chính. Di chuyển CHÍNH các node #chatArea +
    #attachBar + #modelBar + #hudVoice vào lớp nổi (giữ nguyên mọi handler đã gắn), Esc hoặc
    nút ✕ để thu nhỏ. Tách riêng để không đụng app.js. */
 (function () {
   "use strict";
   var stage = null, expanded = false, slots = [];
-  var SIDE_KEY = "javis.chatside.v1";   // "on" | "off" (desktop nhớ lựa chọn)
+  var SIDE_KEY = "striver.chatside.v1";   // "on" | "off" (desktop nhớ lựa chọn)
 
   function sideDefaultOn() {
     var saved = "";
@@ -23,7 +23,7 @@
     if (remember && window.innerWidth >= 900) {
       try { localStorage.setItem(SIDE_KEY, on ? "on" : "off"); } catch (e) {}
     }
-    if (on && window.JavisChatSide) window.JavisChatSide.refresh();
+    if (on && window.StriverChatSide) window.StriverChatSide.refresh();
   }
 
   function ensureStage() {
@@ -50,7 +50,7 @@
     stage.querySelector(".chat-stage-body").addEventListener("click", function () {
       if (window.innerWidth < 900 && stage.classList.contains("side-on")) setSide(false);
     });
-    if (window.JavisChatSide) window.JavisChatSide.mount(stage.querySelector("#chatSide"));
+    if (window.StriverChatSide) window.StriverChatSide.mount(stage.querySelector("#chatSide"));
     return stage;
   }
 
@@ -110,7 +110,7 @@
   else bind();
 
   // Cho module khác (nút Lịch sử cũ, sessions-ui) mở workspace
-  window.JavisChatStage = {
+  window.StriverChatStage = {
     expand: expand, collapse: collapse, toggle: toggle,
     isOpen: function () { return expanded; },
     showSide: function () { expand(); setSide(true); },

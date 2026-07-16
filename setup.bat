@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title Javis OS
+title Striver AIOS
 echo.
 echo  ==========================================
-echo   JAVIS OS
+echo   STRIVER AIOS
 echo  ==========================================
 echo.
 
@@ -38,7 +38,7 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":7777" ^| findstr "LISTENING
 
 echo.
 echo  ==========================================
-echo   Javis OS dang chay tai: http://localhost:7777
+echo   Striver AIOS dang chay tai: http://localhost:7777
 echo   (Dung Claude Code CLI - khong can API key)
 echo   Nhan Ctrl+C de dung.
 echo  ==========================================

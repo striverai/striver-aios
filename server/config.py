@@ -1,5 +1,5 @@
 """
-Cấu hình tập trung của Javis OS - đọc/ghi server/settings.json (gitignored, chứa secret).
+Cấu hình tập trung của Striver AIOS - đọc/ghi server/settings.json (gitignored, chứa secret).
 Gồm: workspace, tài khoản admin (mật khẩu hash), model engine, telegram.
 Auth CHỈ bật khi đã đặt mật khẩu → bản local chưa đặt vẫn chạy như cũ.
 """
@@ -9,10 +9,10 @@ import hashlib
 import secrets
 from pathlib import Path
 
-# Mọi state Javis tự ghi (settings, auth sessions, loop config) nằm ở JAVIS_STATE_DIR.
+# Mọi state Striver tự ghi (settings, auth sessions, loop config) nằm ở AIOS_STATE_DIR.
 # Mặc định = server/ (không đổi trên máy cũ). Docker/VPS đặt = /data/state (volume ghi được,
 # vì code tree /app là read-only trong container).
-STATE_DIR = Path(os.getenv("JAVIS_STATE_DIR", str(Path(__file__).parent)))
+STATE_DIR = Path(os.getenv("AIOS_STATE_DIR", str(Path(__file__).parent)))
 try:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
 except Exception:
@@ -24,7 +24,7 @@ SETTINGS_PATH = STATE_DIR / "settings.json"
 BRANDING_DIR = STATE_DIR / "branding"
 
 _DEFAULT = {
-    "workspace_name": "Javis OS",
+    "workspace_name": "Striver AIOS",
     "setup_done": False,                       # đã qua bộ cài đặt lần đầu chưa
     "auth": {"username": "", "password_hash": "", "salt": ""},
     # Logo/avatar hiển thị (góc trên, thanh bên, màn đăng nhập). logo_ext rỗng = dùng ảnh mặc định.
@@ -83,9 +83,9 @@ _DEFAULT = {
         # Frontend cũng tự ép lite-mode khi màn hình hẹp dù cờ này bật.
         "graph_enabled": True,
     },
-    # MCP do Javis quản lý (registry connection ở mcp_servers.json). strict=True → CHỈ dùng
-    # kết nối của Javis (--strict-mcp-config), bỏ qua config MCP sẵn có của máy.
-    # hub=True (mặc định): mọi engine đấu qua MCP HUB (1 entry "javis" - đa tài khoản, quyền,
+    # MCP do Striver quản lý (registry connection ở mcp_servers.json). strict=True → CHỈ dùng
+    # kết nối của Striver (--strict-mcp-config), bỏ qua config MCP sẵn có của máy.
+    # hub=True (mặc định): mọi engine đấu qua MCP HUB (1 entry "striver" - đa tài khoản, quyền,
     # audit tại hub). Đặt false để về chế độ cũ (per-server) nếu gặp sự cố.
     "mcp": {"strict": False, "hub": True},
 }
@@ -193,18 +193,18 @@ def auth_enabled(cfg=None):
 
 
 def require_login():
-    """Có BẮT BUỘC đăng nhập để dùng Javis không (kể cả khi CHƯA đặt mật khẩu → ép setup).
-    - JAVIS_REQUIRE_LOGIN=1/0 ép bật/tắt tường minh.
-    - Mặc định: BẬT khi server nghe public (JAVIS_HOST=0.0.0.0, vd Docker/Hostinger/VPS) -
+    """Có BẮT BUỘC đăng nhập để dùng Striver không (kể cả khi CHƯA đặt mật khẩu → ép setup).
+    - AIOS_REQUIRE_LOGIN=1/0 ép bật/tắt tường minh.
+    - Mặc định: BẬT khi server nghe public (AIOS_HOST=0.0.0.0, vd Docker/Hostinger/VPS) -
       vì Claude chạy full quyền, không được để hở ai cũng vào được."""
-    v = os.getenv("JAVIS_REQUIRE_LOGIN", "").strip().lower()
+    v = os.getenv("AIOS_REQUIRE_LOGIN", "").strip().lower()
     if v in ("1", "true", "yes", "on"):
         return True
     if v in ("0", "false", "no", "off"):
         return False
     # FAIL-CLOSED: bind KHÔNG phải loopback (0.0.0.0, ::, IP LAN…) → coi là public → bắt buộc login.
-    # Chỉ tắt khi nghe thuần localhost. (Localhost + tunnel: đặt JAVIS_REQUIRE_LOGIN=1.)
-    host = os.getenv("JAVIS_HOST", "127.0.0.1").strip().lower()
+    # Chỉ tắt khi nghe thuần localhost. (Localhost + tunnel: đặt AIOS_REQUIRE_LOGIN=1.)
+    host = os.getenv("AIOS_HOST", "127.0.0.1").strip().lower()
     return host not in ("127.0.0.1", "localhost", "::1")
 
 
@@ -323,14 +323,14 @@ def clear_setup_token():
 
 
 def provision_admin_from_env():
-    """Có JAVIS_ADMIN_PASSWORD (+ tùy chọn JAVIS_ADMIN_USER) và CHƯA có admin → tạo admin lúc boot
+    """Có AIOS_ADMIN_PASSWORD (+ tùy chọn AIOS_ADMIN_USER) và CHƯA có admin → tạo admin lúc boot
     → đóng /auth/setup cho mọi người (cách an toàn nhất cho deploy public). Trả True nếu vừa tạo."""
     if auth_enabled():
         return False
-    pw = os.getenv("JAVIS_ADMIN_PASSWORD", "")
+    pw = os.getenv("AIOS_ADMIN_PASSWORD", "")
     if not pw:
         return False
-    user = (os.getenv("JAVIS_ADMIN_USER", "admin").strip() or "admin")
+    user = (os.getenv("AIOS_ADMIN_USER", "admin").strip() or "admin")
     h, salt = hash_password(pw)
     cfg = read_settings()
     cfg["auth"] = {"username": user, "password_hash": h, "salt": salt}

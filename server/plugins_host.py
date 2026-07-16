@@ -1,5 +1,5 @@
 """
-plugins_host.py - Hệ PLUGIN của Javis (port ý tưởng "plugin" của nousresearch/hermes-agent).
+plugins_host.py - Hệ PLUGIN của Striver (port ý tưởng "plugin" của nousresearch/hermes-agent).
 
 Plugin = THƯ MỤC Python thả vào, tự thêm TOOL (ra MỌI engine qua mcp_hub) + HOOK lifecycle,
 KHÔNG phải sửa lõi. Mỗi plugin gồm:
@@ -8,16 +8,16 @@ KHÔNG phải sửa lõi. Mỗi plugin gồm:
 
 NGUỒN plugin (giống bundled/user của Hermes):
     - BUNDLED  <project>/system/plugins/<slug>/    ship theo app, TIN CẬY
-    - VAULT    <vault>/plugins/<slug>/  (hoặc  <vault>/Javis/plugins/<slug>/)   do user tạo
+    - VAULT    <vault>/plugins/<slug>/  (hoặc  <vault>/Striver/plugins/<slug>/)   do user tạo
 
 TOOL plugin đi qua mcp_hub.discover_all → Claude Code / Codex (HTTP /hub/mcp) + engine API
-(in-process). TÔN TRỌNG 3 mức quyền của Javis qua `min_mode` (readonly/safe/full), enforce y hệt
+(in-process). TÔN TRỌNG 3 mức quyền của Striver qua `min_mode` (readonly/safe/full), enforce y hệt
 tool ghi file builtin. HOOK 'pre_tool_call'/'post_tool_call' được mcp_hub bắn quanh MỌI tool call
 khi có plugin đăng ký (0 overhead khi không plugin nào dùng hook).
 
 AN TOÀN (lớp CỨNG - plugin chạy code Python THẬT trong tiến trình server):
     - Bundled: tự nạp khi effective-enabled (mặc định theo manifest `enabled:`).
-    - Vault:  CHỈ nạp khi env  JAVIS_ENABLE_VAULT_PLUGINS=true  (giống Hermes
+    - Vault:  CHỈ nạp khi env  AIOS_ENABLE_VAULT_PLUGINS=true  (giống Hermes
       HERMES_ENABLE_PROJECT_PLUGINS - chống RCE khi ai đó ghi được vào vault) VÀ enabled:true.
     - Enable-state: bundled ở STATE_DIR/plugins.json (override, KHÔNG mutate file app);
       vault ở frontmatter plugin.yaml.
@@ -56,8 +56,8 @@ _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 _TOOL_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 
 # Tên tool builtin/lõi - plugin KHÔNG được trùng (mcp_hub cũng skip lúc merge, đây là lớp 2).
-_RESERVED_TOOLS = {"javis_connections", "javis_read_file", "javis_list_dir",
-                   "javis_write_file", "javis_use_skill"}
+_RESERVED_TOOLS = {"striver_connections", "striver_read_file", "striver_list_dir",
+                   "striver_write_file", "striver_use_skill"}
 
 _lock = threading.Lock()
 # cache theo vault_root: {sig, plugins:[LoadedPlugin], hooks:{event:[cb]}, errors:{slug:msg}}
@@ -70,9 +70,9 @@ def valid_slug(s: Any) -> bool:
 
 def _env_user_enabled() -> bool:
     """Cho phép chạy plugin do NGƯỜI DÙNG cài (global STATE_DIR/plugins + vault/plugins). Chúng chạy
-    code Python THẬT trong tiến trình server nên mặc định TẮT - bật bằng JAVIS_ENABLE_USER_PLUGINS=true
-    (hoặc alias cũ JAVIS_ENABLE_VAULT_PLUGINS=true) rồi khởi động lại. Plugin BUNDLED không chịu gate này."""
-    for k in ("JAVIS_ENABLE_USER_PLUGINS", "JAVIS_ENABLE_VAULT_PLUGINS"):
+    code Python THẬT trong tiến trình server nên mặc định TẮT - bật bằng AIOS_ENABLE_USER_PLUGINS=true
+    (hoặc alias cũ AIOS_ENABLE_VAULT_PLUGINS=true) rồi khởi động lại. Plugin BUNDLED không chịu gate này."""
+    for k in ("AIOS_ENABLE_USER_PLUGINS", "AIOS_ENABLE_VAULT_PLUGINS"):
         if str(os.getenv(k, "")).strip().lower() in ("1", "true", "yes", "on"):
             return True
     return False
@@ -83,7 +83,7 @@ _env_vault_enabled = _env_user_enabled
 
 
 def global_plugins_dir() -> Path:
-    """Thư mục plugin TOÀN CỤC (chung mọi brain) - JAVIS_STATE_DIR/plugins."""
+    """Thư mục plugin TOÀN CỤC (chung mọi brain) - AIOS_STATE_DIR/plugins."""
     return GLOBAL_DIR
 
 
@@ -113,14 +113,14 @@ def _write_state(state: dict) -> None:
 # ============================================================
 def vault_plugins_dir(vault_root: Optional[str]) -> Optional[Path]:
     """Thư mục plugin của vault: ưu tiên <root>/plugins (cấu trúc phẳng mới),
-    fallback <root>/Javis/plugins (cấu trúc cũ). Trả path mặc định (có thể chưa tồn tại)."""
+    fallback <root>/Striver/plugins (cấu trúc cũ). Trả path mặc định (có thể chưa tồn tại)."""
     if not vault_root:
         return None
     root = Path(vault_root)
     flat = root / "plugins"
     if flat.is_dir():
         return flat
-    nested = root / "Javis" / "plugins"
+    nested = root / "Striver" / "plugins"
     if nested.is_dir():
         return nested
     return flat
@@ -291,7 +291,7 @@ def _signature(vault_root: Optional[str]) -> tuple:
 
 def _import_entry(slug: str, source: str, entry: Path):
     """Nạp entry file thành module riêng. Chèn tạm dir vào sys.path để import phụ (nếu có)."""
-    mod_name = f"javis_plugin_{source}_{re.sub(r'[^a-z0-9_]', '_', slug.lower())}"
+    mod_name = f"striver_plugin_{source}_{re.sub(r'[^a-z0-9_]', '_', slug.lower())}"
     spec = importlib.util.spec_from_file_location(mod_name, str(entry))
     if not spec or not spec.loader:
         raise ImportError(f"không tạo được spec cho {entry}")
@@ -334,7 +334,7 @@ def _load_all(vault_root: Optional[str]) -> dict:
                 continue
             if source in ("user", "vault"):
                 if not env_ok:
-                    continue   # gate CỨNG: plugin user (global+vault) cần JAVIS_ENABLE_USER_PLUGINS=true
+                    continue   # gate CỨNG: plugin user (global+vault) cần AIOS_ENABLE_USER_PLUGINS=true
                 if not valid_slug(slug):
                     errors[slug] = "slug không hợp lệ"
                     continue
@@ -414,7 +414,7 @@ def _make_call(tool: dict, ctx: PluginContext, mode: str):
 
 def plugin_tools(mode: str = "full", vault_root: Optional[str] = None) -> Tuple[List[dict], Dict[str, dict]]:
     """(tools_spec, route) từ MỌI plugin đã nạp. mcp_hub merge vào discover_all.
-    tools_spec: [{fn, server:'javis', name, description, schema}]. route: {fn: {'call': async fn}}."""
+    tools_spec: [{fn, server:'striver', name, description, schema}]. route: {fn: {'call': async fn}}."""
     ent = _load_all(vault_root)
     tools: List[dict] = []
     route: Dict[str, dict] = {}
@@ -429,7 +429,7 @@ def plugin_tools(mode: str = "full", vault_root: Optional[str] = None) -> Tuple[
             desc = t["description"]
             if lp.source == "vault":
                 desc = f"[plugin {lp.slug}] {desc}"
-            tools.append({"fn": fn, "server": "javis", "name": fn,
+            tools.append({"fn": fn, "server": "striver", "name": fn,
                           "description": desc, "schema": t["schema"]})
             route[fn] = {"call": _make_call(t, lp.ctx, mode)}
     return tools, route
@@ -524,5 +524,5 @@ def set_enabled(slug: str, enabled: bool, vault_root: Optional[str] = None) -> d
     invalidate()
     gated = bool(enabled and not _env_user_enabled())
     note = ("Đã bật trong manifest NHƯNG plugin do người dùng cài chỉ chạy khi đặt biến môi trường "
-            "JAVIS_ENABLE_USER_PLUGINS=true rồi khởi động lại (bảo vệ chống chạy code lạ).") if gated else ""
+            "AIOS_ENABLE_USER_PLUGINS=true rồi khởi động lại (bảo vệ chống chạy code lạ).") if gated else ""
     return {"ok": True, "source": source, "gated": gated, "note": note}

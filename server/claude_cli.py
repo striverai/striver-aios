@@ -104,7 +104,7 @@ import tempfile as _tempfile
 
 def _empty_mcp_file() -> Optional[str]:
     try:
-        p = Path(_tempfile.gettempdir()) / "javis-empty-mcp.json"
+        p = Path(_tempfile.gettempdir()) / "striver-empty-mcp.json"
         if not (p.exists() and p.stat().st_size > 0):
             p.write_text('{"mcpServers":{}}', encoding="utf-8")
         return str(p) if p.stat().st_size > 0 else None
@@ -327,7 +327,7 @@ def mcp_open_auth_terminal():
         return {"ok": False, "error": "Claude CLI chưa cài"}
     try:
         if os.name == "nt":
-            subprocess.Popen('start "Javis - Xac thuc MCP (go /mcp)" cmd /k claude', shell=True)
+            subprocess.Popen('start "Striver - Xac thuc MCP (go /mcp)" cmd /k claude', shell=True)
         else:
             for term in ("x-terminal-emulator", "gnome-terminal", "konsole", "xterm"):
                 if shutil.which(term):
@@ -348,12 +348,12 @@ def claude_engine(system_prompt=None, cwd=None, tag="chat", allowed_tools=None, 
     CHỈ chạy qua claude-agent-sdk (claude_sdk_engine.ClaudeSDK); nhánh Popen ClaudeCLI cũ
     đã gỡ sau khi bake ổn (nhật ký ở docs/dev/2026-07-ke-hoach-agent-sdk.md mục 8).
     SDK chưa cài thì ClaudeSDK tự báo lỗi rõ trong .query() (hướng dẫn pip install).
-    Env JAVIS_CLAUDE_ENGINE=cli|sdk-loops chỉ còn giá trị lịch sử - bị bỏ qua kèm log 1 lần."""
+    Env AIOS_CLAUDE_ENGINE=cli|sdk-loops chỉ còn giá trị lịch sử - bị bỏ qua kèm log 1 lần."""
     global _engine_env_warned
-    mode = os.getenv("JAVIS_CLAUDE_ENGINE", "sdk").strip().lower()
+    mode = os.getenv("AIOS_CLAUDE_ENGINE", "sdk").strip().lower()
     if mode in ("cli", "sdk-loops") and not _engine_env_warned:
         _engine_env_warned = True
-        print(f"[claude engine] JAVIS_CLAUDE_ENGINE={mode} đã gỡ từ v0.9.37 - engine Claude "
+        print(f"[claude engine] AIOS_CLAUDE_ENGINE={mode} đã gỡ từ v0.9.37 - engine Claude "
               "luôn chạy Agent SDK. Gặp lỗi hãy báo issue kèm log.", file=sys.stderr)
     from claude_sdk_engine import ClaudeSDK
     return ClaudeSDK(system_prompt=system_prompt, cwd=cwd, tag=tag,
@@ -400,7 +400,7 @@ class CodexCLI:
         self.model = model              # gpt-5.5 / gpt-5.4 ...
         self.instructions = instructions
         self.extra_config = []          # list '-c key=value' (override config, vd thêm mcp_servers)
-        self.profile = None             # tên profile codex (-p) - Javis ghi javis.config.toml để thêm MCP
+        self.profile = None             # tên profile codex (-p) - Striver ghi striver.config.toml để thêm MCP
 
     def is_available(self) -> bool:
         return self.cli_path is not None
@@ -431,10 +431,10 @@ class CodexCLI:
             proc = None
             tinfo = {"timed_out": False}
             last = {"t": time.time()}
-            IDLE = float(os.getenv("JAVIS_CLAUDE_IDLE_TIMEOUT", "180"))
+            IDLE = float(os.getenv("AIOS_CLAUDE_IDLE_TIMEOUT", "180"))
             # Trần RIÊNG khi codex đang chạy TOOL/lệnh (im lặng lúc đó là bình thường -
             # render video, build... có thể rất lâu). Cùng logic với engine Claude SDK.
-            TOOL_IDLE = float(os.getenv("JAVIS_CLAUDE_TOOL_TIMEOUT", "3600"))
+            TOOL_IDLE = float(os.getenv("AIOS_CLAUDE_TOOL_TIMEOUT", "3600"))
             busy = {"n": 0}   # số item tool/lệnh đã started mà chưa completed
             _TOOL_ITEMS = ("command_execution", "mcp_tool_call", "function_call",
                            "tool_call", "local_shell_call", "web_search_call")
@@ -463,7 +463,7 @@ class CodexCLI:
                             tinfo["timed_out"] = True
                             _kill_tree(p)
                             err = (f"Tool chạy quá {int(TOOL_IDLE)}s chưa xong - đã dừng để tránh treo server. "
-                                   f"(tăng JAVIS_CLAUDE_TOOL_TIMEOUT nếu tác vụ thật sự dài hơn)"
+                                   f"(tăng AIOS_CLAUDE_TOOL_TIMEOUT nếu tác vụ thật sự dài hơn)"
                                    if busy["n"] > 0 else
                                    f"Codex không phản hồi {int(IDLE)}s - đã dừng để tránh treo server.")
                             asyncio.run_coroutine_threadsafe(queue.put({"__error__": err}), loop)

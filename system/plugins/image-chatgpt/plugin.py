@@ -1,7 +1,7 @@
 """Plugin bundled: tạo ảnh bằng gói ChatGPT (OAuth) cho MỌI engine.
 
-Đây là câu trả lời cho "Hermes tạo ảnh bằng ChatGPT mà Javis chưa": đăng ký tool
-javis_generate_image, gọi image_gen.generate_chatgpt (Codex Responses + tool image_generation).
+Đây là câu trả lời cho "Hermes tạo ảnh bằng ChatGPT mà Striver chưa": đăng ký tool
+striver_generate_image, gọi image_gen.generate_chatgpt (Codex Responses + tool image_generation).
 Bất kỳ engine nào (Claude Code/Codex/API) khi user bảo "tạo ảnh ..." đều gọi được tool này.
 
 - min_mode=safe: coi như thao tác GHI (tạo file + dùng quota) → chặn ở chế độ suggest.
@@ -39,7 +39,7 @@ def register(ctx):
                 f"![{prompt[:40]}]({rel})")
 
     ctx.register_tool(
-        name="javis_generate_image",
+        name="striver_generate_image",
         description=("Tạo ẢNH từ mô tả bằng gói ChatGPT đang đăng nhập (không cần API key). Tham số: "
                      "prompt (mô tả ảnh, bắt buộc), aspect_ratio (square|landscape|portrait), "
                      "quality (low|medium|high). Sau khi gọi, NHÚNG ![](đường-dẫn) trả về vào câu trả lời."),

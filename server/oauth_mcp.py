@@ -1,5 +1,5 @@
 """
-OAuth 2.1 cho remote MCP server (chuẩn MCP Authorization) - Javis TỰ giữ token,
+OAuth 2.1 cho remote MCP server (chuẩn MCP Authorization) - Striver TỰ giữ token,
 mọi engine dùng chung, KHÔNG cần mở terminal gõ /mcp như trước.
 Luồng: discovery (RFC 9728 / .well-known) → DCR (RFC 7591, nếu server hỗ trợ)
 → authorize PKCE S256 → callback → token → tự refresh.
@@ -84,7 +84,7 @@ async def _discover(url):
         try:
             r = await client.post(url, json={"jsonrpc": "2.0", "id": 1, "method": "initialize",
                                              "params": {"protocolVersion": "2025-06-18", "capabilities": {},
-                                                        "clientInfo": {"name": "javis-os", "version": "1.0"}}},
+                                                        "clientInfo": {"name": "striver-os", "version": "1.0"}}},
                                   headers={"Accept": "application/json, text/event-stream"})
             www = r.headers.get("www-authenticate") or ""
             m = None
@@ -189,7 +189,7 @@ async def start_auth(conn_id, redirect_uri):
             try:
                 async with httpx.AsyncClient(timeout=20) as client:
                     r = await client.post(md["registration_endpoint"], json={
-                        "client_name": "Javis OS", "redirect_uris": [redirect_uri],
+                        "client_name": "Striver AIOS", "redirect_uris": [redirect_uri],
                         "grant_types": ["authorization_code", "refresh_token"],
                         "response_types": ["code"], "token_endpoint_auth_method": "none",
                     })

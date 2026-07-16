@@ -57,14 +57,14 @@ brains-backup/
 Brain Default/Memory/
 Brain Default/05 - Data Cache/
 Brain Default/Attachments/
-Brain Default/Javis/automations.json
+Brain Default/Striver/automations.json
 
 # Brain Default mẫu sau khi gom vào brain/ - chỉ commit cấu trúc + agent/workflow mẫu,
 # KHÔNG commit dữ liệu cá nhân (bộ nhớ, cache số liệu KD, attachments, automations chứa chat_id).
 brain/Brain Default/Memory/
 brain/Brain Default/05 - Data Cache/
 brain/Brain Default/Attachments/
-brain/Brain Default/Javis/automations.json
+brain/Brain Default/Striver/automations.json
 
 # Skill bị tắt (chuyển vào .disabled khi tắt) - trạng thái cục bộ, không version
 **/.claude/skills/.disabled/

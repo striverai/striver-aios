@@ -1,5 +1,5 @@
 """
-Conversation-session persistence cho Javis OS.
+Conversation-session persistence cho Striver AIOS.
 
 Lưu hội thoại web-chat (lượt user/assistant của MỌI engine: cli / codex /
 openrouter / openai / anthropic-api) vào 1 file SQLite để dashboard có thể
@@ -28,10 +28,10 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# DB nằm cùng nơi settings.json/.sessions.json (JAVIS_STATE_DIR, mặc định server/).
-_STATE_DIR = Path(os.getenv("JAVIS_STATE_DIR", str(Path(__file__).parent)))
+# DB nằm cùng nơi settings.json/.sessions.json (AIOS_STATE_DIR, mặc định server/).
+_STATE_DIR = Path(os.getenv("AIOS_STATE_DIR", str(Path(__file__).parent)))
 _DEFAULT_DB = _STATE_DIR / "conversations.db"
-DB_PATH = Path(os.getenv("JAVIS_SESSIONS_DB", str(_DEFAULT_DB)))
+DB_PATH = Path(os.getenv("AIOS_SESSIONS_DB", str(_DEFAULT_DB)))
 
 
 _SCHEMA_SQL = """

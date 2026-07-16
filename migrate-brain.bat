@@ -8,7 +8,7 @@ echo   Chuan hoa cau truc project brain
 echo   brain  ->  Brain Default  (phang: agents/ workflows/ memory/ skills/)
 echo  ==========================================
 echo.
-echo  [!] Hay chac chan da TAT server (stop-javis.bat) truoc khi chay.
+echo  [!] Hay chac chan da TAT server (stop-striver.bat) truoc khi chay.
 echo.
 pause
 
@@ -19,13 +19,13 @@ if exist "brain" if not exist "Brain Default" (
 )
 
 REM 2. Lam phang cau truc ben trong (chi move khi dich chua ton tai)
-if exist "Brain Default\Javis\agents" if not exist "Brain Default\agents" (
-  echo   - Move: Javis\agents  ->  agents
-  move "Brain Default\Javis\agents" "Brain Default\agents" >nul
+if exist "Brain Default\Striver\agents" if not exist "Brain Default\agents" (
+  echo   - Move: Striver\agents  ->  agents
+  move "Brain Default\Striver\agents" "Brain Default\agents" >nul
 )
-if exist "Brain Default\Javis\workflows" if not exist "Brain Default\workflows" (
-  echo   - Move: Javis\workflows  ->  workflows
-  move "Brain Default\Javis\workflows" "Brain Default\workflows" >nul
+if exist "Brain Default\Striver\workflows" if not exist "Brain Default\workflows" (
+  echo   - Move: Striver\workflows  ->  workflows
+  move "Brain Default\Striver\workflows" "Brain Default\workflows" >nul
 )
 if exist "Brain Default\Memory" if not exist "Brain Default\memory" (
   echo   - Move: Memory  ->  memory

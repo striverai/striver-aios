@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ============================================================================
-# Javis OS - container image
+# Striver AIOS - container image
 # "Brain" = Claude Code CLI (npm global). FastAPI app served by uvicorn.
 # Code tree is immutable; ALL mutable state lives on the /data volume and the
 # Claude auth volume (~/.claude). Pattern adapted from Hermes Agent's Dockerfile
@@ -16,14 +16,14 @@ FROM python:3.12-slim
 
 # OCI image labels: Docker Manager (Hostinger) + registry đọc để hiện cột "Guide"
 # (Documentation / Quick start / Source). Trỏ về docs trên GitHub.
-LABEL org.opencontainers.image.title="Javis OS" \
+LABEL org.opencontainers.image.title="Striver AIOS" \
       org.opencontainers.image.description="AI operating layer: chat + voice + second brain + tự động hoá, xây trên CLI của nhà cung cấp AI (Claude Code, ChatGPT/Codex)." \
-      org.opencontainers.image.url="https://github.com/blogminhquy/javis-os" \
-      org.opencontainers.image.source="https://github.com/blogminhquy/javis-os" \
-      org.opencontainers.image.documentation="https://github.com/blogminhquy/javis-os/blob/main/docs/README.md" \
+      org.opencontainers.image.url="https://github.com/striverai/striver-aios" \
+      org.opencontainers.image.source="https://github.com/striverai/striver-aios" \
+      org.opencontainers.image.documentation="https://github.com/striverai/striver-aios/blob/main/docs/README.md" \
       org.opencontainers.image.licenses="MIT" \
-      com.hostinger.documentation="https://github.com/blogminhquy/javis-os/blob/main/docs/README.md" \
-      com.hostinger.quickstart="https://github.com/blogminhquy/javis-os/blob/main/QUICKSTART.md"
+      com.hostinger.documentation="https://github.com/striverai/striver-aios/blob/main/docs/README.md" \
+      com.hostinger.quickstart="https://github.com/striverai/striver-aios/blob/main/QUICKSTART.md"
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -64,33 +64,33 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Non-root runtime user. Code stays root-owned + read-only; state on volumes.
-RUN useradd -u 10001 -m -d /home/javis javis \
-    && mkdir -p /data/state /data/vault /brains /home/javis/.claude /home/javis/.codex \
-    && chown -R javis:javis /data /brains /home/javis
+RUN useradd -u 10001 -m -d /home/striver striver \
+    && mkdir -p /data/state /data/vault /brains /home/striver/.claude /home/striver/.codex \
+    && chown -R striver:striver /data /brains /home/striver
 
 # Writable state under /data; ALL second brains under /brains (mount riêng → git-backup được).
-ENV JAVIS_HOST=0.0.0.0 \
-    JAVIS_PORT=7777 \
-    JAVIS_STATE_DIR=/data/state \
+ENV AIOS_HOST=0.0.0.0 \
+    AIOS_PORT=7777 \
+    AIOS_STATE_DIR=/data/state \
     BRAIN_PATH=/data/brain \
     BRAINS_DIR=/brains \
     OBSIDIAN_VAULT_PATH=/data/vault \
     CLAUDE_CWD=/app \
-    HOME=/home/javis \
+    HOME=/home/striver \
     PATH=/usr/local/bin:$PATH
 
-USER javis
+USER striver
 
 # Persist state (/data) + brains (/brains) + Claude auth + Codex auth (login ChatGPT).
-VOLUME ["/data", "/brains", "/home/javis/.claude", "/home/javis/.codex"]
+VOLUME ["/data", "/brains", "/home/striver/.claude", "/home/striver/.codex"]
 
 EXPOSE 7777
 
 # Healthcheck hits the public /health endpoint with stdlib only (no curl).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
-    CMD python -c "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:'+os.getenv('JAVIS_PORT','7777')+'/health',timeout=4).status==200 else 1)" || exit 1
+    CMD python -c "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:'+os.getenv('AIOS_PORT','7777')+'/health',timeout=4).status==200 else 1)" || exit 1
 
 # tini reaps node subprocesses. uvicorn launched with --app-dir server because
 # main.py uses the "main:app" import string and `from claude_cli import ...`.
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["sh", "-c", "python -m uvicorn main:app --app-dir server --host ${JAVIS_HOST} --port ${JAVIS_PORT}"]
+CMD ["sh", "-c", "python -m uvicorn main:app --app-dir server --host ${AIOS_HOST} --port ${AIOS_PORT}"]

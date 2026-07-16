@@ -1,8 +1,8 @@
 // ============================================
-// JAVIS OS - Graph 2D "Tinh vân bộ não" (force-graph / d3-force, kiểu Obsidian)
+// STRIVER AIOS - Graph 2D "Tinh vân bộ não" (force-graph / d3-force, kiểu Obsidian)
 // Engine d3-force (giống Obsidian + bản 3D). Thiết kế: node = sao phát sáng, TÔ MÀU THEO DANH MỤC
 // (thư mục cha, khớp nhãn PERSONAL/BUSINESS...), hover = rọi đèn vùng liên quan (synapse), thở nhẹ
-// lúc nghỉ, nhãn chỉ hiện khi hover / zoom sát / vài hub lớn. Cùng interface JavisGraph3D.
+// lúc nghỉ, nhãn chỉ hiện khi hover / zoom sát / vài hub lớn. Cùng interface StriverGraph3D.
 // ============================================
 
 // --- Bảng màu danh mục: rực nhưng hài hoà trên nền tối; gán theo tên danh mục (ổn định) ---
@@ -19,7 +19,7 @@ function _hash(s) { let h = 0; s = String(s || ""); for (let i = 0; i < s.length
 
 // Dùng CHUNG cho bản 3D: gán màu danh mục (tuần tự theo danh mục) vào n.color của từng node.
 // Cùng thứ tự data.nodes như 2D → màu 2D và 3D khớp nhau.
-window.JavisCatColorize = function (nodes) {
+window.StriverCatColorize = function (nodes) {
   const map = {}; let next = 0;
   (nodes || []).forEach(n => {
     const segs = (n.path || "").split("/");
@@ -27,7 +27,7 @@ window.JavisCatColorize = function (nodes) {
     if (!(cat in map)) { map[cat] = CAT_COLORS[next % CAT_COLORS.length]; next++; }
     n.color = map[cat];   // ghi đè màu tím backend bằng màu danh mục
   });
-  window.__javisCatMap = map;   // để nhãn danh mục tô chữ khớp màu (bản 3D)
+  window.__striverCatMap = map;   // để nhãn danh mục tô chữ khớp màu (bản 3D)
   return map;
 };
 
@@ -63,7 +63,7 @@ function _centerGravity(strength) {
   return force;
 }
 
-class JavisGraph {
+class StriverGraph {
   constructor(container, tooltip) {
     this.container = container;
     this.tooltip = tooltip;
@@ -75,8 +75,8 @@ class JavisGraph {
     this._hoverId = null;
     this._nbrs = new Set();
     this._catFilter = null;
-    window.__javisGraph = this;
-    try { window.dispatchEvent(new Event("javis-graph-created")); } catch (e) {}
+    window.__striverGraph = this;
+    try { window.dispatchEvent(new Event("striver-graph-created")); } catch (e) {}
   }
 
   _prep(nodes) {
@@ -103,7 +103,7 @@ class JavisGraph {
     const data = await res.json();
     this._catMap = null;                     // gán lại màu danh mục tươi cho mỗi lần nạp
     this._prep(data.nodes || []);
-    window.__javisCatMap = this._catMap;     // để nhãn danh mục (app.js) tô chữ khớp màu node
+    window.__striverCatMap = this._catMap;     // để nhãn danh mục (app.js) tô chữ khớp màu node
     const links = (data.edges || []).map(e => ({ source: e.source, target: e.target }));
 
     if (!this.graph) {
@@ -228,7 +228,7 @@ class JavisGraph {
     if (w && h) this.graph.width(w).height(h);
   }
 
-  // --- Interface khớp JavisGraph3D ---
+  // --- Interface khớp StriverGraph3D ---
   pause() { if (this.graph) { try { this.graph.pauseAnimation(); } catch (e) {} } }
   wake() { if (this.graph) { try { this.graph.resumeAnimation(); } catch (e) {} } }
   resume() { this.wake(); }
@@ -271,4 +271,4 @@ class JavisGraph {
   }
 }
 
-window.JavisGraph = JavisGraph;
+window.StriverGraph = StriverGraph;

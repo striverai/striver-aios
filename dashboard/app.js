@@ -7,17 +7,17 @@ let cancelledTurn = false;     // (giữ để tương thích - không còn dùn
 // ĐA HỘI THOẠI SONG SONG: mỗi phiên giữ trạng thái stream RIÊNG, định tuyến theo session_id. Mở
 // "hội thoại mới" KHÔNG giết phiên đang chạy - nó chạy nền + tự lưu, vào Lịch sử bấm lại xem tiếp.
 const turns = {};              // sid -> { text, bubble, spoke, running }
-if (!window.JavisRunning) window.JavisRunning = new Set();   // sid đang generate → sidebar hiện ⏳
+if (!window.StriverRunning) window.StriverRunning = new Set();   // sid đang generate → sidebar hiện ⏳
 function newSid() { try { return crypto.randomUUID().replace(/-/g, ""); } catch (e) { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); } }
 function setSessionRunning(sid, on) {
   if (!sid) return;
-  if (on) window.JavisRunning.add(sid); else window.JavisRunning.delete(sid);
-  try { if (window.JavisChatSide && window.JavisChatSide.refresh) window.JavisChatSide.refresh(); } catch (e) {}
+  if (on) window.StriverRunning.add(sid); else window.StriverRunning.delete(sid);
+  try { if (window.StriverChatSide && window.StriverChatSide.refresh) window.StriverChatSide.refresh(); } catch (e) {}
 }
 
 // Lưu & khôi phục phiên gần nhất (hội thoại + số liệu + session Claude)
-const SESSION_KEY = "javis.session.v1";
-let convo = [];            // [{role:"user"|"javis", text, atts}]
+const SESSION_KEY = "striver.session.v1";
+let convo = [];            // [{role:"user"|"striver", text, atts}]
 let savedSessionId = null; // session_id của Claude để resume sau khi F5
 let savedMetrics = null;   // {cards, status}
 const stopBtn = document.getElementById("stopBtn");
@@ -68,7 +68,7 @@ document.getElementById("currentDate").textContent = new Date().toLocaleDateStri
 });
 
 fetch("/config").then(r => r.json()).then(cfg => {
-  document.getElementById("workspaceName").textContent = cfg.workspace_name || "Javis OS";
+  document.getElementById("workspaceName").textContent = cfg.workspace_name || "Striver AIOS";
 }).catch(() => {});
 
 // ============================================
@@ -79,13 +79,13 @@ function setOrbState(state, label) {
   orbState.textContent = label;
   const thinking = state === "thinking";
   _thinkingActive = thinking;
-  if (javisGraph) javisGraph.setThinking(thinking);
+  if (striverGraph) striverGraph.setThinking(thinking);
 }
 
 // ============================================
 // Voice
 // ============================================
-const voice = new JavisVoice({
+const voice = new StriverVoice({
   lang: "vi-VN",
   onStart: () => {
     voiceBtn.classList.add("recording");
@@ -164,19 +164,19 @@ function handleMessage(data) {
     if (isActive) {
       hideActivity();
       if (cards) pushMetricsToPanel(cards);
-      if (!t || !t.bubble) appendJavisMessage(shownText);
+      if (!t || !t.bubble) appendStriverMessage(shownText);
       else t.bubble.querySelector(".bubble").innerHTML = markdownToHtml(shownText);
       if (data.engine) setEngineBadge(data.engine, data.model);   // sự thật engine+model của lượt này
-      if (finalText.trim()) recordTurn("javis", finalText);
+      if (finalText.trim()) recordTurn("striver", finalText);
       if (voice.ttsEnabled && t && !t.spoke && finalText) { setOrbState("speaking", "ĐANG NÓI"); voice.speak(finalText); }
       else if (!voice.ttsEnabled) setOrbState("", "SẴN SÀNG");
       maybeAutoLearn();
     }
     refreshUsage();     // cập nhật panel Mức dùng sau mỗi lượt
   } else if (data.type === "error") {
-    if (isActive) { hideActivity(); appendJavisMessage("⚠ " + data.content); setOrbState("", "SẴN SÀNG"); }
+    if (isActive) { hideActivity(); appendStriverMessage("⚠ " + data.content); setOrbState("", "SẴN SÀNG"); }
   } else if (data.type === "system") {
-    if (isActive) appendJavisMessage(data.content);
+    if (isActive) appendStriverMessage(data.content);
   } else if (data.type === "turn_done") {
     // Lượt của phiên này kết thúc (xong / lỗi / bị dừng): bỏ cờ chạy, dọn buffer, refresh Lịch sử.
     if (t) t.running = false;
@@ -201,7 +201,7 @@ function sendMessage(text) {
   appendUserMessage(msg, atts);
   recordTurn("user", msg, atts.map(a => ({ name: a.name, kind: a.kind })));
 
-  // Soạn message gửi Javis (kèm đường dẫn file trong Sources)
+  // Soạn message gửi Striver (kèm đường dẫn file trong Sources)
   let outMsg = msg;
   if (atts.length) {
     const lines = atts.map(a => `- ${a.path}`).join("\n");
@@ -221,7 +221,7 @@ function sendMessage(text) {
   turns[sid] = { text: "", bubble: null, spoke: false, running: true };
   setSessionRunning(sid, true);
   setOrbState("thinking", "ĐANG SUY NGHĨ");
-  showActivity("Javis đang suy nghĩ...");   // hiện NGAY trong khung chat, không đợi server báo
+  showActivity("Striver đang suy nghĩ...");   // hiện NGAY trong khung chat, không đợi server báo
   syncActiveUI();
   ws.send(JSON.stringify({ message: outMsg, brain: currentBrainPath(), session_id: sid }));
 }
@@ -254,7 +254,7 @@ function restoreSession() {
   // Dựng lại bong bóng hội thoại
   convo.forEach(t => {
     if (t.role === "user") appendUserMessage(t.text, t.atts || []);
-    else appendJavisMessage(t.text);
+    else appendStriverMessage(t.text);
   });
   if (convo.length) scrollBottom(true);
   // Dựng lại số liệu kinh doanh (đánh dấu là của phiên trước)
@@ -264,7 +264,7 @@ function restoreSession() {
 }
 
 // ============================================
-// Phiên hội thoại lưu DB (panel Lịch sử - sessions-ui.js gọi qua window.JavisSessions)
+// Phiên hội thoại lưu DB (panel Lịch sử - sessions-ui.js gọi qua window.StriverSessions)
 // ============================================
 async function openStoredSession(id) {
   try {
@@ -275,7 +275,7 @@ async function openStoredSession(id) {
     chatArea.innerHTML = "";
     (sess.messages || []).forEach(m => {
       if (m.role === "user") { appendUserMessage(m.content || "", []); convo.push({ role: "user", text: m.content || "", atts: [] }); }
-      else if (m.role === "assistant") { appendJavisMessage(m.content || ""); convo.push({ role: "javis", text: m.content || "", atts: [] }); }
+      else if (m.role === "assistant") { appendStriverMessage(m.content || ""); convo.push({ role: "striver", text: m.content || "", atts: [] }); }
     });
     savedSessionId = id;          // lượt gửi tiếp theo → server resume đúng phiên này
     // Phiên này đang generate NỀN → gắn bong bóng SỐNG (kèm phần đã stream) để xem tiếp trực tiếp.
@@ -304,9 +304,9 @@ function newChat() {
   syncActiveUI();
   try { chatInput.focus(); } catch (e) {}
 }
-window.JavisSessions = { open: openStoredSession, new: newChat, brain: () => currentBrainPath(), current: () => savedSessionId };
+window.StriverSessions = { open: openStoredSession, new: newChat, brain: () => currentBrainPath(), current: () => savedSessionId };
 // Báo các UI khác (sidebar Lịch sử trong chat workspace) biết phiên/danh sách vừa đổi
-function notifySessions() { try { window.dispatchEvent(new Event("javis:sessions-changed")); } catch (e) {} }
+function notifySessions() { try { window.dispatchEvent(new Event("striver:sessions-changed")); } catch (e) {} }
 
 function appendUserMessage(text, attachments) {
   const div = document.createElement("div");
@@ -328,16 +328,16 @@ function appendUserMessage(text, attachments) {
   div.innerHTML = `<div class="bubble">${textHtml}${attHtml}</div>`;
   chatAppend(div); scrollBottom(true);
 }
-function appendJavisMessage(text) {
+function appendStriverMessage(text) {
   const div = document.createElement("div");
-  div.className = "msg msg-javis";
+  div.className = "msg msg-striver";
   div.innerHTML = `<div class="bubble">${markdownToHtml(text)}</div>` +
     `<button class="msg-copy" type="button" title="Copy cả tin nhắn">⧉</button>`;
   chatAppend(div); scrollBottom();
 }
 function createStreamingBubble() {
   const div = document.createElement("div");
-  div.className = "msg msg-javis";
+  div.className = "msg msg-striver";
   div.innerHTML = `<div class="bubble"></div>` +
     `<button class="msg-copy" type="button" title="Copy cả tin nhắn">⧉</button>`;
   chatAppend(div); scrollBottom();
@@ -520,7 +520,7 @@ const graph3dContainer = document.getElementById("graph3dContainer");
 const graphTooltip = document.getElementById("graphTooltip");
 const graphStats = document.getElementById("graphStats");
 const graphSource = document.getElementById("graphSource");
-let javisGraph = null;
+let striverGraph = null;
 
 graph3dContainer.addEventListener("mousemove", (e) => {
   graphTooltip.style.left = (e.clientX + 14) + "px";
@@ -560,7 +560,7 @@ async function initGraph(forceMode) {
   if (forceMode === "2d" || forceMode === "3d") {
     _graphMode = forceMode;
   } else {
-    const ls = localStorage.getItem("javis.graphMode");
+    const ls = localStorage.getItem("striver.graphMode");
     if (ls === "2d" || ls === "3d") { _graphMode = ls; }
     else {
       try {
@@ -571,27 +571,27 @@ async function initGraph(forceMode) {
   }
   if (_graphMode === "3d") {
     await _ensure3DLibs();
-    if (!window.JavisGraph3D || !window.ForceGraph3D) {
+    if (!window.StriverGraph3D || !window.ForceGraph3D) {
       graphStats.textContent = "⚠ Lỗi tải thư viện 3D (kiểm tra mạng)";
       return;
     }
     if (c2d) c2d.style.display = "none";
     graph3dContainer.style.display = "";
-    javisGraph = new JavisGraph3D(graph3dContainer, graphTooltip);
+    striverGraph = new StriverGraph3D(graph3dContainer, graphTooltip);
   } else {
     graph3dContainer.style.display = "none";
     if (c2d) c2d.style.display = "block";   // "" sẽ rơi về CSS #graph2d{display:none} → bị ẩn
     await _ensure2DLib();
     if (!window.ForceGraph) { graphStats.textContent = "⚠ Lỗi tải thư viện đồ thị 2D (kiểm tra mạng)"; return; }
-    javisGraph = new JavisGraph(c2d, graphTooltip);   // resize() gọi bên trong load()
+    striverGraph = new StriverGraph(c2d, graphTooltip);   // resize() gọi bên trong load()
   }
   await reloadGraph();
 }
 
 // Đổi 2D/3D trong Cài đặt → dựng lại đồ thị tại chỗ (console.js gọi sau khi lưu setting).
 window.reinitGraph = async function (forceMode) {
-  try { if (javisGraph && javisGraph.pause) javisGraph.pause(); } catch (e) {}
-  javisGraph = null;
+  try { if (striverGraph && striverGraph.pause) striverGraph.pause(); } catch (e) {}
+  striverGraph = null;
   try { graph3dContainer.innerHTML = ""; } catch (e) {}
   const c2d = document.getElementById("graph2d");
   if (c2d) { try { c2d.innerHTML = ""; } catch (e) {} }   // #graph2d giờ là div force-graph gắn canvas vào
@@ -599,11 +599,11 @@ window.reinitGraph = async function (forceMode) {
   connectGraphWatch();
 };
 
-// Click node trong graph → Javis mở & thao tác note đó trong vault
+// Click node trong graph → Striver mở & thao tác note đó trong vault
 window.onGraphNodeClick = (node) => {
   if (!node || !node.path) return;
   const brainRel = (node.path || "").split("/").slice(1).join("/") || node.path;   // bỏ đoạn gốc → path tương đối brain
-  if (typeof window.JavisOpenNote === "function") window.JavisOpenNote(brainRel);   // mở editor cây (WYSIWYG + công cụ)
+  if (typeof window.StriverOpenNote === "function") window.StriverOpenNote(brainRel);   // mở editor cây (WYSIWYG + công cụ)
   else openNodePopup(node);   // dự phòng nếu editor cây chưa sẵn
 };
 
@@ -687,14 +687,14 @@ async function openNodePopup(node) {
   setTimeout(() => { try { body.querySelector("#nodeText").focus(); } catch (e) {} }, 30);
 }
 async function reloadGraph() {
-  if (!javisGraph) return;
+  if (!striverGraph) return;
   graphStats.textContent = "Đang tải...";
   const val = graphSource.value;
   const query = val.startsWith("path:")
     ? `path=${encodeURIComponent(val.slice(5))}`
     : `source=${val}`;
   try {
-    const data = await javisGraph.load(query);
+    const data = await striverGraph.load(query);
     const stats = data.stats || {};
     const hidden = stats.hidden ? ` · ẩn ${stats.hidden}` : "";
     graphStats.textContent = `${stats.total_notes} note · ${stats.total_links} kết nối${hidden}`;
@@ -702,7 +702,7 @@ async function reloadGraph() {
   } catch (e) { graphStats.textContent = "Lỗi: " + e.message; }
 }
 graphSource.addEventListener("change", () => {
-  localStorage.setItem("javis.graphSource", graphSource.value);
+  localStorage.setItem("striver.graphSource", graphSource.value);
   reloadGraph();
   connectGraphWatch();   // theo dõi realtime trên nguồn mới
   loadMemStats();   // bộ nhớ theo vault → đổi vault thì đổi số ký ức
@@ -732,10 +732,10 @@ function connectGraphWatch() {
   graphWs = new WebSocket(`${WS_ORIGIN}/ws/graph?${q}`);
   graphWs.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data); } catch (_) { return; }
-    if (m.type !== "graph_add" || !javisGraph) return;
-    const r = javisGraph.addOrUpdate(m.node, m.linkTargets, m.isNew);
+    if (m.type !== "graph_add" || !striverGraph) return;
+    const r = striverGraph.addOrUpdate(m.node, m.linkTargets, m.isNew);
     if (r && r.created) {
-      const s = javisGraph.nodeStats();
+      const s = striverGraph.nodeStats();
       graphStats.textContent = `${s.nodes} note · ${s.links} kết nối`;
       // Nháy nhẹ nhãn để báo có note mới sinh ra
       graphStats.classList.add("pulse");
@@ -764,7 +764,7 @@ async function checkVault() {
       const miss = d.items.filter(i => !i.present).map(i => i.label).join(", ");
       vbText.textContent = d.ok
         ? `Vault chạy được, nhưng thiếu: ${miss}.`
-        : `Cấu trúc vault chưa chuẩn cho Javis - thiếu: ${miss}.`;
+        : `Cấu trúc vault chưa chuẩn cho Striver - thiếu: ${miss}.`;
       vaultBanner.classList.add("show");
     }
   } catch (e) {}
@@ -815,14 +815,14 @@ function renderConceptLabels(categories, total) {
     div.style.top = y + "%";
     // Tô chữ "% Vault" đúng màu node của thư mục đó (lấy từ bảng màu danh mục của đồ thị) → dễ nhận màu nào của folder nào.
     const catKey = c.name.replace(/^\d+\s*[-_.]\s*/, "").trim().toLowerCase();
-    const catCol = (window.__javisCatMap || {})[catKey];
+    const catCol = (window.__striverCatMap || {})[catKey];
     div.innerHTML = `<div class="cl-name">${escapeHtml(c.name.toUpperCase())}</div>` +
       `<div class="cl-meta">${c.count} note · <span class="cl-fire"${catCol ? ` style="color:${catCol}"` : ""}>${share}% Vault</span></div>`;
     // Bấm nhãn danh mục → rọi sáng đúng cụm đó trong đồ thị (chỉ đồ thị 2D hỗ trợ; 3D bỏ qua an toàn).
     div.style.cursor = "pointer";
     div.title = "Bấm để rọi sáng cụm " + c.name;
     div.onclick = () => {
-      const g = window.__javisGraph;
+      const g = window.__striverGraph;
       if (!g || typeof g.spotlightCategory !== "function") return;
       const key = c.name.replace(/^\d+\s*[-_.]\s*/, "").trim().toLowerCase();
       const on = g._catFilter === key;
@@ -837,7 +837,7 @@ function renderConceptLabels(categories, total) {
 
 // Brain folder tùy chọn - lưu localStorage, hiện trong dropdown
 function loadCustomBrains() {
-  const brains = JSON.parse(localStorage.getItem("javis.brains") || "[]");
+  const brains = JSON.parse(localStorage.getItem("striver.brains") || "[]");
   // Xóa option cũ
   [...graphSource.querySelectorAll("option[data-custom]")].forEach(o => o.remove());
   brains.forEach(b => {
@@ -849,17 +849,17 @@ function loadCustomBrains() {
   });
 }
 function addCustomBrain(path) {
-  const brains = JSON.parse(localStorage.getItem("javis.brains") || "[]");
+  const brains = JSON.parse(localStorage.getItem("striver.brains") || "[]");
   if (brains.some(b => b.path === path)) return;
   const name = path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || path;
   brains.push({ name, path });
-  localStorage.setItem("javis.brains", JSON.stringify(brains));
+  localStorage.setItem("striver.brains", JSON.stringify(brains));
   loadCustomBrains();
 }
 loadCustomBrains();
 // Khôi phục folder đã chọn lần trước (mặc định: brain)
 (function restoreGraphSource() {
-  const saved = localStorage.getItem("javis.graphSource");
+  const saved = localStorage.getItem("striver.graphSource");
   if (saved && [...graphSource.options].some(o => o.value === saved)) {
     graphSource.value = saved;
   } else {
@@ -915,16 +915,16 @@ document.getElementById("fmUse").addEventListener("click", () => {
   if (!fmCurrent) return;
   addCustomBrain(fmCurrent);
   graphSource.value = "path:" + fmCurrent;
-  localStorage.setItem("javis.graphSource", graphSource.value);
+  localStorage.setItem("striver.graphSource", graphSource.value);
   folderModal.classList.remove("open");
   reloadGraph();
 });
-window.addEventListener("resize", () => { if (javisGraph) javisGraph.resize(); });
+window.addEventListener("resize", () => { if (striverGraph) striverGraph.resize(); });
 
 let _stopBtnTick = 0;
 function pumpAudioLevel() {
-  if (javisGraph) javisGraph.setLevel(voice.getLevel());
-  // Cập nhật hiển thị nút stop ~6 lần/giây (theo dõi cả lúc Javis đang đọc)
+  if (striverGraph) striverGraph.setLevel(voice.getLevel());
+  // Cập nhật hiển thị nút stop ~6 lần/giây (theo dõi cả lúc Striver đang đọc)
   if ((_stopBtnTick++ % 10) === 0) {
     updateStopBtn();
     // Đọc xong cả hàng đợi (gồm các bước trung gian) → trả orb về nghỉ.
@@ -1067,7 +1067,7 @@ async function loadMetrics(opts = {}) {
         persistSession();
       } else if (!opts.silent || !hasCards) {
         const note = data.note || data.error || "Chưa có MCP dữ liệu nào kết nối.";
-        metricCards.innerHTML = `<div class="metric-empty">${escapeHtml(note)}<br><span class="me-hint">Đấu thêm MCP (POS, kênh, quảng cáo...) để Javis báo cáo.</span></div>`;
+        metricCards.innerHTML = `<div class="metric-empty">${escapeHtml(note)}<br><span class="me-hint">Đấu thêm MCP (POS, kênh, quảng cáo...) để Striver báo cáo.</span></div>`;
         status.textContent = "";
       }
       return;
@@ -1095,7 +1095,7 @@ async function agenticFallbackCards() {
       fetch(`/workflows?brain=${b}`).then(r => r.json()).catch(() => ({})),
     ]);
     return [
-      { label: "Agents", value: String((a.agents || []).length), sub: "trong Javis", trend: "flat" },
+      { label: "Agents", value: String((a.agents || []).length), sub: "trong Striver", trend: "flat" },
       { label: "Skills", value: String((s.skills || []).length), sub: "khả dụng", trend: "flat" },
       { label: "Workflows", value: String((w.workflows || []).length), sub: "đã tạo", trend: "flat" },
     ];
@@ -1122,7 +1122,7 @@ function renderMetrics(cards, statusText) {
 }
 document.getElementById("refreshMetrics").addEventListener("click", loadMetrics);
 
-// Trích block metrics Javis nhúng trong response → cập nhật panel trái
+// Trích block metrics Striver nhúng trong response → cập nhật panel trái
 const METRICS_BLOCK_RE = /<!--\s*JAVIS_METRICS:\s*([\s\S]*?)\s*-->/;
 function extractMetrics(text) {
   if (typeof text !== "string") return { clean: "", cards: null };
@@ -1153,12 +1153,12 @@ let turnsSinceReflect = 0;
 const AUTO_LEARN_EVERY = 6;   // tự học sau mỗi 6 lượt hội thoại
 
 // Khôi phục cài đặt tự học
-let autoLearn = localStorage.getItem("javis.autoLearn") !== "off";
+let autoLearn = localStorage.getItem("striver.autoLearn") !== "off";
 if (autoLearnToggle) {
   autoLearnToggle.checked = autoLearn;
   autoLearnToggle.addEventListener("change", () => {
     autoLearn = autoLearnToggle.checked;
-    localStorage.setItem("javis.autoLearn", autoLearn ? "on" : "off");
+    localStorage.setItem("striver.autoLearn", autoLearn ? "on" : "off");
   });
 }
 
@@ -1209,7 +1209,7 @@ async function doReflect(auto) {
   reflecting = true;
   turnsSinceReflect = 0;
   if (!auto && learnBtn) { learnBtn.disabled = true; learnBtn.textContent = "🧠 Đang học..."; }
-  if (memResult) memResult.textContent = auto ? "🧠 Đang tự học nền..." : "Javis đang đọc lại hội thoại và rút ra ký ức...";
+  if (memResult) memResult.textContent = auto ? "🧠 Đang tự học nền..." : "Striver đang đọc lại hội thoại và rút ra ký ức...";
   try {
     const fd = new FormData();
     fd.append("brain", currentBrainPath());
@@ -1297,7 +1297,7 @@ async function uploadFile(file) {
   pendingAttachments.push(att);
   renderChips();
   try {
-    // Chỉ STAGE để Javis đọc - KHÔNG tự convert/lưu. Lưu Sources chỉ khi user yêu cầu.
+    // Chỉ STAGE để Striver đọc - KHÔNG tự convert/lưu. Lưu Sources chỉ khi user yêu cầu.
     const fd = new FormData();
     fd.append("file", file, att.name);
     fd.append("brain", currentBrainPath());
@@ -1401,7 +1401,7 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.code === "Escape") {
     // Esc chỉ thoát chế độ rảnh tay + tắt mic + đóng popup node nếu đang mở. KHÔNG còn dừng câu
-    // trả lời hay ngắt Javis đang nói (đã bỏ theo yêu cầu - đã có nút bật/tắt tiếng và nút Dừng).
+    // trả lời hay ngắt Striver đang nói (đã bỏ theo yêu cầu - đã có nút bật/tắt tiếng và nút Dừng).
     handsFree = false; voiceBtn.classList.remove("handsfree");
     voice.stopListening();
     if (typeof closeNodePopup === "function") closeNodePopup();
@@ -1424,21 +1424,21 @@ const voicePickerBtn = document.getElementById("voicePickerBtn");
 const voicePopover = document.getElementById("voicePopover");
 const rateSlider = document.getElementById("rateSlider");
 const rateLabel = document.getElementById("rateLabel");
-const savedVoice = localStorage.getItem("javis.voice") || "vi-VN-HoaiMyNeural";
-const savedRate = parseFloat(localStorage.getItem("javis.rate") || "1.10");
+const savedVoice = localStorage.getItem("striver.voice") || "vi-VN-HoaiMyNeural";
+const savedRate = parseFloat(localStorage.getItem("striver.rate") || "1.10");
 document.querySelector(`input[name="voice"][value="${savedVoice}"]`)?.click();
 rateSlider.value = savedRate; rateLabel.textContent = savedRate.toFixed(2) + "×";
 voice.setVoice(savedVoice); voice.setRate(rateToPct(savedRate));
 function rateToPct(r) { const p = ((r - 1) * 100).toFixed(0); return (p >= 0 ? "+" : "") + p + "%"; }
 voicePickerBtn.addEventListener("click", (e) => { e.stopPropagation(); voicePopover.classList.toggle("open"); });
 document.addEventListener("click", (e) => { if (!voicePopover.contains(e.target) && e.target !== voicePickerBtn) voicePopover.classList.remove("open"); });
-document.querySelectorAll('input[name="voice"]').forEach(r => r.addEventListener("change", () => { voice.setVoice(r.value); localStorage.setItem("javis.voice", r.value); }));
-const savedRecLang = localStorage.getItem("javis.recLang") || "vi-VN";
+document.querySelectorAll('input[name="voice"]').forEach(r => r.addEventListener("change", () => { voice.setVoice(r.value); localStorage.setItem("striver.voice", r.value); }));
+const savedRecLang = localStorage.getItem("striver.recLang") || "vi-VN";
 const recLangInput = document.querySelector(`input[name="recognitionLang"][value="${savedRecLang}"]`);
 if (recLangInput) recLangInput.checked = true;
 voice.setRecognitionLang(savedRecLang);
-document.querySelectorAll('input[name="recognitionLang"]').forEach(r => r.addEventListener("change", () => { voice.setRecognitionLang(r.value); localStorage.setItem("javis.recLang", r.value); }));
-rateSlider.addEventListener("input", () => { const r = parseFloat(rateSlider.value); rateLabel.textContent = r.toFixed(2) + "×"; voice.setRate(rateToPct(r)); localStorage.setItem("javis.rate", r.toString()); });
+document.querySelectorAll('input[name="recognitionLang"]').forEach(r => r.addEventListener("change", () => { voice.setRecognitionLang(r.value); localStorage.setItem("striver.recLang", r.value); }));
+rateSlider.addEventListener("input", () => { const r = parseFloat(rateSlider.value); rateLabel.textContent = r.toFixed(2) + "×"; voice.setRate(rateToPct(r)); localStorage.setItem("striver.rate", r.toString()); });
 document.getElementById("testVoiceBtn").addEventListener("click", () => {
   const v = document.querySelector('input[name="voice"]:checked').value;
   voice.speak(v.includes("HoaiMy") ? "Xin chào, em là HoaiMy, trợ lý của anh." : "Xin chào, tôi là NamMinh, trợ lý của bạn.");
@@ -1476,7 +1476,7 @@ function fmtClock(ts) {
 function renderLoopStatus(c) {
   loopStatus.className = "loop-status";
   if (c.running) { loopStatus.classList.add("running"); loopStatus.textContent = "⏳ Đang chạy một vòng..."; return; }
-  if (!c.enabled) { loopStatus.textContent = "Tắt - bật để Javis tự chạy nền"; return; }
+  if (!c.enabled) { loopStatus.textContent = "Tắt - bật để Striver tự chạy nền"; return; }
   loopStatus.classList.add("on");
   const goalTxt = c.goal === "brain" ? "bộ não" : "chỉ số KD";
   const last = c.last_run ? `lần cuối ${fmtClock(c.last_run)}` : "chưa chạy";
@@ -1542,8 +1542,8 @@ if (loopEnabled) {
     const old = lintBtn.textContent; lintBtn.disabled = true; lintBtn.textContent = "🩺 Đang quét...";
     try {
       const d = await (await fetch(`/lint?brain=${encodeURIComponent(currentBrainPath())}`)).json();
-      appendJavisMessage(d.ok ? ("🩺 **LINT Wiki**\n\n" + d.report) : ("⚠ " + (d.error || "lỗi LINT")));
-    } catch (e) { appendJavisMessage("⚠ LINT lỗi mạng"); }
+      appendStriverMessage(d.ok ? ("🩺 **LINT Wiki**\n\n" + d.report) : ("⚠ " + (d.error || "lỗi LINT")));
+    } catch (e) { appendStriverMessage("⚠ LINT lỗi mạng"); }
     lintBtn.textContent = old; lintBtn.disabled = false;
   });
   // Tự cập nhật trạng thái khi loop đang bật (nhẹ)
@@ -1580,7 +1580,7 @@ async function refreshEngineBadge() {
 }
 
 // ============================================
-// Mức dùng (token Javis tự đo, đa nhà cung cấp) - panel sidebar
+// Mức dùng (token Striver tự đo, đa nhà cung cấp) - panel sidebar
 // ============================================
 const _PROV_LABEL = { cli: "Claude Code", codex: "ChatGPT", openrouter: "OpenRouter", openai: "OpenAI", "anthropic-api": "Anthropic" };
 function _fmtTok(n) {
@@ -1622,11 +1622,11 @@ async function refreshUsage() {
   const box = document.getElementById("usageFloat"), btn = document.getElementById("usageToggle");
   if (!box || !btn) return;
   const apply = (col) => { box.classList.toggle("collapsed", col); btn.textContent = col ? "▸" : "▾"; };
-  apply(localStorage.getItem("javis.usageCollapsed") === "1");
+  apply(localStorage.getItem("striver.usageCollapsed") === "1");
   btn.onclick = () => {
     const col = !box.classList.contains("collapsed");
     apply(col);
-    try { localStorage.setItem("javis.usageCollapsed", col ? "1" : "0"); } catch (e) {}
+    try { localStorage.setItem("striver.usageCollapsed", col ? "1" : "0"); } catch (e) {}
   };
 })();
 
@@ -1662,7 +1662,7 @@ async function initAuthGate() {
     if (_wizardMandatory) {
       const pass = document.getElementById("wzPass"); if (pass) pass.required = true;
       const tw = document.getElementById("wzTokenWrap"); if (tw) tw.style.display = "";
-      const note = document.getElementById("wzErr"); if (note) note.textContent = "Đặt tài khoản + mật khẩu (≥8 ký tự) + MÃ THIẾT LẬP để bảo vệ Javis trên server công khai.";
+      const note = document.getElementById("wzErr"); if (note) note.textContent = "Đặt tài khoản + mật khẩu (≥8 ký tự) + MÃ THIẾT LẬP để bảo vệ Striver trên server công khai.";
     }
     wz.classList.add("open");
   } else {
@@ -1721,7 +1721,7 @@ if (document.getElementById("settingsBtn")) {
 
   document.getElementById("saveGeneral").addEventListener("click", (e) => {
     _saveSetting("general", { workspace_name: document.getElementById("setWsName").value.trim() }, e.target)
-      .then(() => { document.getElementById("workspaceName").textContent = document.getElementById("setWsName").value.trim() || "Javis OS"; });
+      .then(() => { document.getElementById("workspaceName").textContent = document.getElementById("setWsName").value.trim() || "Striver AIOS"; });
   });
   document.getElementById("saveModel").addEventListener("click", (e) => {
     const sel = document.getElementById("setOrModelSel");
@@ -1845,12 +1845,12 @@ if (document.getElementById("wzFinish")) {
     const pass = document.getElementById("wzPass").value;
     const prov = (document.querySelector('input[name="wzprov"]:checked') || {}).value || "anthropic-cli";
     const btn = document.getElementById("wzFinish"); btn.disabled = true; btn.textContent = "Đang lưu…";
-    if (_wizardMandatory && !pass) { err.textContent = "Bắt buộc đặt mật khẩu khi chạy trên server công khai."; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; return; }
+    if (_wizardMandatory && !pass) { err.textContent = "Bắt buộc đặt mật khẩu khi chạy trên server công khai."; btn.disabled = false; btn.textContent = "Bắt đầu dùng Striver →"; return; }
     try {
       if (pass) {
         const _tok = document.getElementById("wzToken");
         const d = await (await fetch("/auth/setup", { method: "POST", body: _fd({ username: user || "admin", password: pass, setup_token: _tok ? _tok.value.trim() : "" }) })).json();
-        if (!d.ok) { err.textContent = d.error || "Đặt mật khẩu lỗi"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; return; }
+        if (!d.ok) { err.textContent = d.error || "Đặt mật khẩu lỗi"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Striver →"; return; }
       }
       await fetch("/settings", { method: "POST", body: _fd({ section: "general", data: JSON.stringify({ workspace_name: ws, setup_done: true }) }) });
       const _PM = { "anthropic-cli": "sonnet", "openai-oauth": "gpt-5.5", "openrouter": "openai/gpt-4o-mini" };
@@ -1859,7 +1859,7 @@ if (document.getElementById("wzFinish")) {
       if (prov === "openrouter" && _ork && _ork.trim()) _mp.openrouter_key = _ork.trim();
       await fetch("/settings", { method: "POST", body: _fd({ section: "model", data: JSON.stringify(_mp) }) });
       location.reload();
-    } catch (e) { err.textContent = "Lỗi mạng"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; }
+    } catch (e) { err.textContent = "Lỗi mạng"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Striver →"; }
   });
 }
 

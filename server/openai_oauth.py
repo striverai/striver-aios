@@ -29,7 +29,7 @@ DEVICE_TOKEN_URL = AUTH_BASE + "/api/accounts/deviceauth/token"
 OAUTH_TOKEN_URL = AUTH_BASE + "/oauth/token"
 REDIRECT_URI = AUTH_BASE + "/deviceauth/callback"
 VERIFY_URL = AUTH_BASE + "/codex/device"
-UA = "javis-os/0.3 (+device-auth)"
+UA = "striver-os/0.3 (+device-auth)"
 
 # Phiên device đang chờ (1 admin nên giữ in-memory là đủ).
 _pending = {}

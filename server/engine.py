@@ -160,7 +160,7 @@ def _is_claude_model(model):
 
 def _or_mark_system(messages):
     """Copy messages, đánh cache_control lên system message ĐẦU (định dạng OpenAI-style của
-    OpenRouter). System của Javis ~26k ký tự và bất biến trong phiên - cache được là lãi nhất.
+    OpenRouter). System của Striver ~26k ký tự và bất biến trong phiên - cache được là lãi nhất.
     KHÔNG mutate list gốc: or_messages sống qua nhiều lượt, mutate là marker dính vĩnh viễn."""
     out = []
     marked = False
@@ -175,7 +175,7 @@ def _or_mark_system(messages):
 
 # Một số model OpenRouter (qwen, deepseek-r1, minimax...) nhét reasoning INLINE vào
 # content dưới dạng <think>...</think> thay vì field "reasoning" riêng → nếu yield
-# thẳng thì tag lậu lên chat, bẩn conversation log và phá parse JAVIS_METRICS.
+# thẳng thì tag lậu lên chat, bẩn conversation log và phá parse AIOS_METRICS.
 # Scrubber stateful gỡ block khỏi text hiển thị, giữ đuôi tag chẻ đôi giữa 2 delta
 # lại tới delta sau mới quyết định. Port rút gọn từ Hermes agent/think_scrubber.py.
 _THINK_OPEN = ("<think>", "<thinking>")
@@ -410,7 +410,7 @@ async def openrouter_stream(api_key, model, messages, reasoning="off"):
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "HTTP-Referer": "http://localhost:7777",
-        "X-Title": "Javis OS",
+        "X-Title": "Striver AIOS",
     }
     if _is_claude_model(model):
         messages = _or_mark_system(messages)   # cache system ~26k cho model Claude qua OpenRouter
@@ -543,7 +543,7 @@ async def openai_responses_stream(access_token, account_id, model, messages, rea
         "session_id": str(uuid.uuid4()),
         "Content-Type": "application/json",
         "Accept": "text/event-stream",
-        "User-Agent": "javis-os/0.3 (codex)",
+        "User-Agent": "striver-os/0.3 (codex)",
     }
     if not (account_id or ""):
         headers.pop("chatgpt-account-id", None)
@@ -593,7 +593,7 @@ async def openai_responses_stream(access_token, account_id, model, messages, rea
 
 
 # ============================================================
-# MCP đa-model - vòng tool-calling để model API/OAuth dùng MCP của Javis (qua mcp_client)
+# MCP đa-model - vòng tool-calling để model API/OAuth dùng MCP của Striver (qua mcp_client)
 # ============================================================
 def _clip_tool_result(result, max_chars: int = 8000, head_ratio: float = 0.6) -> str:
     """Cắt kết quả tool quá dài kiểu head+tail KÈM marker, thay cho hard-cut `[:max]`.
@@ -681,7 +681,7 @@ async def openai_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, m
 
 async def gemini_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):
     """Google Gemini (endpoint OpenAI-compat) + vòng tool-calling MCP - Gemini cũng thành
-    agent dùng MCP của Javis, y như OpenAI. Non-stream từng vòng (dùng _cc_tool_loop chung)."""
+    agent dùng MCP của Striver, y như OpenAI. Non-stream từng vòng (dùng _cc_tool_loop chung)."""
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     extra = {}
     if reasoning not in (None, "", "off") and _gemini_is_reasoning(model):
@@ -693,7 +693,7 @@ async def gemini_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, m
 
 async def openrouter_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
-               "HTTP-Referer": "http://localhost:7777", "X-Title": "Javis OS"}
+               "HTTP-Referer": "http://localhost:7777", "X-Title": "Striver AIOS"}
     extra = {}
     if reasoning not in (None, "", "off"):
         extra["reasoning"] = {"effort": reasoning}
@@ -717,7 +717,7 @@ async def responses_with_mcp(access_token, account_id, model, messages, reasonin
         "Authorization": f"Bearer {access_token}", "chatgpt-account-id": account_id or "",
         "OpenAI-Beta": "responses=experimental", "originator": "codex_cli_rs",
         "session_id": str(uuid.uuid4()), "Content-Type": "application/json", "Accept": "text/event-stream",
-        "User-Agent": "javis-os/0.3 (codex)",
+        "User-Agent": "striver-os/0.3 (codex)",
     }
     model = model or "gpt-5-codex"
     yield {"type": "meta", "model": model}

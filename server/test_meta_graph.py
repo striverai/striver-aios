@@ -15,7 +15,7 @@ import tempfile
 import urllib.parse
 from pathlib import Path
 
-os.environ.setdefault("JAVIS_STATE_DIR", tempfile.mkdtemp(prefix="javis-metagraph-"))
+os.environ.setdefault("AIOS_STATE_DIR", tempfile.mkdtemp(prefix="striver-metagraph-"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 _fails = []

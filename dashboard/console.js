@@ -1,7 +1,7 @@
 // ============================================
-// JAVIS OS - Console layer (sidebar + router)
+// STRIVER AIOS - Console layer (sidebar + router)
 // Bọc ngoài cockpit: rail điều hướng + trang quản lý. KHÔNG sửa app.js.
-// Graph 3D tự pause khi rời cockpit (qua window.__javisGraph). Alpine cho UI.
+// Graph 3D tự pause khi rời cockpit (qua window.__striverGraph). Alpine cho UI.
 // Thêm trang mới = thêm 1 mục vào RAIL_ITEMS + 1 case trong renderPage().
 // ============================================
 (function () {
@@ -35,7 +35,7 @@
   };
 
   const RAIL_ITEMS = [
-    { id: "home",        icon: ICON.home,        label: "Javis" },
+    { id: "home",        icon: ICON.home,        label: "Striver" },
     { id: "chat",        icon: ICON.chat,        label: "Trò chuyện" },
     { id: "overview",    icon: ICON.overview,    label: "Tổng quan" },
     { id: "settings",    icon: ICON.settings,    label: "Cài đặt" },
@@ -83,7 +83,7 @@
   }
 
   const VIEW_META = {
-    home:        { icon: "⬡", label: "Javis OS", sub: "" },
+    home:        { icon: "⬡", label: "Striver AIOS", sub: "" },
     chat:        { icon: "💬", label: "Trò chuyện", sub: "Khung chat rộng · lịch sử hội thoại" },
     overview:    { icon: "◎", label: "Tổng quan", sub: "Trạng thái hệ thống" },
     settings:    { icon: "⚙", label: "Cài đặt", sub: "Giọng nói · avatar · tên miền" },
@@ -103,7 +103,7 @@
     account:     { icon: "⚙", label: "Tài khoản", sub: "Đăng nhập & workspace" },
   };
 
-  // 4 trang tách từ Studio cũ - render container rồi gọi loader trong studio.js (window.JavisStudio).
+  // 4 trang tách từ Studio cũ - render container rồi gọi loader trong studio.js (window.StriverStudio).
   const STUDIO_PAGES = ["workflows", "agents", "skills", "automations"];
 
   let _settings = null;
@@ -124,11 +124,11 @@
   // Pause SỚM (chạy ngay khi parse, không chờ Alpine tải): màn hẹp → graph app.js vừa dựng
   // dừng luôn, khỏi ngốn pin/GPU trong lúc Alpine đang tải. _animate có guard _paused nên
   // dù load() chạy xong gọi lại cũng không bật lại.
-  if (isNarrow() && window.__javisGraph) { try { window.__javisGraph.pause(); } catch (e) {} }
+  if (isNarrow() && window.__striverGraph) { try { window.__striverGraph.pause(); } catch (e) {} }
 
   // ---- Điều khiển graph: chỉ chạy khi đang ở cockpit + không lite + không mở Studio ----
   function recomputeGraph() {
-    const g = window.__javisGraph;
+    const g = window.__striverGraph;
     if (!g) return;
     const studioOpen = !!document.getElementById("studio")?.classList.contains("open");
     const active = window.Alpine ? Alpine.store("nav").active : "home";
@@ -147,7 +147,7 @@
       const leave = _pageLeave; _pageLeave = null;
       if (leave) { try { leave(); } catch (e) {} }   // dọn trang cũ trước khi thay nội dung
       store.active = id;
-      // Nút điều khiển cockpit (⚙🔊↻) chỉ hiện ở trang Javis, không hiện navbar trang quản lý
+      // Nút điều khiển cockpit (⚙🔊↻) chỉ hiện ở trang Striver, không hiện navbar trang quản lý
       document.body.classList.toggle("in-console", id !== "home");
       // Rời trang Cài đặt → cất #quickSet về holder TRƯỚC khi cviewBody bị ghi đè (giữ node + handler).
       if (id !== "settings") parkQuickSet();
@@ -161,7 +161,7 @@
     else swap();
   }
 
-  // Mở trang Tệp tin ĐÚNG vị trí một file/thư mục (gọi từ link trong chat qua window.JavisOpenFiles,
+  // Mở trang Tệp tin ĐÚNG vị trí một file/thư mục (gọi từ link trong chat qua window.StriverOpenFiles,
   // hoặc từ deep-link #open=<đường-dẫn> khi mở ở tab trình duyệt mới). fullPath tương đối GỐC BRAIN
   // (đúng quy ước AI ghi trong chat); trang Tệp tin sẽ tự ghép tiền tố brain để ra path tương đối trần.
   function openFilesAt(fullPath) {
@@ -173,14 +173,14 @@
     const isDir = /\/$/.test(raw) || (base !== "" && base.indexOf(".") < 0);   // gạch chéo cuối hoặc không có đuôi → thư mục
     _fmPending = isDir ? { dir: clean, file: "" } : { dir: parent, file: base };
     // Chat mở dạng overlay phóng to (chat-stage) sẽ che trang Tệp tin → thu lại trước cho thấy kết quả.
-    try { if (window.JavisChatStage && window.JavisChatStage.isOpen()) window.JavisChatStage.collapse(); } catch (e) {}
+    try { if (window.StriverChatStage && window.StriverChatStage.isOpen()) window.StriverChatStage.collapse(); } catch (e) {}
     const active = window.Alpine ? Alpine.store("nav").active : "";
     if (active === "files") renderPage("files");   // đã ở trang Tệp tin → nạp lại để nhảy tới vị trí mới
     else navigateTo("files");
   }
-  if (typeof window !== "undefined") window.JavisOpenFiles = openFilesAt;
+  if (typeof window !== "undefined") window.StriverOpenFiles = openFilesAt;
   // Mở note trong editor cây (dùng cho click node đồ thị) từ đường dẫn TƯƠNG ĐỐI GỐC BRAIN (như openNodePopup).
-  if (typeof window !== "undefined") window.JavisOpenNote = function (brainRel) {
+  if (typeof window !== "undefined") window.StriverOpenNote = function (brainRel) {
     if (!brainRel) return;
     const ceilingRel = _vtHome ? _vtHome + "/" + brainRel : brainRel;   // ghép tiền tố trần như cây
     const name = brainRel.split("/").pop();
@@ -220,7 +220,7 @@
   // Trang Studio: tạo panel-<id> trong cview rồi gọi loader cũ (studio.js fill vào đó).
   function renderStudioPage(el, id) {
     el.innerHTML = `<div class="stab-panel" id="panel-${id}"></div>`;
-    const fn = window.JavisStudio && window.JavisStudio[id];
+    const fn = window.StriverStudio && window.StriverStudio[id];
     if (fn) { try { fn(); } catch (e) { el.innerHTML = placeholder(id, "Lỗi nạp: " + e.message); } }
     else el.innerHTML = placeholder(id, "studio.js chưa sẵn sàng.");
   }
@@ -454,7 +454,7 @@
       catch (e) { listEl.innerHTML = `<div class="empty" style="padding:20px;color:#d98">Lỗi kết nối: ${esc(e.message)}</div>`; return; }
       if (!resp.ok || d.error) {
         const msg = d.error || (resp.status === 404
-          ? "Máy chủ Javis chưa có chức năng Tệp tin - hãy KHỞI ĐỘNG LẠI server (stop-javis.bat → start-javis.vbs) rồi tải lại trang."
+          ? "Máy chủ Striver chưa có chức năng Tệp tin - hãy KHỞI ĐỘNG LẠI server (stop-striver.bat → start-striver.vbs) rồi tải lại trang."
           : resp.status === 401 ? "Phiên đăng nhập hết hạn - tải lại trang & đăng nhập."
           : "Lỗi máy chủ (" + resp.status + ").");
         listEl.innerHTML = `<div class="empty" style="padding:20px;color:#d98">⚠ ${esc(msg)}</div>`; return;
@@ -524,7 +524,7 @@
       catch (e) { card.querySelector(".fm-readbox").innerHTML = `<span style="color:#d98">Lỗi: ${esc(e.message)}</span>`; return; }
       const dlUrl = `/files/download?brain=${encodeURIComponent(fbrain())}&path=${encodeURIComponent(rel)}`;
       if (!resp.ok || d.error) {
-        const m = d.error || (resp.status === 404 ? "Server chưa có chức năng Tệp tin - khởi động lại server Javis."
+        const m = d.error || (resp.status === 404 ? "Server chưa có chức năng Tệp tin - khởi động lại server Striver."
           : resp.status === 401 ? "Hết phiên đăng nhập - tải lại trang." : "Lỗi (" + resp.status + ")");
         card.querySelector(".fm-readbox").innerHTML = `<span>${esc(m)} - <a href="${_raw}" target="_blank" style="color:#bcd2ff">Mở trong tab mới</a> · <a href="${rawUrl(rel, 1)}" style="color:#bcd2ff">Tải về</a></span>`;
         return;
@@ -653,9 +653,9 @@
       let d = { plugins: [] };
       try { d = await (await fetch(`/plugins?brain=${encodeURIComponent(fbrain())}`)).json(); } catch (e) {}
       if (myGen !== _renderGen) return;
-      const intro = `<p style="color:#9fb0cf;font-size:15px;max-width:720px;margin:0 0 12px">Plugin thêm <b>tool</b> (công cụ engine gọi được) và <b>hook</b> native cho Javis mà không sửa lõi - dùng được ở MỌI engine (Claude Code, Codex, API) qua hub, tôn trọng 3 mức quyền như tool khác.</p>`;
-      const gateBanner = (!d.user_gate) ? `<div style="margin-bottom:14px;padding:11px 13px;border:1px solid rgba(224,160,74,.5);border-radius:10px;background:rgba(224,160,74,.08);color:#ffd9a0;font-size:13px;line-height:1.55"><b>⚠ Plugin do bạn cài đang bị chặn.</b> Plugin toàn cục/brain chạy code Python thật trong server nên mặc định TẮT. Để bật: đặt biến môi trường <code>JAVIS_ENABLE_USER_PLUGINS=true</code> rồi khởi động lại Javis. Plugin có sẵn (bundled) vẫn chạy bình thường.</div>` : "";
-      const dirHint = `<p style="color:#6b7894;font-size:12.5px;margin:0 0 14px">Thả plugin TOÀN CỤC (dùng cho MỌI brain) vào <code>${esc(d.global_dir || "")}</code> · mỗi plugin gồm <code>plugin.yaml</code> + <code>plugin.py</code>. Hoặc bảo Javis trong khung chat: "tạo plugin ...".</p>`;
+      const intro = `<p style="color:#9fb0cf;font-size:15px;max-width:720px;margin:0 0 12px">Plugin thêm <b>tool</b> (công cụ engine gọi được) và <b>hook</b> native cho Striver mà không sửa lõi - dùng được ở MỌI engine (Claude Code, Codex, API) qua hub, tôn trọng 3 mức quyền như tool khác.</p>`;
+      const gateBanner = (!d.user_gate) ? `<div style="margin-bottom:14px;padding:11px 13px;border:1px solid rgba(224,160,74,.5);border-radius:10px;background:rgba(224,160,74,.08);color:#ffd9a0;font-size:13px;line-height:1.55"><b>⚠ Plugin do bạn cài đang bị chặn.</b> Plugin toàn cục/brain chạy code Python thật trong server nên mặc định TẮT. Để bật: đặt biến môi trường <code>AIOS_ENABLE_USER_PLUGINS=true</code> rồi khởi động lại Striver. Plugin có sẵn (bundled) vẫn chạy bình thường.</div>` : "";
+      const dirHint = `<p style="color:#6b7894;font-size:12.5px;margin:0 0 14px">Thả plugin TOÀN CỤC (dùng cho MỌI brain) vào <code>${esc(d.global_dir || "")}</code> · mỗi plugin gồm <code>plugin.yaml</code> + <code>plugin.py</code>. Hoặc bảo Striver trong khung chat: "tạo plugin ...".</p>`;
       const plugins = (d.plugins || []).slice();
       const order = { bundled: 0, user: 1, vault: 2 };
       plugins.sort((a, b) => (order[a.source] ?? 9) - (order[b.source] ?? 9) || (a.name || "").localeCompare(b.name || ""));
@@ -676,7 +676,7 @@
     const myGen = _renderGen;   // chống race: đổi trang → mọi loadLoops/loadLog dở tự bỏ
     let pollTimer = null;       // 1 chuỗi poll duy nhất (clearTimeout trước khi đặt lại)
     el.innerHTML = `<div class="cview-section"><div class="empty">Đang tải...</div></div>`;
-    const GNAME = { business: "Kinh doanh", brain: "Bộ não", product: "Cải thiện Javis", custom: "Tự định nghĩa" };
+    const GNAME = { business: "Kinh doanh", brain: "Bộ não", product: "Cải thiện Striver", custom: "Tự định nghĩa" };
     const fmtT = ts => ts ? new Date(ts * 1000).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "-";
 
     el.innerHTML = `<div class="cview-section">
@@ -689,7 +689,7 @@
         <input type="hidden" id="lpSlug">
         <div class="si-grid">
           <div class="si-field"><label>Tên loop</label><input id="lpName" placeholder="VD: Đọc source mỗi 2 tiếng"></div>
-          <div class="si-field"><label>Mô tả nhiệm vụ (mỗi vòng Javis làm đúng việc này)</label>
+          <div class="si-field"><label>Mô tả nhiệm vụ (mỗi vòng Striver làm đúng việc này)</label>
             <textarea id="lpBody" placeholder="VD: Mỗi vòng đọc 1 source chưa xử lý trong 06 - Sources rồi đề xuất Wiki page nên tạo. Hoặc: đọc số đơn hôm nay qua MCP POS, nếu thấp thì soạn nháp 1 caption đẩy hàng vào 05 - Projects."></textarea></div>
           <div class="si-row" style="gap:14px;flex-wrap:wrap">
             <div class="si-field"><label>Chế độ</label><div class="si-row" id="lpModes">
@@ -701,7 +701,7 @@
           <div id="lpFullWarn" style="display:none;margin-top:4px;padding:10px 12px;border:1px solid rgba(224,102,74,.5);border-radius:8px;background:rgba(224,102,74,.08);color:#ffb59e;font-size:13px;line-height:1.5">
             <b>⚠ CHẾ ĐỘ TOÀN QUYỀN - rủi ro cao.</b> Loop sẽ tự thao tác THẬT qua MCP không cần hỏi: có thể <b>tạo/sửa đơn hàng, chạy quảng cáo (tiêu tiền thật), gửi tin nhắn/email, đăng bài</b>. Nó chạy nền theo lịch, KHÔNG có người duyệt từng bước, và <b>hành động thật không hoàn tác được</b>. Chỉ bật khi anh đã tin tưởng loop này và mô tả nhiệm vụ thật rõ ràng, giới hạn phạm vi. Nên chạy thử ở "Đề xuất" hoặc "Tự làm (an toàn)" trước.
           </div>
-          <div class="dim" style="font-size:12px;color:#6b7894;margin-top:2px">Đề xuất = chỉ đọc + gợi ý. Tự làm (an toàn) = ghi nháp file + đọc MCP, KHÔNG tiền/đơn/đăng bài. Toàn quyền = tự thao tác mọi thứ. · Tinh chỉnh nâng cao (giờ im lặng, trần vòng/ngày, thư mục code): sửa file <code>Javis/loops/&lt;tên&gt;.md</code>.</div>
+          <div class="dim" style="font-size:12px;color:#6b7894;margin-top:2px">Đề xuất = chỉ đọc + gợi ý. Tự làm (an toàn) = ghi nháp file + đọc MCP, KHÔNG tiền/đơn/đăng bài. Toàn quyền = tự thao tác mọi thứ. · Tinh chỉnh nâng cao (giờ im lặng, trần vòng/ngày, thư mục code): sửa file <code>Striver/loops/&lt;tên&gt;.md</code>.</div>
           <div class="si-actions"><button class="s-btn" id="lpSave">💾 Lưu loop</button><button class="s-btn-ghost" id="lpCancel">Huỷ</button><span class="dim" id="lpFormMsg" style="font-size:13px;color:#e0a04a"></span></div>
         </div>
       </div>
@@ -734,7 +734,7 @@
       const name = el.querySelector("#lpName").value.trim();
       const body = el.querySelector("#lpBody").value.trim();
       if (!name) { el.querySelector("#lpFormMsg").textContent = "Nhập tên loop"; return; }
-      if (!body) { el.querySelector("#lpFormMsg").textContent = "Nhập mô tả nhiệm vụ (Javis cần biết mỗi vòng làm gì)"; return; }
+      if (!body) { el.querySelector("#lpFormMsg").textContent = "Nhập mô tả nhiệm vụ (Striver cần biết mỗi vòng làm gì)"; return; }
       if (fcur.mode === "full" && !confirm(`Bật CHẾ ĐỘ TOÀN QUYỀN cho loop "${name}"?\n\nLoop sẽ tự thao tác THẬT qua MCP không cần hỏi: tạo/sửa đơn, chạy quảng cáo (tiêu tiền thật), gửi tin, đăng bài. Chạy nền theo lịch, KHÔNG duyệt từng bước, hành động KHÔNG hoàn tác được.\n\nAnh chắc chắn chứ?`)) return;
       const fd = new FormData();
       fd.append("slug", el.querySelector("#lpSlug").value);
@@ -799,7 +799,7 @@
       };
       div.querySelector(".edit").onclick = () => openForm(lp);
       div.querySelector(".del").onclick = async () => {
-        if (!confirm(`Xoá loop "${lp.name}"? File Javis/loops/${lp.slug}.md sẽ bị xoá.`)) return;
+        if (!confirm(`Xoá loop "${lp.name}"? File Striver/loops/${lp.slug}.md sẽ bị xoá.`)) return;
         await fetch("/loops/delete", { method: "POST", body: (() => { const f = new FormData(); f.append("slug", lp.slug); f.append("brain", fbrain()); return f; })() });
         loadLoops(); loadLog();
       };
@@ -815,7 +815,7 @@
       if (!box) return;
       box.innerHTML = "";
       if (!(d.loops || []).length) {
-        box.innerHTML = `<div class="empty">Chưa có loop nào. Bấm <b>+ Loop mới</b>, hoặc nói với Javis trong chat (vd "tạo loop mỗi 2 tiếng đọc 1 source rồi đề xuất").</div>`;
+        box.innerHTML = `<div class="empty">Chưa có loop nào. Bấm <b>+ Loop mới</b>, hoặc nói với Striver trong chat (vd "tạo loop mỗi 2 tiếng đọc 1 source rồi đề xuất").</div>`;
       } else {
         d.loops.forEach(lp => box.appendChild(loopCard(lp)));
       }
@@ -861,7 +861,7 @@
     const gitWarn = cfg.git_available ? "" : `<div class="dim" style="color:#7d8aa6;font-size:13px;margin-top:6px">ℹ Máy chưa có <code>git</code>: Tự học VẪN chạy bình thường, chỉ là chưa có hoàn tác 1-chạm/backup lên GitHub. Cài git để bật undo + sao lưu brain.</div>`;
 
     el.innerHTML = `<div class="cview-section">
-      <p style="color:#9fb0cf;font-size:15px;max-width:660px;margin:0 0 14px">Sau mỗi hội thoại, Javis tự rút <b>ký ức</b>, đúc <b>tri thức Wiki</b>, <b>kỹ năng</b> và <b>việc</b> - qua tiến trình học <b>chỉ-đọc, cô lập</b> (0 MCP, không xoá). Người ghi file là code tin cậy. Mặc định <b>bật sẵn + tự ghi</b>; nếu brain có git thì mỗi lần học còn được <b>git-commit để hoàn tác 1 chạm</b>.</p>
+      <p style="color:#9fb0cf;font-size:15px;max-width:660px;margin:0 0 14px">Sau mỗi hội thoại, Striver tự rút <b>ký ức</b>, đúc <b>tri thức Wiki</b>, <b>kỹ năng</b> và <b>việc</b> - qua tiến trình học <b>chỉ-đọc, cô lập</b> (0 MCP, không xoá). Người ghi file là code tin cậy. Mặc định <b>bật sẵn + tự ghi</b>; nếu brain có git thì mỗi lần học còn được <b>git-commit để hoàn tác 1 chạm</b>.</p>
       <div class="si-grid">
         <div class="si-field"><label>Bật tự học</label>
           <button class="si-chip ${cfg.enabled ? "sel" : ""}" id="lnEnabled">${cfg.enabled ? "● Đang bật" : "○ Đang tắt"}</button>
@@ -885,14 +885,14 @@
 
       <div class="si-log" id="lnBackupBox">
         <h3 style="font-size:15px;color:#cdd8ee">⇅ Đồng bộ brain với GitHub (2 chiều)</h3>
-        <p style="color:#9fb0cf;font-size:14px;max-width:680px;margin:2px 0 10px">Đồng bộ <b>TẤT CẢ brain trong thư mục brains</b> (mọi bộ não, ghi chú, Wiki, ký ức) với 1 repo GitHub <b>riêng tư</b>: vừa đẩy thay đổi của máy này lên, vừa kéo thay đổi từ máy khác về (dùng chung cho máy nhà + VPS, các máy tự khớp nhau). Sửa trùng 1 file ở 2 nơi thì bản mới hơn thắng, bản kia được giữ thành file <code>.conflict-*</code> ngay cạnh. Máy mới cấu hình repo rồi bấm đồng bộ là khôi phục được toàn bộ. Hướng dẫn: <a href="https://github.com/blogminhquy/javis-os/blob/main/docs/18-sao-luu-github.md" target="_blank" style="color:#7fb0ff">docs/18-sao-luu-github.md</a>.</p>
+        <p style="color:#9fb0cf;font-size:14px;max-width:680px;margin:2px 0 10px">Đồng bộ <b>TẤT CẢ brain trong thư mục brains</b> (mọi bộ não, ghi chú, Wiki, ký ức) với 1 repo GitHub <b>riêng tư</b>: vừa đẩy thay đổi của máy này lên, vừa kéo thay đổi từ máy khác về (dùng chung cho máy nhà + VPS, các máy tự khớp nhau). Sửa trùng 1 file ở 2 nơi thì bản mới hơn thắng, bản kia được giữ thành file <code>.conflict-*</code> ngay cạnh. Máy mới cấu hình repo rồi bấm đồng bộ là khôi phục được toàn bộ. Hướng dẫn: <a href="https://github.com/striverai/striver-aios/blob/main/docs/18-sao-luu-github.md" target="_blank" style="color:#7fb0ff">docs/18-sao-luu-github.md</a>.</p>
         <ol style="color:#9fb0cf;font-size:13.5px;line-height:1.7;max-width:680px;margin:0 0 12px;padding-left:20px">
-          <li>Tạo repo GitHub <b>Private</b> (trống, KHÔNG thêm README) - vd <code>javis-brain-backup</code>.</li>
+          <li>Tạo repo GitHub <b>Private</b> (trống, KHÔNG thêm README) - vd <code>striver-brain-backup</code>.</li>
           <li>Tạo token: GitHub → Settings → Developer settings → <b>Fine-grained tokens</b> → chọn đúng repo đó → quyền <b>Contents: Read and write</b> → tạo và copy token (dạng <code>github_pat_...</code>).</li>
           <li>Dán URL repo + token vào đây, bấm <b>Kiểm tra</b>, rồi <b>Đồng bộ ngay</b>. Bật tự động để định kỳ tự khớp giữa các máy.</li>
         </ol>
         <div class="si-grid">
-          <div class="si-field"><label>URL repo (https)</label><input id="bkRepo" placeholder="https://github.com/blogminhquy/javis-brain-backup"></div>
+          <div class="si-field"><label>URL repo (https)</label><input id="bkRepo" placeholder="https://github.com/blogminhquy/striver-brain-backup"></div>
           <div class="si-field"><label>GitHub token (fine-grained, quyền Contents)</label><input id="bkToken" type="password" placeholder="github_pat_..."></div>
           <div class="si-row" style="gap:14px;flex-wrap:wrap">
             <div class="si-field"><label>Nhánh</label><input id="bkBranch" value="main" style="max-width:120px"></div>
@@ -909,7 +909,7 @@
         </div>
       </div>
 
-      <div class="si-log"><h3 style="font-size:15px;color:#cdd8ee">Javis đã tự học gì (commit gần nhất)</h3><div id="lnReview">Đang tải...</div></div>
+      <div class="si-log"><h3 style="font-size:15px;color:#cdd8ee">Striver đã tự học gì (commit gần nhất)</h3><div id="lnReview">Đang tải...</div></div>
       <div class="si-log"><h3 style="font-size:15px;color:#cdd8ee">Nhật ký học</h3><div id="lnLog">Đang tải...</div></div>
     </div>`;
 
@@ -1065,11 +1065,11 @@
     el.innerHTML = `<div class="cview-section"><div class="empty">Đang tải...</div></div>`;
     let wfs = [];
     try { wfs = (await (await fetch(`/workflows?brain=${encodeURIComponent(fbrain())}`)).json()).workflows || []; } catch (e) {}
-    const routeOpts = `<option value="auto">Trực tiếp (Javis tự làm, chỉ file)</option>` +
+    const routeOpts = `<option value="auto">Trực tiếp (Striver tự làm, chỉ file)</option>` +
       wfs.map(w => `<option value="wf:${esc(w.slug)}">Workflow: ${esc(w.name || w.slug)}</option>`).join("");
 
     el.innerHTML = `<div class="cview-section">
-      <p style="color:#9fb0cf;font-size:15px;max-width:680px;margin:0 0 12px">Backlog + <b>dispatcher</b>: Javis giữ danh sách việc, tự chọn việc ưu tiên rồi điều phối xuống workflow/agent làm. <b>An toàn:</b> chạy nền chỉ thao tác FILE (không MCP tiền/đơn); việc xong dừng ở <b>Chờ duyệt</b> để bạn kiểm rồi mới tính là xong.</p>
+      <p style="color:#9fb0cf;font-size:15px;max-width:680px;margin:0 0 12px">Backlog + <b>dispatcher</b>: Striver giữ danh sách việc, tự chọn việc ưu tiên rồi điều phối xuống workflow/agent làm. <b>An toàn:</b> chạy nền chỉ thao tác FILE (không MCP tiền/đơn); việc xong dừng ở <b>Chờ duyệt</b> để bạn kiểm rồi mới tính là xong.</p>
       <div class="si-grid" style="margin-bottom:14px">
         <div class="si-field"><label>Điều phối tự động</label><div class="si-row" id="knOrch"></div>
           <div class="dim" style="font-size:13px;margin-top:6px;color:#7d8aa6">off = chỉ dọn dẹp · manual = chỉ chạy khi bấm Nudge · auto = tự chạy theo lịch (30s/nhịp, 1 việc/lần).</div></div>
@@ -1082,7 +1082,7 @@
       </div>
       <div id="knForm" style="display:none;margin-bottom:14px;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.03)">
         <div class="si-field"><label>Tiêu đề</label><input id="knTitle" placeholder="VD: Soạn 3 post từ sản phẩm bán chạy tuần này"></div>
-        <div class="si-field"><label>Mô tả việc (intent - Javis đọc để làm)</label><textarea id="knIntent" placeholder="Mô tả rõ việc cần làm + ghi kết quả nháp vào đâu (vd 05 - Projects)."></textarea></div>
+        <div class="si-field"><label>Mô tả việc (intent - Striver đọc để làm)</label><textarea id="knIntent" placeholder="Mô tả rõ việc cần làm + ghi kết quả nháp vào đâu (vd 05 - Projects)."></textarea></div>
         <div class="si-row" style="gap:14px;flex-wrap:wrap">
           <div class="si-field" style="flex:1;min-width:220px"><label>Cách làm (route)</label><select id="knRoute" class="loop-sel">${routeOpts}</select></div>
           <div class="si-field"><label>Ưu tiên</label><select id="knPrio" class="loop-sel"><option value="1">🔺 Cao</option><option value="2" selected>🔼 Vừa</option><option value="3">🔽 Thấp</option></select></div>
@@ -1179,12 +1179,12 @@
     const tg = s.telegram || {};
     const dash = s.dashboard || {};
     const gOn = dash.graph_enabled !== false;
-    const gMode = (((typeof localStorage !== "undefined" && localStorage.getItem("javis.graphMode")) || dash.graph_mode || "2d") === "3d") ? "3d" : "2d";
+    const gMode = (((typeof localStorage !== "undefined" && localStorage.getItem("striver.graphMode")) || dash.graph_mode || "2d") === "3d") ? "3d" : "2d";
     el.innerHTML = `
       <div class="cview-section">
         <h3>Phiên bản</h3>
         <div class="gcard" style="max-width:560px">
-          <div class="gcard-top"><span class="gcard-name">Javis OS</span><span class="gcard-tag" id="ovVerTag">…</span></div>
+          <div class="gcard-top"><span class="gcard-name">Striver AIOS</span><span class="gcard-tag" id="ovVerTag">…</span></div>
           <div class="gcard-meta" id="ovVerMeta">Đang kiểm tra bản mới…</div>
           <div class="js-actions">
             <button class="gcard-btn ghost" id="ovVerCheck">Kiểm tra lại</button>
@@ -1198,7 +1198,7 @@
         <div class="cgrid">
           <div class="gcard"><div class="gcard-top"><span class="gcard-name">Engine</span></div><div class="gcard-meta">${esc(eng)}</div></div>
           <div class="gcard"><div class="gcard-top"><span class="gcard-name">Model</span></div><div class="gcard-meta">${esc(curModel)}</div></div>
-          <div class="gcard"><div class="gcard-top"><span class="gcard-name">Workspace</span></div><div class="gcard-meta">${esc(s.workspace_name || "Javis OS")}</div></div>
+          <div class="gcard"><div class="gcard-top"><span class="gcard-name">Workspace</span></div><div class="gcard-meta">${esc(s.workspace_name || "Striver AIOS")}</div></div>
           <div class="gcard"><div class="gcard-top"><span class="gcard-name">Telegram</span></div><div class="gcard-meta">${tg.enabled ? "● Bật" : "○ Tắt"}${tg.chat_id ? " · " + esc(tg.chat_id) : ""}</div></div>
         </div>
       </div>
@@ -1220,7 +1220,7 @@
         <h3>Khởi động cùng máy</h3>
         <div class="cgrid">
           <div class="gcard">
-            <div class="gcard-top"><span class="gcard-name">Tự bật Javis khi mở máy</span><span class="gcard-tag" id="ovAutoTag">…</span></div>
+            <div class="gcard-top"><span class="gcard-name">Tự bật Striver khi mở máy</span><span class="gcard-tag" id="ovAutoTag">…</span></div>
             <div class="gcard-meta" id="ovAutoMeta">Đang kiểm tra…</div>
             <button class="gcard-btn" id="ovAutoToggle" style="display:none"></button>
             <div class="gcard-meta" id="ovAutoStatus" style="margin-top:8px"></div>
@@ -1273,7 +1273,7 @@
     if (verCheck) verCheck.onclick = ovLoadVersion;
     const verUpd = document.getElementById("ovVerUpdate");
     if (verUpd) verUpd.onclick = async () => {
-      if (!confirm("Cập nhật Javis lên bản mới nhất?\nApp sẽ tự khởi động lại (~20-40 giây), trang sẽ tự tải lại.")) return;
+      if (!confirm("Cập nhật Striver lên bản mới nhất?\nApp sẽ tự khởi động lại (~20-40 giây), trang sẽ tự tải lại.")) return;
       const st = document.getElementById("ovVerStatus");
       verUpd.disabled = true;
       st.textContent = "⏳ Đang chuẩn bị cập nhật…";
@@ -1321,8 +1321,8 @@
       document.getElementById("ovAutoTag").textContent = on ? "bật" : "tắt";
       const meta = document.getElementById("ovAutoMeta");
       meta.innerHTML = on
-        ? "Javis tự chạy nền mỗi khi anh đăng nhập Windows - không cần bật tay. Chạy ẩn, mở <code>localhost:7777</code> để dùng."
-        : "Bật để Javis tự khởi động mỗi khi mở máy. Chạy ẩn ở nền, không hiện cửa sổ.";
+        ? "Striver tự chạy nền mỗi khi anh đăng nhập Windows - không cần bật tay. Chạy ẩn, mở <code>localhost:7777</code> để dùng."
+        : "Bật để Striver tự khởi động mỗi khi mở máy. Chạy ẩn ở nền, không hiện cửa sổ.";
       if (j.stale) meta.innerHTML += '<br><span class="dim">⚠ Đường dẫn cài đặt đã đổi - bấm bật lại để cập nhật.</span>';
       const btn = document.getElementById("ovAutoToggle");
       btn.style.display = "";
@@ -1353,7 +1353,7 @@
     };
     // Đổi 2D/3D: lưu localStorage (bền ngay, không cần restart server) + lưu server (bền lâu) + dựng lại đồ thị.
     const setGraphMode = async (mode) => {
-      try { localStorage.setItem("javis.graphMode", mode); } catch (e) {}
+      try { localStorage.setItem("striver.graphMode", mode); } catch (e) {}
       graphEnabled = true;
       try { await saveSetting("dashboard", { graph_mode: mode, graph_enabled: true }); } catch (e) {}
       if (window.reinitGraph) { try { await window.reinitGraph(mode); } catch (e) {} }
@@ -1367,7 +1367,7 @@
     const mig = document.getElementById("ovMigrate");
     if (mig) mig.onclick = async () => {
       const brain = (window.currentBrainPath ? currentBrainPath() : "brain");
-      if (!confirm("Chuẩn hóa cấu trúc brain đang chọn?\n(Di chuyển Javis/agents→agents, Javis/workflows→workflows, Memory→memory. Có git backup.)")) return;
+      if (!confirm("Chuẩn hóa cấu trúc brain đang chọn?\n(Di chuyển Striver/agents→agents, Striver/workflows→workflows, Memory→memory. Có git backup.)")) return;
       mig.disabled = true; mig.textContent = "Đang chuẩn hóa...";
       const fd = new FormData(); fd.append("brain", brain);
       let r = {};
@@ -1808,7 +1808,7 @@
       const r = await postJson("/connect/add", { connector_id: con.id, fields: fieldsVal, label: m.querySelector("#cLabel").value.trim() });
       if (!r.ok) { err.textContent = r.error || "Lỗi"; go.disabled = false; go.textContent = "Kết nối"; return; }
       m.querySelector(".conn-form").innerHTML = '<div class="conn-ok">✓ Đã kết nối: <b>' + esc(r.label || con.name) + '</b> (' + (r.tools || 0) + ' công cụ)'
-        + (isFirst ? '<div class="conn-hint">Sang trang Javis hỏi thử: "Hôm nay bán được bao nhiêu?"</div>' : "") + '</div>';
+        + (isFirst ? '<div class="conn-hint">Sang trang Striver hỏi thử: "Hôm nay bán được bao nhiêu?"</div>' : "") + '</div>';
       go.style.display = "none";
       setTimeout(() => { closeConnModal(); renderConnect(el); }, 1600);
     };
@@ -1838,7 +1838,7 @@
         } else if (st.state === "done") {
           clearInterval(_connPoll); _connPoll = null;
           zone.innerHTML = '<div class="conn-ok">✓ Đã đăng nhập: <b>' + esc(st.label || "Zalo") + '</b>'
-            + (isFirst ? '<div class="conn-hint">Sang trang Javis nhắn thử: "Đọc tin nhắn Zalo mới nhất"</div>' : "") + '</div>';
+            + (isFirst ? '<div class="conn-hint">Sang trang Striver nhắn thử: "Đọc tin nhắn Zalo mới nhất"</div>' : "") + '</div>';
           setTimeout(() => { closeConnModal(); renderConnect(el); }, 1800);
         } else if (st.state === "error") {
           clearInterval(_connPoll); _connPoll = null;
@@ -1896,7 +1896,7 @@
   }
   function openFullAck(el, c, con) {
     const text = (con && con.risk) ? con.risk
-      : "Mức này cho phép Javis thao tác THẬT ra ngoài qua kết nối này: tạo đơn, gửi tin, chạy quảng cáo, publish… Hành động có thể KHÔNG hoàn tác được.";
+      : "Mức này cho phép Striver thao tác THẬT ra ngoài qua kết nối này: tạo đơn, gửi tin, chạy quảng cáo, publish… Hành động có thể KHÔNG hoàn tác được.";
     const m = connModal(mHead("⚠ BẬT TOÀN QUYỀN")
       + '<div class="conn-form"><div class="conn-risk">' + esc(text) + '</div>'
       + '<label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:14px"><input type="checkbox" id="ackChk"> Tôi hiểu rủi ro và tự chịu trách nhiệm</label></div>'
@@ -1990,7 +1990,7 @@
     const mainLabel = (provs.find(p => p.id === main.provider) || {}).label || main.provider || "-";
     let warn = "";
     if (main.provider === "openai-oauth") {
-      warn = `<div class="gcard" style="border:1px solid #2c7a4b;background:rgba(44,122,75,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">✓ <b>ChatGPT (gói subscription)</b> chạy qua <b>Codex CLI</b> - Javis tự đẩy kho Kết nối sang Codex qua hub, nên vẫn dùng được đầy đủ.</div></div>`;
+      warn = `<div class="gcard" style="border:1px solid #2c7a4b;background:rgba(44,122,75,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">✓ <b>ChatGPT (gói subscription)</b> chạy qua <b>Codex CLI</b> - Striver tự đẩy kho Kết nối sang Codex qua hub, nên vẫn dùng được đầy đủ.</div></div>`;
     } else if (!MCP_PROVIDERS.includes(main.provider)) {
       warn = `<div class="gcard" style="border:1px solid #b9821f;background:rgba(185,130,31,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">⚠ Main Model đang là <b>${esc(mainLabel)}</b> - chưa hỗ trợ gọi công cụ. Đổi ở trang <b>Models</b>.</div></div>`;
     } else if (main.provider !== "anthropic-cli") {
@@ -2004,7 +2004,7 @@
     el.innerHTML = warn
       + '<div class="cview-section"><h3>◆ Đã kết nối <span style="opacity:.5">' + conns.length + ' tài khoản</span></h3>'
       + '<div class="gcard-meta" style="max-width:740px">Một dịch vụ nối được NHIỀU tài khoản (nhiều shop, nhiều số Zalo…). Mọi bộ não - Claude Code, ChatGPT/Codex, OpenRouter, API - dùng chung kho này qua MCP hub, kèm phân quyền và nhật ký.'
-      + '<label style="margin-left:8px;cursor:pointer"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của Javis (bỏ MCP sẵn của máy)</label></div>'
+      + '<label style="margin-left:8px;cursor:pointer"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của Striver (bỏ MCP sẵn của máy)</label></div>'
       + '<div class="prov-list" style="margin-top:12px">' + (connectedHtml || '<div class="mp-empty">Chưa đấu nguồn nào - chọn một dịch vụ trong Kho bên dưới để bắt đầu.</div>') + '</div></div>'
       + '<div class="cview-section"><h3>◆ Kho kết nối</h3>'
       + '<div class="cat-tools"><input class="js-input" id="catQ" placeholder="Tìm dịch vụ…" style="max-width:220px">'
@@ -2123,7 +2123,7 @@
       else if (!d.token_set) line = "⚪ Chưa có bot token.";
       else if (d.status === "polling") {
         const n = (d.chat_ids || []).length;
-        line = `🟢 Bot đang nhận tin - ${n ? n + " chat ID được phép" : "MỌI NGƯỜI nhắn được (chưa giới hạn ID)"} - nhắn cho bot là Javis trả lời.`;
+        line = `🟢 Bot đang nhận tin - ${n ? n + " chat ID được phép" : "MỌI NGƯỜI nhắn được (chưa giới hạn ID)"} - nhắn cho bot là Striver trả lời.`;
       }
       else if (d.status === "conflict") line = "🔴 409: " + (d.last_error || "token bị poll nơi khác hoặc còn webhook") + " - bot tự xoá webhook khi khởi động; nếu vẫn lỗi thì có nơi khác đang poll cùng token.";
       else if (d.status === "error") line = "⚠ Lỗi bot: " + (d.last_error || "");
@@ -2163,7 +2163,7 @@
         <h3>Workspace</h3>
         <div class="gcard" style="max-width:560px">
           <label class="js-lbl">Tên workspace</label>
-          <input class="js-input" id="acWs" value="${esc(s.workspace_name || "Javis OS")}">
+          <input class="js-input" id="acWs" value="${esc(s.workspace_name || "Striver AIOS")}">
           <button class="gcard-btn" id="acWsSave">Lưu</button>
           <div class="gcard-meta" id="acWsStatus"></div>
         </div>
@@ -2186,7 +2186,7 @@
       wsStatus.textContent = "Đang lưu...";
       const r = await saveSetting("general", { workspace_name: document.getElementById("acWs").value.trim() });
       wsStatus.textContent = r.ok ? "✅ Đã lưu." : "⚠ Lỗi.";
-      const wn = document.getElementById("workspaceName"); if (wn) wn.textContent = document.getElementById("acWs").value.trim() || "Javis OS";
+      const wn = document.getElementById("workspaceName"); if (wn) wn.textContent = document.getElementById("acWs").value.trim() || "Striver AIOS";
     };
     const acStatus = document.getElementById("acStatus");
     document.getElementById("acSave").onclick = async () => {
@@ -2267,7 +2267,7 @@
     const host = el.querySelector(".cs-host");
     const qs = document.getElementById("quickSet");
     if (qs && host) host.appendChild(qs);         // nhúng bộ điều khiển cũ vào trang (giữ handler)
-    if (window.__javisRefreshExtras) { try { window.__javisRefreshExtras(); } catch (e) {} }  // nạp lại avatar/tên miền
+    if (window.__striverRefreshExtras) { try { window.__striverRefreshExtras(); } catch (e) {} }  // nạp lại avatar/tên miền
     const provHost = document.getElementById("ttsProviderHost");   // điểm neo trong nhóm giọng nói (index.html)
     if (provHost) provHost.innerHTML = provHtml;
 
@@ -2378,7 +2378,7 @@
     // cũ → TRẢ về HUD trước, nếu không el.innerHTML bên dưới sẽ xoá luôn #chatArea đang nằm trong đó.
     if (_chatSlots.length) _returnChatNodes();
     // chat-zoom overlay cũng mượn cùng các node → thu lại trước cho khỏi giành
-    try { if (window.JavisChatStage && window.JavisChatStage.isOpen()) window.JavisChatStage.collapse(); } catch (e) {}
+    try { if (window.StriverChatStage && window.StriverChatStage.isOpen()) window.StriverChatStage.collapse(); } catch (e) {}
     document.body.classList.add("on-chat");
     el.innerHTML =
       '<div class="chatpage" id="chatPage">' +
@@ -2386,7 +2386,7 @@
         '<div class="chatpage-main">' +
           '<div class="chatpage-bar">' +
             '<button class="cp-ico-btn cp-side-toggle" type="button" title="Ẩn/hiện lịch sử">🕘</button>' +
-            '<span class="cp-title">Trò chuyện với Javis</span>' +
+            '<span class="cp-title">Trò chuyện với Striver</span>' +
             '<span class="cp-engine" id="cpEngine"></span>' +
           '</div>' +
           '<div class="chatpage-slot" id="chatPageSlot"></div>' +
@@ -2397,7 +2397,7 @@
     _borrowChatNodes(slot);
 
     // Sidebar lịch sử hội thoại (dùng lại module chung của chat workspace)
-    try { if (window.JavisChatSide) window.JavisChatSide.mount(el.querySelector("#chatPageSide")); } catch (e) {}
+    try { if (window.StriverChatSide) window.StriverChatSide.mount(el.querySelector("#chatPageSide")); } catch (e) {}
 
     // Badge engine: phản chiếu từ badge gốc trong HUD (không mượn node để khỏi phá HUD)
     const eb = document.getElementById("engineBadge"), cpe = el.querySelector("#cpEngine");
@@ -2633,7 +2633,7 @@
     try { resp = await fetch(`/files/search?brain=${encodeURIComponent(fbrain())}&q=${encodeURIComponent(q)}&limit=60`); d = await resp.json().catch(() => ({})); }
     catch (e) { resp = null; }
     if (!resp || resp.status === 404) {
-      box.innerHTML = `<div class="vr-empty">Tìm theo <b>nội dung</b> cần khởi động lại Javis một lần (chạy start-javis.bat) để bật. Tạm thời hãy tìm theo <b>Tên</b>.</div>`;
+      box.innerHTML = `<div class="vr-empty">Tìm theo <b>nội dung</b> cần khởi động lại Striver một lần (chạy start-striver.bat) để bật. Tạm thời hãy tìm theo <b>Tên</b>.</div>`;
       return;
     }
     if (!resp.ok) { box.innerHTML = `<div class="vr-empty">Lỗi tìm kiếm (${resp.status}).</div>`; return; }
@@ -2834,7 +2834,7 @@
     ed.hidden = false; ed.classList.remove("ne-full");
     document.removeEventListener("keydown", _neKeyHandler, true);
     document.addEventListener("keydown", _neKeyHandler, true);
-    try { if (window.__javisGraph && window.__javisGraph.pause) window.__javisGraph.pause(); } catch (e) {}
+    try { if (window.__striverGraph && window.__striverGraph.pause) window.__striverGraph.pause(); } catch (e) {}
     document.getElementById("neTitle").innerHTML = `<span class="vt-ico">${_fileIcon(ext)}</span>${esc(it.name || rel)}`;
     const actions = document.getElementById("neActions"); const body = document.getElementById("neBody");
     actions.innerHTML = ""; body.innerHTML = ""; body.className = "ne-body"; _neSaveFn = null;

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Javis OS - cập nhật lên bản mới nhất từ GitHub.
+# Striver AIOS - cập nhật lên bản mới nhất từ GitHub.
 #   ./update.sh            (tự nhận Docker hay native)
 #   ./update.sh docker     (ép chế độ Docker)
 #   ./update.sh native     (ép chế độ native/systemd)
@@ -15,14 +15,14 @@ git pull --ff-only
 
 is_docker() {
   command -v docker >/dev/null 2>&1 && [ -f docker-compose.yml ] && \
-  docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx javis
+  docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx striver
 }
 
 if [ "$MODE" = "docker" ] || { [ "$MODE" = "auto" ] && is_docker; }; then
   echo "==> Docker → pull image mới từ GHCR + restart..."
   # Đang bật HTTPS (Caddy)? Giữ nguyên override để cập nhật KHÔNG gỡ mất Caddy.
   HTTPS_ARGS=""
-  if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx javis-caddy; then
+  if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx striver-caddy; then
     HTTPS_ARGS="-f docker-compose.yml -f docker-compose.https.yml"
     echo "==> Phát hiện Caddy (HTTPS) → giữ nguyên cấu hình HTTPS khi cập nhật."
   fi
@@ -32,11 +32,11 @@ if [ "$MODE" = "docker" ] || { [ "$MODE" = "auto" ] && is_docker; }; then
 else
   echo "==> Native → cập nhật thư viện Python + restart dịch vụ..."
   [ -d .venv ] && ./.venv/bin/pip install -r requirements.txt -q || true
-  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files 2>/dev/null | grep -q '^javis\.service'; then
-    $SUDO systemctl restart javis
-    echo "==> Đã restart. Theo dõi:  journalctl -u javis -f"
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files 2>/dev/null | grep -q '^striver\.service'; then
+    $SUDO systemctl restart striver
+    echo "==> Đã restart. Theo dõi:  journalctl -u striver -f"
   else
-    echo "==> Không thấy systemd service 'javis'. Hãy khởi động lại tiến trình Javis thủ công"
+    echo "==> Không thấy systemd service 'striver'. Hãy khởi động lại tiến trình Striver thủ công"
     echo "    (vd: kill tiến trình cũ rồi chạy lại uvicorn / start script)."
   fi
 fi

@@ -2,11 +2,11 @@
 Vòng tự cải thiện MULTI-LOOP - nhiều loop cấu hình song song, THỰC THI TUẦN TỰ.
 
 Nâng cấp từ loop ĐƠN (loop_config.json) thành hệ N loop:
-  - ĐỊNH NGHĨA loop = file markdown trong vault: <vault>/Javis/loops/<slug>.md
+  - ĐỊNH NGHĨA loop = file markdown trong vault: <vault>/Striver/loops/<slug>.md
     (frontmatter YAML: name/slug/enabled/goal/mode/interval_min/workspace/tools_profile/
      quiet_hours/max_runs_per_day/updated; thân file = prompt mục tiêu khi goal=custom,
      goal khác thì thân file là ghi chú). Người / chat / Studio đều sửa được file này.
-  - STATE runtime tách riêng, server sở hữu: <vault>/Javis/loop-state.json, key theo slug:
+  - STATE runtime tách riêng, server sở hữu: <vault>/Striver/loop-state.json, key theo slug:
     {last_run, last_summary, last_status, runs_today, day, fail_streak, auto_paused_reason}.
     KHÔNG ghi state vào frontmatter - tránh giẫm chân user đang mở file trong Obsidian.
   - THỰC THI TUẦN TỰ: 1 lock toàn cục, tại 1 thời điểm chỉ 1 vòng chạy. Scheduler mỗi tick
@@ -16,11 +16,11 @@ Nâng cấp từ loop ĐƠN (loop_config.json) thành hệ N loop:
     auto_paused_reason trong state (không sửa file .md của user) + ghi log + báo Telegram
     nếu deps.notify được tiêm. Bật lại / bấm Run now sẽ xoá pause.
 
-Triết lý MỖI VÒNG giữ nguyên bản gốc: Javis tự thức theo lịch, làm ĐÚNG MỘT việc cụ thể,
-tự kiểm chứng độc lập (mode=auto, giả định kết quả SAI), ghi log Javis/loop-log/.
+Triết lý MỖI VÒNG giữ nguyên bản gốc: Striver tự thức theo lịch, làm ĐÚNG MỘT việc cụ thể,
+tự kiểm chứng độc lập (mode=auto, giả định kết quả SAI), ghi log Striver/loop-log/.
 
 An toàn theo tools_profile:
-  - "vault-safe" (MẶC ĐỊNH): file tools + MCP do Javis quản lý (POS/ads/lịch...) - loop ĐỌC
+  - "vault-safe" (MẶC ĐỊNH): file tools + MCP do Striver quản lý (POS/ads/lịch...) - loop ĐỌC
     được dữ liệu thật để làm việc. cwd ghim vault. Bash/WebFetch/WebSearch/Task NGOÀI allowlist
     → bị chặn. Chống hành động tiền/đơn qua MCP bằng 3 lớp: (a) deny_tools per-server của MCP
     (apply_mcp gắn --disallowedTools), (b) chỉ dẫn CỨNG trong prompt (_MCP_SAFETY: đọc OK,
@@ -142,7 +142,7 @@ class LoopDeps:
     readonly_tools: List[str]
     notify: Optional[Callable] = None        # async notify(text) - broadcast Telegram khi auto-pause (mọi admin)
     report: Optional[Callable] = None        # async report(owner_chat, text) - báo NGƯỜI YÊU CẦU loop mỗi vòng
-    apply_mcp: Optional[Callable] = None      # apply_mcp(cli): gắn MCP Javis-quản-lý (config+strict+deny) - loop ĐỌC được dữ liệu thật
+    apply_mcp: Optional[Callable] = None      # apply_mcp(cli): gắn MCP Striver-quản-lý (config+strict+deny) - loop ĐỌC được dữ liệu thật
     mcp_allow_patterns: Optional[Callable] = None  # () -> ["mcp__<server>", ...] để thêm vào allowlist (MCP mới gọi được)
 
 
@@ -225,14 +225,14 @@ class LoopFeature:
         except Exception:
             pass
 
-    # ══════════════════════ registry: Javis/loops/<slug>.md ══════════════════════
+    # ══════════════════════ registry: Striver/loops/<slug>.md ══════════════════════
 
     def _loops_dir(self, brain: str) -> Path:
-        return Path(self.deps.brain_root(brain)) / "Javis" / "loops"
+        return Path(self.deps.brain_root(brain)) / "Striver" / "loops"
 
     def _loop_path(self, brain: str, slug: str) -> Optional[Path]:
         """Path file loop AN TOÀN theo slug tuỳ ý (kể cả stem tiếng Việt user tự đặt):
-        file PHẢI nằm NGAY TRONG Javis/loops - chặn '../' traversal. None = slug không hợp lệ."""
+        file PHẢI nằm NGAY TRONG Striver/loops - chặn '../' traversal. None = slug không hợp lệ."""
         d = self._loops_dir(brain)
         fp = d / f"{slug}.md"
         try:
@@ -243,7 +243,7 @@ class LoopFeature:
         return fp
 
     def _state_path(self, brain: str) -> Path:
-        return Path(self.deps.brain_root(brain)) / "Javis" / "loop-state.json"
+        return Path(self.deps.brain_root(brain)) / "Striver" / "loop-state.json"
 
     def _norm_loop(self, fm: dict, body: str, stem: str) -> dict:
         goal = str(fm.get("goal", "business") or "business").strip().lower()
@@ -347,7 +347,7 @@ class LoopFeature:
             self._write_state(brain, st)
         return True
 
-    # ══════════════════════ state runtime: Javis/loop-state.json ══════════════════════
+    # ══════════════════════ state runtime: Striver/loop-state.json ══════════════════════
 
     def read_state(self, brain: str) -> dict:
         try:
@@ -376,7 +376,7 @@ class LoopFeature:
     # ══════════════════════ migration 1 lần từ loop_config.json ══════════════════════
 
     def ensure_migrated(self) -> None:
-        """Idempotent: Javis/loops/ chưa có file nào + loop_config.json tồn tại → sinh
+        """Idempotent: Striver/loops/ chưa có file nào + loop_config.json tồn tại → sinh
         vong-lap-goc.md (giữ nguyên goal/mode/interval/enabled; TOÀN BỘ custom_goal vào
         thân file - không mất quy trình Hermes). Không xoá json cũ (giữ backup)."""
         if self._migrated:
@@ -404,7 +404,7 @@ class LoopFeature:
                                last_summary=cfg.get("last_summary", ""),
                                last_status=cfg.get("last_status", ""),
                                runs_today=0, day="", fail_streak=0, auto_paused_reason="")
-            print(f"[loops] đã migrate loop_config.json → Javis/loops/{LEGACY_SLUG}.md",
+            print(f"[loops] đã migrate loop_config.json → Striver/loops/{LEGACY_SLUG}.md",
                   file=__import__('sys').stderr)
         except Exception as e:
             print(f"[loops migrate] {type(e).__name__}: {e}", file=__import__('sys').stderr)
@@ -496,7 +496,7 @@ class LoopFeature:
 
     def _log_append(self, brain: str, entry: dict) -> None:
         try:
-            d = Path(self.deps.brain_root(brain)) / "Javis" / "loop-log"
+            d = Path(self.deps.brain_root(brain)) / "Striver" / "loop-log"
             d.mkdir(parents=True, exist_ok=True)
             now = _now_vn()
             with open(d / f"{now.strftime('%Y-%m-%d')}.md", "a", encoding="utf-8") as fh:
@@ -505,7 +505,7 @@ class LoopFeature:
             print(f"[loop log] {e}", file=__import__('sys').stderr)
 
     def _read_log_entries(self, brain: str, slug: str = "", limit: int = 10) -> List[str]:
-        d = Path(self.deps.brain_root(brain)) / "Javis" / "loop-log"
+        d = Path(self.deps.brain_root(brain)) / "Striver" / "loop-log"
         entries: List[str] = []
         if d.is_dir():
             for f in sorted(d.glob("*.md"), reverse=True)[:3]:
@@ -565,19 +565,19 @@ class LoopFeature:
             ), ""
         if goal == "product":
             base = (
-                "MỤC TIÊU: TỰ CẢI THIỆN JAVIS hữu dụng hơn với người dùng.\n"
-                "Đọc log hội thoại gần đây (Memory/conversations) + các agent/workflow trong Javis/ + ghi chú phản hồi. "
+                "MỤC TIÊU: TỰ CẢI THIỆN AIOS hữu dụng hơn với người dùng.\n"
+                "Đọc log hội thoại gần đây (Memory/conversations) + các agent/workflow trong Striver/ + ghi chú phản hồi. "
                 "Nhận diện: người dùng hay vướng gì, yêu cầu lặp lại gì, thiếu agent/workflow/skill nào, chỗ nào gây khó. "
                 "KHÔNG sửa code server.\n"
                 + safety
             )
             if is_write:
                 return base + (
-                    "Thực hiện 1 cải tiến cụ thể: tạo/cải thiện 1 agent hoặc workflow trong Javis/ (đúng format frontmatter), "
+                    "Thực hiện 1 cải tiến cụ thể: tạo/cải thiện 1 agent hoặc workflow trong Striver/ (đúng format frontmatter), "
                     "hoặc ghi 1 note đề xuất cải tiến UX/tính năng vào '05 - Projects'. Báo cáo NGẮN: cải tiến gì, file nào, vì sao."
                 ), ""
             return base + (
-                "CHẾ ĐỘ ĐỀ XUẤT - chỉ đọc, không ghi. Liệt kê 3-5 cải tiến giá trị nhất để Javis hữu dụng hơn (mỗi cái 1 dòng + lý do)."
+                "CHẾ ĐỘ ĐỀ XUẤT - chỉ đọc, không ghi. Liệt kê 3-5 cải tiến giá trị nhất để Striver hữu dụng hơn (mỗi cái 1 dòng + lý do)."
             ), ""
         if goal == "custom":
             objective = (loop.get("body") or "").strip() or "Cải thiện vault theo cách hữu ích nhất bạn thấy."
@@ -603,7 +603,7 @@ class LoopFeature:
         """Dựng CLI cho 1 vòng loop.
         - profile 'code' (nâng cao, chỉ đặt qua .md): Bash/Web + file, cwd=workspace, VẪN 0 MCP
           (fail-closed nếu không tạo được file MCP rỗng) - cho loop sửa mã repo.
-        - MẶC ĐỊNH (mọi loop tạo qua form): file tools + MCP do Javis quản lý (POS/ads/lịch...).
+        - MẶC ĐỊNH (mọi loop tạo qua form): file tools + MCP do Striver quản lý (POS/ads/lịch...).
           Loop ĐỌC được dữ liệu thật; ghi allowlist kèm 'mcp__<server>' để tool MCP gọi được.
           An toàn tiền/đơn dựa vào: (a) deny_tools per-server (apply_mcp gắn --disallowedTools),
           (b) chỉ dẫn cứng trong prompt, (c) mode suggest = chỉ tool đọc.
@@ -630,7 +630,7 @@ class LoopFeature:
             cli = claude_engine(system_prompt=sysprompt, cwd=cwd, tag="loop", allowed_tools=None)
             if self.deps.apply_mcp:
                 try:
-                    self.deps.apply_mcp(cli, mode="full")   # hub nhận mode qua header X-Javis-Mode
+                    self.deps.apply_mcp(cli, mode="full")   # hub nhận mode qua header X-Striver-Mode
                 except TypeError:
                     self.deps.apply_mcp(cli)
             # KHÔNG _isolate: full mode chủ đích mở MCP + Bash. Không có apply_mcp (test) → vẫn None allowlist.
@@ -705,7 +705,7 @@ class LoopFeature:
             if paused_now:
                 body += f"\n\n⚠ **{patch['auto_paused_reason']}** - bật lại hoặc bấm Chạy ngay để tiếp tục."
             self._log_append(brain, {"title": title, "body": body})
-            # BÁO CÁO mỗi vòng cho NGƯỜI YÊU CẦU loop (mặc định của Javis; đặt notify: false
+            # BÁO CÁO mỗi vòng cho NGƯỜI YÊU CẦU loop (mặc định của Striver; đặt notify: false
             # trong frontmatter để tắt loop nào quá ồn). owner_chat rỗng (loop tạo trên web) →
             # helper report tự gửi ID Telegram đầu tiên.
             report_sent = False

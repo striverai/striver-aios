@@ -5,8 +5,8 @@
   "use strict";
   function $(id) { return document.getElementById(id); }
   function getVoice() { try { return (typeof voice !== "undefined") ? voice : null; } catch (e) { return null; } }
-  function isOff() { return localStorage.getItem("javis.ttsEnabled") === "0"; }
-  function persist(on) { try { localStorage.setItem("javis.ttsEnabled", on ? "1" : "0"); } catch (e) {} }
+  function isOff() { return localStorage.getItem("striver.ttsEnabled") === "0"; }
+  function persist(on) { try { localStorage.setItem("striver.ttsEnabled", on ? "1" : "0"); } catch (e) {} }
 
   // Cập nhật MỌI chỗ hiển thị trạng thái đọc-giọng (header + sidebar + nút trên khung chat).
   function reflect(on) {

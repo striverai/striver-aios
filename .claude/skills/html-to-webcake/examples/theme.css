@@ -1,6 +1,6 @@
-/* Nền sao bay (canvas #javisBg, z-index:-1) hiện xuyên qua trang, nên trang phải trong suốt */
+/* Nền sao bay (canvas #striverBg, z-index:-1) hiện xuyên qua trang, nên trang phải trong suốt */
 html, body { background: transparent !important; }
-#javisBg { position: fixed; inset: 0; }
+#striverBg { position: fixed; inset: 0; }
 
 /* Chữ gradient tím-xanh cho phần nhấn mạnh trong tiêu đề */
 .grad {

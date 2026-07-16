@@ -1,4 +1,4 @@
-/* chat-render.js - bo render chat "chan that nhu Claude" cho Javis OS.
+/* chat-render.js - bo render chat "chan that nhu Claude" cho Striver AIOS.
    Thay bo markdownToHtml regex cu trong app.js: markdown day du (heading h1-h6,
    danh sach co thu tu + long + checkbox, blockquote, duong ke ngang, in nghieng,
    gach ngang, link, anh), code block co nhan ngon ngu + to mau cu phap, render an
@@ -242,7 +242,7 @@
   // ---------------------------------------------------------------- entry: markdown -> html
   function mdToHtml(raw) {
     raw = String(raw == null ? "" : raw);
-    // Bo HTML comment (block JAVIS_METRICS luon vo hinh), ke ca comment chua dong luc stream
+    // Bo HTML comment (block AIOS_METRICS luon vo hinh), ke ca comment chua dong luc stream
     raw = raw.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*$/, "");
 
     var ph = [];
@@ -460,7 +460,7 @@
       if (loc && loc.getAttribute("data-vault-path") != null) {
         if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button > 0) return;
         e.preventDefault();
-        if (typeof window.JavisOpenFiles === "function") window.JavisOpenFiles(loc.getAttribute("data-vault-path"));
+        if (typeof window.StriverOpenFiles === "function") window.StriverOpenFiles(loc.getAttribute("data-vault-path"));
         else window.open(loc.href, "_blank");   // du phong: mo tab moi neu console.js chua san sang
         return;
       }
@@ -483,7 +483,7 @@
 
   if (typeof window !== "undefined") {
     window.mdToHtml = mdToHtml;
-    window.JavisArtifacts = { open: openArtifact, close: closePanel };
+    window.StriverArtifacts = { open: openArtifact, close: closePanel };
   }
   if (typeof module !== "undefined" && module.exports) {
     module.exports = { mdToHtml: mdToHtml, highlight: highlight };

@@ -1,12 +1,12 @@
 """
-JAVIS MCP HUB - điểm đấu DUY NHẤT cho mọi engine.
-- Claude Code / Codex thấy hub như MỘT MCP server http tên "javis" (config 1 entry).
+AIOS MCP HUB - điểm đấu DUY NHẤT cho mọi engine.
+- Claude Code / Codex thấy hub như MỘT MCP server http tên "striver" (config 1 entry).
 - Engine API (OpenRouter/OpenAI/Anthropic) gọi in-process qua discover_all().
 Hub lo trọn: gộp tool mọi connection (namespaced), ENFORCE quyền 3 mức + mode loop
 (lớp CỨNG, không phụ thuộc prompt), audit log, cache, rate limit, meta-tool.
 
 Quyền: mcp_catalog.allowed(connector, perm_connection, mode_lượt_chạy, tool, args).
-Mode đến từ header X-Javis-Mode (Claude/Codex) hoặc tham số (engine API).
+Mode đến từ header X-Striver-Mode (Claude/Codex) hoặc tham số (engine API).
 """
 import asyncio
 import json
@@ -63,7 +63,7 @@ def hub_token():
 
 def hub_port():
     try:
-        return int(os.getenv("JAVIS_PORT", "7777"))
+        return int(os.getenv("AIOS_PORT", "7777"))
     except ValueError:
         return 7777
 
@@ -73,8 +73,8 @@ def hub_url():
 
 
 def allow_patterns():
-    """Pattern cho --allowedTools của loop: mọi tool qua hub đều mang tên mcp__javis__*."""
-    return ["mcp__javis"]
+    """Pattern cho --allowedTools của loop: mọi tool qua hub đều mang tên mcp__striver__*."""
+    return ["mcp__striver"]
 
 
 # ============================================================
@@ -195,15 +195,15 @@ def _list_skills(vault_root):
 
 def _builtin_tools(mode, vault_root):
     """(tools_spec, route) các tool nội bộ cho engine API. Claude/Codex có tool file native
-    nên hub HTTP không trả nhóm này (chỉ meta javis_connections)."""
+    nên hub HTTP không trả nhóm này (chỉ meta striver_connections)."""
     tools, route = [], {}
 
     def add(name, description, props, required, call):
-        tools.append({"fn": name, "server": "javis", "name": name, "description": description,
+        tools.append({"fn": name, "server": "striver", "name": name, "description": description,
                       "schema": {"type": "object", "properties": props, "required": required}})
         route[name] = {"call": call}
 
-    add("javis_connections", "Liệt kê các nguồn dữ liệu (connector/tài khoản MCP) đang đấu vào Javis, "
+    add("striver_connections", "Liệt kê các nguồn dữ liệu (connector/tài khoản MCP) đang đấu vào Striver, "
         "kèm mức quyền. Dùng khi cần biết đang có nguồn nào / tài khoản nào là mặc định.",
         {}, [], lambda args: _async_const(_connections_json()))
 
@@ -244,11 +244,11 @@ def _builtin_tools(mode, vault_root):
                     + (", ".join(_list_skills(vault_root)) or "(chưa có)"))
         return f.read_text(encoding="utf-8", errors="replace")[:60_000]
 
-    add("javis_read_file", "Đọc 1 file trong vault (Second Brain). path tương đối so với gốc vault.",
+    add("striver_read_file", "Đọc 1 file trong vault (Second Brain). path tương đối so với gốc vault.",
         {"path": {"type": "string"}}, ["path"], _read)
-    add("javis_list_dir", "Liệt kê file/thư mục trong vault. path tương đối, bỏ trống = gốc vault.",
+    add("striver_list_dir", "Liệt kê file/thư mục trong vault. path tương đối, bỏ trống = gốc vault.",
         {"path": {"type": "string"}}, [], _ls)
-    add("javis_write_file", "Ghi/tạo file trong vault (ghi đè nếu có). Dùng khi cần lưu ghi chú, "
+    add("striver_write_file", "Ghi/tạo file trong vault (ghi đè nếu có). Dùng khi cần lưu ghi chú, "
         "báo cáo, nháp. KHÔNG dùng cho hành động ra ngoài.",
         {"path": {"type": "string"}, "content": {"type": "string"}}, ["path", "content"], _write)
     # Mô tả tool = router thu nhỏ: liệt kê slug + mô tả ngắn để engine biết KHI NÀO gọi skill nào.
@@ -256,7 +256,7 @@ def _builtin_tools(mode, vault_root):
     listing = "; ".join(f"{s['slug']}: {(s['description'] or '')[:60]}" for s in metas[:20])
     if len(metas) > 20:
         listing += f"; …(+{len(metas) - 20} skill nữa)"
-    add("javis_use_skill",
+    add("striver_use_skill",
         "Nạp nội dung 1 skill (hướng dẫn chuyên sâu) rồi LÀM THEO. Truyền name=<slug>. "
         "Skill khả dụng (slug: mô tả): " + (listing or "(chưa có)"),
         {"name": {"type": "string"}}, ["name"], _skill)
@@ -280,7 +280,7 @@ def _store_mtime():
 async def discover_all(mode="full", vault_root=None, include_plugins=True):
     """(tools_spec, route) đầy đủ cho 1 mode. route entries ĐÃ bọc quyền + audit.
     include_plugins=False: bỏ nhóm tool plugin - dùng khi engine SDK đã đấu plugin
-    IN-PROCESS (header X-Javis-No-Plugins) để model không thấy tool trùng chức năng."""
+    IN-PROCESS (header X-Striver-No-Plugins) để model không thấy tool trùng chức năng."""
     mode = (mode or "full").strip().lower()
     key = (mode, str(vault_root or ""), bool(include_plugins))
     ent = _cache.get(key)
@@ -369,7 +369,7 @@ async def _handle_one(msg, mode, include_plugins=True):
         return {"jsonrpc": "2.0", "id": mid, "result": {
             "protocolVersion": params.get("protocolVersion") or mcp_client.PROTOCOL,
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "javis-hub", "version": "1.0"},
+            "serverInfo": {"name": "striver-hub", "version": "1.0"},
         }}
     if method.startswith("notifications/"):
         return None
@@ -399,9 +399,9 @@ async def handle_http(request):
     # → so sánh hằng-thời-gian chống dò theo timing.
     if not _secrets.compare_digest(auth, f"Bearer {hub_token()}"):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
-    mode = (request.headers.get("x-javis-mode") or "full").strip().lower()
+    mode = (request.headers.get("x-striver-mode") or "full").strip().lower()
     # Engine SDK đấu plugin in-process gửi header này để hub bỏ nhóm plugin (tránh tool trùng)
-    include_plugins = (request.headers.get("x-javis-no-plugins") or "").strip() != "1"
+    include_plugins = (request.headers.get("x-striver-no-plugins") or "").strip() != "1"
     try:
         body = await request.json()
     except Exception:
@@ -433,15 +433,15 @@ def _has_connections():
 
 
 def claude_config_path(mode="full"):
-    """Ghi file --mcp-config 1 entry 'javis'. 0 connection bật → None (giữ hành vi cũ:
+    """Ghi file --mcp-config 1 entry 'striver'. 0 connection bật → None (giữ hành vi cũ:
     không config → Claude dùng MCP sẵn của máy)."""
     mode = (mode or "full").strip().lower()
     if not _has_connections():
         return None
     p = STATE_DIR / f".mcp_hub_{mode}.json"
-    p.write_text(json.dumps({"mcpServers": {"javis": {
+    p.write_text(json.dumps({"mcpServers": {"striver": {
         "type": "http", "url": hub_url(),
-        "headers": {"Authorization": f"Bearer {hub_token()}", "X-Javis-Mode": mode},
+        "headers": {"Authorization": f"Bearer {hub_token()}", "X-Striver-Mode": mode},
     }}}, ensure_ascii=False), encoding="utf-8")
     try:
         os.chmod(p, 0o600)   # file chứa hub token - siết như .hub_token
@@ -455,26 +455,26 @@ def _toml_str(s):
 
 
 def codex_profile(mode="full"):
-    """Ghi ~/.codex/javis.config.toml 1 entry hub → `codex exec -p javis` thấy MỌI MCP của Javis."""
-    path = Path.home() / ".codex" / "javis.config.toml"
+    """Ghi ~/.codex/striver.config.toml 1 entry hub → `codex exec -p striver` thấy MỌI MCP của Striver."""
+    path = Path.home() / ".codex" / "striver.config.toml"
     try:
         if not _has_connections():
             if path.exists():
                 path.unlink()
             return None
-        lines = ["[mcp_servers.javis]",
+        lines = ["[mcp_servers.striver]",
                  f"url = {_toml_str(hub_url())}",
                  "startup_timeout_sec = 20",
-                 "[mcp_servers.javis.http_headers]",
+                 "[mcp_servers.striver.http_headers]",
                  f'{_toml_str("Authorization")} = {_toml_str("Bearer " + hub_token())}',
-                 f'{_toml_str("X-Javis-Mode")} = {_toml_str(mode)}', ""]
+                 f'{_toml_str("X-Striver-Mode")} = {_toml_str(mode)}', ""]
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("\n".join(lines), encoding="utf-8")
         try:
             os.chmod(path, 0o600)   # chứa hub token
         except Exception:
             pass
-        return "javis"
+        return "striver"
     except Exception as e:
         print(f"[hub codex profile] {e}", file=sys.stderr)
         return None

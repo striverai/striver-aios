@@ -1,8 +1,8 @@
 // ============================================================
-// Javis - Sidebar "Lịch sử hội thoại" TRONG chat workspace (cột trái khi phóng to chat).
-// chat-zoom.js tạo khung <aside id="chatSide"> và gọi window.JavisChatSide.mount/refresh;
+// Striver - Sidebar "Lịch sử hội thoại" TRONG chat workspace (cột trái khi phóng to chat).
+// chat-zoom.js tạo khung <aside id="chatSide"> và gọi window.StriverChatSide.mount/refresh;
 // module này render nội dung: + Hội thoại mới, tìm kiếm, danh sách nhóm theo thời gian,
-// đổi tên/xoá, highlight phiên đang mở. Mở phiên qua window.JavisSessions (app.js).
+// đổi tên/xoá, highlight phiên đang mở. Mở phiên qua window.StriverSessions (app.js).
 // (Thay panel trượt bên phải cũ - nút "Lịch sử" góc phải giờ mở thẳng workspace.)
 // ============================================================
 (function () {
@@ -10,8 +10,8 @@
 
   function el(html) { var d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstChild; }
   function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
-  function brain() { try { return (window.JavisSessions && window.JavisSessions.brain()) || "brain"; } catch (e) { return "brain"; } }
-  function currentId() { try { return (window.JavisSessions && window.JavisSessions.current()) || null; } catch (e) { return null; } }
+  function brain() { try { return (window.StriverSessions && window.StriverSessions.brain()) || "brain"; } catch (e) { return "brain"; } }
+  function currentId() { try { return (window.StriverSessions && window.StriverSessions.current()) || null; } catch (e) { return null; } }
 
   function fmtT(ts) {
     try {
@@ -44,7 +44,7 @@
     listEl = side.querySelector(".cside-list");
     searchEl = side.querySelector(".cside-search");
     side.querySelector(".cside-new").onclick = function () {
-      if (window.JavisSessions) window.JavisSessions.new();
+      if (window.StriverSessions) window.StriverSessions.new();
       closeDrawerIfNarrow();
     };
     searchEl.oninput = function () {
@@ -72,7 +72,7 @@
   }
 
   function openSession(id) {
-    if (window.JavisSessions) window.JavisSessions.open(id);
+    if (window.StriverSessions) window.StriverSessions.open(id);
     closeDrawerIfNarrow();
   }
 
@@ -100,7 +100,7 @@
         lastGroup = g;
       }
       var eng = (s.engine || "").toString().slice(0, 10);
-      var isRun = !!(window.JavisRunning && window.JavisRunning.has(s.id));
+      var isRun = !!(window.StriverRunning && window.StriverRunning.has(s.id));
       var item = el('<div class="cside-item' + (s.id === cur ? " active" : "") + (isRun ? " running" : "") + '">' +
         '<div class="ci-title">' + (isRun ? '<span class="ci-run" title="Đang trả lời">⏳</span> ' : '') + esc(s.title || s.preview || "(chưa đặt tên)") + '</div>' +
         '<div class="ci-meta"><span>' + fmtT(s.updated_at) + '</span>' +
@@ -141,7 +141,7 @@
   async function delSession(s) {
     if (!confirm('Xoá hội thoại "' + (s.title || s.preview || "(chưa đặt tên)") + '"?')) return;
     try { await fetch("/sessions/" + encodeURIComponent(s.id) + "/delete", { method: "POST" }); } catch (e) {}
-    if (s.id === currentId() && window.JavisSessions) window.JavisSessions.new();
+    if (s.id === currentId() && window.StriverSessions) window.StriverSessions.new();
     refresh();
   }
 
@@ -155,10 +155,10 @@
     refresh();
   }
 
-  window.JavisChatSide = { mount: mount, refresh: refresh };
+  window.StriverChatSide = { mount: mount, refresh: refresh };
 
   // Cập nhật khi có lượt chat mới / đổi phiên / đổi brain
-  window.addEventListener("javis:sessions-changed", refresh);
+  window.addEventListener("striver:sessions-changed", refresh);
 
   function bindGlobal() {
     var gs = document.getElementById("graphSource");
@@ -166,7 +166,7 @@
     // Nút "Lịch sử" → mở thẳng workspace với sidebar. Đặt INLINE trong hàng nút header
     // (.hud-actions) để không đè lên nút Cài đặt/Reset; fallback về body nếu chưa có header.
     var btn = el('<div id="jv-sess-btn" title="Lịch sử hội thoại">🕘 <span>Lịch sử</span></div>');
-    btn.onclick = function () { if (window.JavisChatStage) window.JavisChatStage.showSide(); };
+    btn.onclick = function () { if (window.StriverChatStage) window.StriverChatStage.showSide(); };
     var host = document.querySelector(".hud-actions");
     (host || document.body).appendChild(btn);
   }

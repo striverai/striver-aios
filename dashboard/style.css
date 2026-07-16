@@ -376,7 +376,7 @@ body {
   min-height: clamp(280px, 46vh, 620px);
 }
 .transcript:empty::after {
-  content: "Nói hoặc gõ để bắt đầu hội thoại với Javis.";
+  content: "Nói hoặc gõ để bắt đầu hội thoại với Striver.";
   color: var(--text3); font-size: 14px; font-style: italic;
 }
 .msg { animation: fadeIn 0.2s ease; }
@@ -387,23 +387,23 @@ body {
   padding: 8px 12px; border-radius: 12px 12px 3px 12px; max-width: 90%;
   line-height: 1.45; font-size: 15px;
 }
-.msg-javis .bubble {
+.msg-striver .bubble {
   background: var(--bg3); border: 1px solid var(--border);
   padding: 10px 12px; border-radius: 3px 12px 12px 12px;
   line-height: 1.6; font-size: 15px;
 }
-.msg-javis .bubble strong { color: var(--accent); }
-.msg-javis .bubble ul { padding-left: 16px; margin: 5px 0; }
-.msg-javis .bubble code { font-family: var(--font); font-size: 13px; background: var(--bg); padding: 1px 4px; border-radius: 3px; color: #a78bfa; }
-.msg-javis .bubble h3 { font-size: 15px; color: var(--text); margin: 8px 0 4px; }
+.msg-striver .bubble strong { color: var(--accent); }
+.msg-striver .bubble ul { padding-left: 16px; margin: 5px 0; }
+.msg-striver .bubble code { font-family: var(--font); font-size: 13px; background: var(--bg); padding: 1px 4px; border-radius: 3px; color: #a78bfa; }
+.msg-striver .bubble h3 { font-size: 15px; color: var(--text); margin: 8px 0 4px; }
 
-/* Copy tin nhắn Javis (nút cạnh bubble, hiện khi hover) */
-.msg-javis { display: flex; align-items: flex-start; gap: 6px; }
-.msg-javis .bubble { flex: 1; min-width: 0; }
+/* Copy tin nhắn Striver (nút cạnh bubble, hiện khi hover) */
+.msg-striver { display: flex; align-items: flex-start; gap: 6px; }
+.msg-striver .bubble { flex: 1; min-width: 0; }
 .msg-copy { flex: none; margin-top: 4px; background: none; border: 1px solid transparent;
   color: var(--text3); border-radius: 6px; cursor: pointer; font-size: 13px; padding: 2px 6px;
   opacity: 0; transition: opacity 0.15s; }
-.msg-javis:hover .msg-copy { opacity: 0.85; }
+.msg-striver:hover .msg-copy { opacity: 0.85; }
 .msg-copy:hover { color: #fff; border-color: var(--border); }
 
 /* Copy code block (nút nổi góc phải khối code) */
@@ -928,28 +928,28 @@ body.chat-zoomed #jv-sess-btn { display: none; }
    Chat render (chat-render.js): markdown day du + code highlight + ARTIFACT
    ============================================================ */
 
-/* Markdown block trong bong bong Javis */
-.msg-javis .bubble h1 { font-size: 19px; }
-.msg-javis .bubble h2 { font-size: 17px; }
-.msg-javis .bubble h1, .msg-javis .bubble h2,
-.msg-javis .bubble h4, .msg-javis .bubble h5, .msg-javis .bubble h6 {
+/* Markdown block trong bong bong Striver */
+.msg-striver .bubble h1 { font-size: 19px; }
+.msg-striver .bubble h2 { font-size: 17px; }
+.msg-striver .bubble h1, .msg-striver .bubble h2,
+.msg-striver .bubble h4, .msg-striver .bubble h5, .msg-striver .bubble h6 {
   color: var(--text); margin: 10px 0 4px; line-height: 1.3; }
-.msg-javis .bubble p { margin: 6px 0; }
-.msg-javis .bubble p:first-child { margin-top: 0; }
-.msg-javis .bubble p:last-child { margin-bottom: 0; }
-.msg-javis .bubble ol { padding-left: 20px; margin: 5px 0; }
-.msg-javis .bubble li { margin: 2px 0; }
-.msg-javis .bubble ul ul, .msg-javis .bubble ul ol,
-.msg-javis .bubble ol ol, .msg-javis .bubble ol ul { margin: 2px 0; }
-.msg-javis .bubble blockquote { margin: 6px 0; padding: 2px 12px; color: var(--text2);
+.msg-striver .bubble p { margin: 6px 0; }
+.msg-striver .bubble p:first-child { margin-top: 0; }
+.msg-striver .bubble p:last-child { margin-bottom: 0; }
+.msg-striver .bubble ol { padding-left: 20px; margin: 5px 0; }
+.msg-striver .bubble li { margin: 2px 0; }
+.msg-striver .bubble ul ul, .msg-striver .bubble ul ol,
+.msg-striver .bubble ol ol, .msg-striver .bubble ol ul { margin: 2px 0; }
+.msg-striver .bubble blockquote { margin: 6px 0; padding: 2px 12px; color: var(--text2);
   border-left: 3px solid var(--accent); background: rgba(255,255,255,.02); border-radius: 0 6px 6px 0; }
-.msg-javis .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
-.msg-javis .bubble del { opacity: .65; }
-.msg-javis .bubble em { font-style: italic; }
-.msg-javis .bubble a { color: #7fb0ff; text-decoration: none; }
-.msg-javis .bubble a:hover { text-decoration: underline; }
-.msg-javis .bubble .task-item { list-style: none; margin-left: -16px; }
-.msg-javis .bubble .task-item input { margin-right: 6px; vertical-align: middle; }
+.msg-striver .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+.msg-striver .bubble del { opacity: .65; }
+.msg-striver .bubble em { font-style: italic; }
+.msg-striver .bubble a { color: #7fb0ff; text-decoration: none; }
+.msg-striver .bubble a:hover { text-decoration: underline; }
+.msg-striver .bubble .task-item { list-style: none; margin-left: -16px; }
+.msg-striver .bubble .task-item input { margin-right: 6px; vertical-align: middle; }
 .chat-img { max-width: min(100%, 440px); border-radius: 8px; display: block; margin: 6px 0; cursor: zoom-in; }
 
 /* Code block: header nhan ngon ngu + nut Copy + to mau cu phap */

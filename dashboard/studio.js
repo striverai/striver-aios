@@ -1,5 +1,5 @@
 // ============================================
-// JAVIS OS - Studio: Agents / Skills / Workflows
+// STRIVER AIOS - Studio: Agents / Skills / Workflows
 // ============================================
 (function () {
   const studio = document.getElementById("studio");
@@ -40,9 +40,9 @@
   }
 
   // Studio đã tách thành các trang sidebar riêng. openStudio = điều hướng rail (giữ tương thích
-  // cho nút header & dải số liệu .bstat ở đáy graph). Console gọi loader qua window.JavisStudio.
+  // cho nút header & dải số liệu .bstat ở đáy graph). Console gọi loader qua window.StriverStudio.
   window.openStudio = (tab) => { if (window.Alpine) Alpine.store("nav").go(tab || "workflows"); };
-  window.JavisStudio = {
+  window.StriverStudio = {
     workflows: loadWorkflows, agents: loadAgents, skills: loadSkills, automations: loadAutomations,
   };
   const _studioBtn = document.getElementById("studioOpenBtn");
@@ -304,7 +304,7 @@
   async function loadAutomations() {
     const panel = document.getElementById("panel-automations");
     panel.innerHTML = `<div class="panel-bar"><h3>Lịch tự động <span class="dim" id="autoRunning"></span></h3><div class="pb-actions"><button class="s-btn-ghost" id="syncAuto">↻ Đồng bộ cloud</button><button class="s-btn" id="newAuto">+ Lịch</button></div></div>`
-      + `<div class="auto-hint">Bấm <b>↻ Đồng bộ cloud</b> để Javis hỏi Claude (CronList / scheduled tasks) lấy routine THẬT đang chạy trên cloud. Mục ☁ là tự đồng bộ; mục ghi tay vẫn giữ. Các loop 🔁 (trang Tự cải thiện) bật/tắt được ngay tại đây.</div>`
+      + `<div class="auto-hint">Bấm <b>↻ Đồng bộ cloud</b> để Striver hỏi Claude (CronList / scheduled tasks) lấy routine THẬT đang chạy trên cloud. Mục ☁ là tự đồng bộ; mục ghi tay vẫn giữ. Các loop 🔁 (trang Tự cải thiện) bật/tắt được ngay tại đây.</div>`
       + `<div class="cards" id="autoCards">Đang tải...</div>`;
     document.getElementById("newAuto").onclick = () => editAutomation(null);
     document.getElementById("syncAuto").onclick = async (e) => {
@@ -463,7 +463,7 @@
     list.forEach(s => {
       const on = s.enabled !== false;
       const div = document.createElement("div"); div.className = "sk2-card" + (on ? "" : " off");
-      const sysBadge = s.system ? ` <span class="sysb" title="Skill hệ thống Javis OS - có ở mọi brain, tự cập nhật theo phiên bản app. Sửa nội dung thì giữ bản của bạn (ngừng tự cập nhật). Không xoá được - chỉ tắt.">hệ thống</span>` : "";
+      const sysBadge = s.system ? ` <span class="sysb" title="Skill hệ thống Striver AIOS - có ở mọi brain, tự cập nhật theo phiên bản app. Sửa nội dung thì giữ bản của bạn (ngừng tự cập nhật). Không xoá được - chỉ tắt.">hệ thống</span>` : "";
       div.innerHTML = `<input type="checkbox" class="sk2-tog" ${on ? "checked" : ""} title="${on ? "Đang bật - bấm để tắt" : "Đang tắt - bấm để bật"}">
         <div class="sk2-info"><div class="nm">🧩 ${esc(s.name)}${sysBadge}</div><div class="ds">${esc(s.description || "")}</div><div class="gp">📂 ${esc(s.group || "Chung")} · ${esc(s.slug)}${s.source === ".agents" ? " · .agents" : ""}</div></div>
         <div class="sk2-act"><button class="edit">Sửa</button>${s.system ? "" : `<button class="exp" title="Xuất gói .zip để chia sẻ">⤓ Xuất</button><button class="del danger">Xoá</button>`}</div>`;

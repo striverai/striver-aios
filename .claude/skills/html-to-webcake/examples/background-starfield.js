@@ -1,9 +1,9 @@
 (function(){
-  if (window.__javisBg) return; window.__javisBg = 1;
+  if (window.__striverBg) return; window.__striverBg = 1;
   function init(){
     var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     var c = document.createElement("canvas");
-    c.id = "javisBg";
+    c.id = "striverBg";
     c.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:-1;pointer-events:none;display:block";
     var body = document.body || document.documentElement;
     body.insertBefore(c, body.firstChild);

@@ -1,5 +1,5 @@
 """
-learn.py - Engine TỰ HỌC của Javis (rewire sau lượt + auto-Wiki + skill + curator).
+learn.py - Engine TỰ HỌC của Striver (rewire sau lượt + auto-Wiki + skill + curator).
 
 Triết lý an toàn (mạnh hơn cả kế hoạch gốc, theo review đối kháng):
   - FORK HỌC LÀ READ-ONLY. Nó chỉ Read/Glob/Grep/LS + trả về 1 MANIFEST JSON. Nó KHÔNG
@@ -153,7 +153,7 @@ class LearnDeps:
     enqueue_task: Optional[Callable] = None
 
 
-ALLOWED_WRITE_PREFIXES = ["memory", "Memory", "Wiki", "skills", ".claude/skills", "Javis"]
+ALLOWED_WRITE_PREFIXES = ["memory", "Memory", "Wiki", "skills", ".claude/skills", "Striver"]
 
 
 class LearnFeature:
@@ -304,7 +304,7 @@ class LearnFeature:
                 msgs = []
             tail = [m for m in msgs if m.get("role") in ("user", "assistant") and m.get("content")][-12:]
             for m in tail:
-                who = "NGƯỜI DÙNG" if m["role"] == "user" else "JAVIS(assistant)"
+                who = "NGƯỜI DÙNG" if m["role"] == "user" else "AIOS(assistant)"
                 txt = str(m["content"])[:3000]
                 parts.append(f"[{who}] {txt}")
                 seen += len(txt)
@@ -363,15 +363,15 @@ class LearnFeature:
                 '"priority":1..3,"confidence":0..3}]')
 
         return (
-            "BẠN LÀ VÒNG HỌC READ-ONLY của Javis. TUYỆT ĐỐI KHÔNG ghi/sửa/xoá file, KHÔNG gọi tool ghi. "
+            "BẠN LÀ VÒNG HỌC READ-ONLY của Striver. TUYỆT ĐỐI KHÔNG ghi/sửa/xoá file, KHÔNG gọi tool ghi. "
             "Chỉ ĐỌC (Read/Glob/Grep) để dedup rồi TRẢ VỀ 1 KHỐI JSON DUY NHẤT (không văn xuôi ngoài JSON).\n\n"
             "PHÂN LOẠI ĐA-NHÃN (1 đoạn có thể sinh nhiều loại):\n"
             "• fact (Memory) = sự thật BỀN về CHÍNH user/doanh nghiệp này (bỏ tên riêng thì mất nghĩa).\n"
             "• wiki = KHÁI NIỆM/framework/quy trình TÁI DÙNG (đúng cả với người khác).\n"
-            "• skill = quy trình nhiều bước Javis VỪA TỰ LÀM, có công thức lặp lại.\n"
-            "• task = VIỆC NỀN cụ thể đáng giao Javis tự làm sau (yêu cầu lặp lại / việc bỏ dở / câu hỏi mở).\n\n"
+            "• skill = quy trình nhiều bước Striver VỪA TỰ LÀM, có công thức lặp lại.\n"
+            "• task = VIỆC NỀN cụ thể đáng giao Striver tự làm sau (yêu cầu lặp lại / việc bỏ dở / câu hỏi mở).\n\n"
             "PROVENANCE (bắt buộc, chống bịa): 'user'=user khẳng định; 'source'=trích nguồn có tên; "
-            "'assistant'=CHÍNH JAVIS tự nói không nguồn. ⚠ Mục wiki provenance='assistant' sẽ BỊ LOẠI "
+            "'assistant'=CHÍNH AIOS tự nói không nguồn. ⚠ Mục wiki provenance='assistant' sẽ BỊ LOẠI "
             "(đẩy sang cần-xác-minh) → chỉ đưa vào wiki thứ user/nguồn khẳng định.\n"
             "DENSITY (wiki, 0-3): 0=nhắc thoáng, 3=được định nghĩa/giải thích có cấu trúc. Chỉ đưa density>=2.\n"
             "DEDUP: đọc INDEX dưới đây trước; nếu khái niệm ĐÃ CÓ → set same_as=tên trang (đừng tạo trùng); "
@@ -423,7 +423,7 @@ class LearnFeature:
         if not skills:
             return skills
         listing = "\n".join(f"- {s.get('slug')}: {s.get('name')} — {s.get('description','')}" for s in skills)
-        prompt = ("Một vòng học đề xuất tạo các SKILL sau (Javis tự quan sát từ việc đã làm). "
+        prompt = ("Một vòng học đề xuất tạo các SKILL sau (Striver tự quan sát từ việc đã làm). "
                   "GIẢ ĐỊNH chúng SAI/thừa. Với mỗi slug, quyết định giữ hay bỏ.\n" + listing +
                   '\nCHỈ trả JSON: {"keep":["slug1",...]} - slug đáng giữ (quy trình thật, đủ cụ thể, không trùng skill có sẵn).')
         out = await self._spawn_readonly(brain, prompt, cfg, tag="learn")
@@ -486,7 +486,7 @@ class LearnFeature:
                             except Exception:
                                 pass
                     fm = (f"---\ntype: {f.get('kind','fact')}\nprovenance: {f.get('provenance','user')}\n"
-                          f"origin: javis-learned\ncreated: {today}\nupdated: {today}\n---\n")
+                          f"origin: striver-learned\ncreated: {today}\nupdated: {today}\n---\n")
                     self.deps.atomic_write_text(fp, fm + body + "\n")
                     written_paths.append(str(fp.relative_to(root)).replace("\\", "/"))
                     rep["facts"].append(slug)
@@ -502,7 +502,7 @@ class LearnFeature:
                     if not title or not body or int(w.get("density", 0)) < 2:
                         continue
                     if (w.get("provenance") == "assistant"):
-                        self._append_open_question(brain, wiki_dir, title, "provenance=assistant (Javis tự nói, cần xác minh)", written_paths, root)
+                        self._append_open_question(brain, wiki_dir, title, "provenance=assistant (Striver tự nói, cần xác minh)", written_paths, root)
                         rep["blocked"].append(f"wiki '{title}': assistant-only → cần xác minh"); continue
                     if secret_hits(title + "\n" + body):
                         rep["blocked"].append(f"wiki '{title}': chứa secret"); continue
@@ -533,7 +533,7 @@ class LearnFeature:
                     if self._wiki_dupe(wiki_dir, title):
                         rep["blocked"].append(f"wiki '{title}': trùng tên chuẩn hoá → bỏ qua")
                         continue
-                    fm = (f"---\ntype: wiki\nstatus: active\ntags: [wiki]\norigin: javis-learned\n"
+                    fm = (f"---\ntype: wiki\nstatus: active\ntags: [wiki]\norigin: striver-learned\n"
                           f"created: {today}\nupdated: {today}\nsource: [[conversations/{today}]]\n---\n")
                     self.deps.atomic_write_text(fp, fm + body + "\n")
                     written_paths.append(str(fp.relative_to(root)).replace("\\", "/"))
@@ -562,7 +562,7 @@ class LearnFeature:
                     d = sk_root / slug   # vị trí BẬT (canonical) → mirror sang .claude ở lượt sysprompt kế
                     d.mkdir(parents=True, exist_ok=True)
                     fm = (f"---\nname: {s.get('name', slug)}\ndescription: {s.get('description','')}\n"
-                          f"origin: javis-learned\nstatus: active\ncreated: {today}\n---\n")
+                          f"origin: striver-learned\nstatus: active\ncreated: {today}\n---\n")
                     self.deps.atomic_write_text(d / "SKILL.md", fm + body + "\n")
                     written_paths.append(str((d / 'SKILL.md').relative_to(root)).replace("\\", "/"))
                     rep["skills"].append(slug)
@@ -829,7 +829,7 @@ class LearnFeature:
     # ── learn-log (người đọc) ──
     def _log(self, brain: str, kind: str, title: str, body: str) -> None:
         try:
-            d = Path(self.deps.brain_root(brain)) / "Javis" / "learn-log"
+            d = Path(self.deps.brain_root(brain)) / "Striver" / "learn-log"
             d.mkdir(parents=True, exist_ok=True)
             now = _now_vn()
             with open(d / f"{now.strftime('%Y-%m-%d')}.md", "a", encoding="utf-8") as fh:
@@ -904,7 +904,7 @@ class LearnFeature:
 
         @router.get("/learn/review")
         async def learn_review(brain: str = Query("brain"), limit: int = Query(20)):
-            """Danh sách commit học gần nhất (cho panel 'Javis đã tự học gì') + trạng thái git."""
+            """Danh sách commit học gần nhất (cho panel 'Striver đã tự học gì') + trạng thái git."""
             root = self.deps.brain_root(brain)
             return {"git_repo": git_brain.is_git_checkout(root),
                     "commits": git_brain.list_learn_commits(root, limit)}
@@ -916,7 +916,7 @@ class LearnFeature:
 
         @router.get("/learn/log")
         async def learn_log(brain: str = Query("brain"), limit: int = Query(15)):
-            d = Path(self.deps.brain_root(brain)) / "Javis" / "learn-log"
+            d = Path(self.deps.brain_root(brain)) / "Striver" / "learn-log"
             entries = []
             if d.is_dir():
                 for f in sorted(d.glob("*.md"), reverse=True)[:3]:
