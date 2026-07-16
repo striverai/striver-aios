@@ -12,9 +12,9 @@ function glowTexture(THREE, hex) {
   cv.width = cv.height = s;
   const ctx = cv.getContext("2d");
   const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  g.addColorStop(0, "rgba(255,255,255,1)");      // lõi trắng nóng
-  g.addColorStop(0.18, hexA(hex, 0.95));
-  g.addColorStop(0.45, hexA(hex, 0.45));
+  g.addColorStop(0, "rgba(255,255,255,0.7)");    // lõi trắng DỊU (bớt gắt để đa màu không cộng dồn thành trắng)
+  g.addColorStop(0.12, hexA(hex, 0.9));          // màu danh mục ra sớm → giữ đúng hue thay vì cháy trắng
+  g.addColorStop(0.42, hexA(hex, 0.4));
   g.addColorStop(1, hexA(hex, 0));               // viền tan vào nền
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, s, s);
@@ -302,7 +302,9 @@ class JavisGraph3D {
 
       // Pulse từng sprite: phồng + sáng theo nhịp giọng
       const pulse = 1 + lvl * 1.6;
-      const op = Math.min(1, 0.85 + lvl * 0.6);
+      // Nền để DỊU (0.5) - vừa hết chói (đa màu cộng dồn không còn cháy trắng),
+      // vừa cho node "suy nghĩ" loé lên nổi bật trở lại (tương phản với nền tối).
+      const op = Math.min(1, 0.5 + lvl * 0.6);
       for (const sp of this._sprites) {
         if (!sp) continue;
         const b = sp.__base;
@@ -352,8 +354,8 @@ class JavisGraph3D {
       if (this._thinking) {
         const n = this._sprites.length;
         // Điểm khởi phát: 1-2 node "loé" lên thưa thớt (ý nghĩ mới) - chậm cho đỡ rối
-        if (n > 0 && this._frame % 22 === 0) {
-          const seeds = Math.max(1, Math.floor(n * 0.012));
+        if (n > 0 && this._frame % 14 === 0) {
+          const seeds = Math.max(2, Math.floor(n * 0.02));
           for (let i = 0; i < seeds; i++) {
             this._firingNodes.set(Math.floor(Math.random() * n), 14);
           }

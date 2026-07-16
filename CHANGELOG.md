@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.9.58] - 2026-07-16
+### Sửa lỗi
+- **Đồ thị 3D chói trắng + mất hiệu ứng nhấp nháy lúc "đang suy nghĩ"**: từ v0.9.55 bản 3D được tô đa màu theo danh mục (bảng màu cầu vồng) và kéo co tròn chặt, nhưng bản 3D render bằng `AdditiveBlending` (cộng dồn ánh sáng) nên nhiều màu cộng dồn trong khối chặt dồn về TRẮNG - lõi cháy trắng, nhìn chói. Nền đã sáng sẵn nên node loé lên lúc suy nghĩ không còn nổi bật, mất cảm giác nhấp nháy (code hiệu ứng vẫn còn nguyên, chỉ bị chìm). Sửa trong `graph3d.js`: hạ lõi glow từ trắng đặc `1.0` xuống `0.7` và cho màu danh mục ra sớm (giữ đúng hue thay vì cháy trắng); hạ độ sáng nền lúc nghỉ từ `0.85` xuống `0.5`; cho node "suy nghĩ" loé dày hơn (mỗi 14 khung thay vì 22, nhiều điểm khởi phát hơn). Kết quả: nền dịu, hết chói, node loé lên nổi bật rõ trên nền tối nên nhấp nháy quay lại. Vẫn giữ đa màu.
+
 ## [0.9.57] - 2026-07-16
 ### Thêm mới
 - **Đổi tên / xoá file ngay trong trình sửa note**: thanh nút của editor thêm ✎ (đổi tên) và 🗑 (xoá) bên cạnh Lưu/Tab mới/Tải/Phóng/Đóng, thao tác trên đúng file đang mở. Đổi tên sẽ tự lưu nội dung đang gõ trước (không mất chữ) rồi mở lại file ở tên mới; xoá thì đóng editor. Cả hai đều làm mới cây mà giữ nguyên các thư mục đang mở.
