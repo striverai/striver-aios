@@ -1123,7 +1123,7 @@ function renderMetrics(cards, statusText) {
 document.getElementById("refreshMetrics").addEventListener("click", loadMetrics);
 
 // Trích block metrics Striver nhúng trong response → cập nhật panel trái
-const METRICS_BLOCK_RE = /<!--\s*JAVIS_METRICS:\s*([\s\S]*?)\s*-->/;
+const METRICS_BLOCK_RE = /<!--\s*AIOS_METRICS:\s*([\s\S]*?)\s*-->/;
 function extractMetrics(text) {
   if (typeof text !== "string") return { clean: "", cards: null };
   const m = text.match(METRICS_BLOCK_RE);
