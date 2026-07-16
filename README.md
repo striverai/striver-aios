@@ -258,6 +258,6 @@ striver-os/
 
 <div align="center">
 
-Made with ☕ by **[Minh Quý](https://minhquy.vn)** · Repo: `github.com/striverai/striver-aios`
+Made with ☕ by **[**Striver AI**](https://striverai.com)** · Repo: `github.com/striverai/striver-aios`
 
 </div>

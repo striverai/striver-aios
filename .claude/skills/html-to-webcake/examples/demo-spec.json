@@ -15,7 +15,7 @@
     ]},
     { "background": "rgba(250,244,236,1)", "padTop": 44, "gap": 18, "elements": [
       { "kind":"heading", "text":"Điền thông tin để nhận", "size":26, "color":"rgba(17,17,17,1)" },
-      { "kind":"form", "redirect":"https://map.minhquy.vn/thank", "width":0.85,
+      { "kind":"form", "redirect":"https://striverai.com/thank", "width":0.85,
         "fields":[
           {"name":"full_name","placeholder":"😍 Họ và tên","type":"text","required":true},
           {"name":"email","placeholder":"📧 Email","type":"email","required":true},

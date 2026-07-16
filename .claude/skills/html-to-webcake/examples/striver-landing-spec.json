@@ -192,12 +192,12 @@
       { "kind": "row", "gap": 40, "cols": [
         { "w": 0.34, "gap": 12, "items": [
           { "kind": "image", "src": "https://statics.pancake.vn/web-media-263/08/45/2c/d0/741157ab4886f80e74b377f5677215e8a12eeab2df1494740bc90fc9-w:1254-h:1254-l:110609-t:image/jpeg.jpg", "ratio": 1, "width": 0.75 },
-          { "kind": "heading", "text": "Nguyễn Minh Quý", "size": 21, "align": "center" },
+          { "kind": "heading", "text": "Striver AI", "size": 21, "align": "center" },
           { "kind": "text", "html": "Người sáng lập Striver AIOS", "size": 14, "align": "center" }
         ]},
         { "w": 0.66, "gap": 16, "items": [
-          { "kind": "text", "html": "Striver AIOS không sinh ra trong phòng lab. Nó được Nguyễn Minh Quý - một người làm kinh doanh và marketing online tại Việt Nam - xây cho chính công việc của mình: theo dõi cửa hàng, làm nội dung, tích luỹ tri thức mỗi ngày. Mọi tính năng bạn thấy trên trang này đều đang chạy thật trên hệ thống của chính anh ấy trước khi đến tay bạn.", "size": 16, "align": "left", "color": "rgba(160,166,188,1)" },
-          { "kind": "card", "bg": "rgba(139,92,246,0.1)", "borderColor": "rgba(139,92,246,0.4)", "title": "\"Tôi cần một trợ lý nhớ được việc của tôi và biết số của tôi. Không ai bán thứ đó, nên tôi tự xây.\"", "titleSize": 17, "titleColor": "rgba(232,234,246,1)", "text": "- Minh Quý", "align": "left" }
+          { "kind": "text", "html": "Striver AIOS không sinh ra trong phòng lab. Nó được Striver AI - một người làm kinh doanh và marketing online tại Việt Nam - xây cho chính công việc của mình: theo dõi cửa hàng, làm nội dung, tích luỹ tri thức mỗi ngày. Mọi tính năng bạn thấy trên trang này đều đang chạy thật trên hệ thống của chính anh ấy trước khi đến tay bạn.", "size": 16, "align": "left", "color": "rgba(160,166,188,1)" },
+          { "kind": "card", "bg": "rgba(139,92,246,0.1)", "borderColor": "rgba(139,92,246,0.4)", "title": "\"Tôi cần một trợ lý nhớ được việc của tôi và biết số của tôi. Không ai bán thứ đó, nên tôi tự xây.\"", "titleSize": 17, "titleColor": "rgba(232,234,246,1)", "text": "- Striver AI", "align": "left" }
         ]}
       ]}
     ]},
@@ -220,7 +220,7 @@
       { "kind": "spacer", "height": 8 },
       { "kind": "button", "text": "Bắt đầu trên GitHub ↗", "href": "https://github.com/striverai/striver-aios", "width": 0.5, "size": 17 },
       { "kind": "spacer", "height": 8 },
-      { "kind": "text", "html": "Made with ☕ by Nguyễn Minh Quý · minhquy.vn · GitHub · Tài liệu", "size": 13, "color": "rgba(154,160,181,1)" }
+      { "kind": "text", "html": "Made with ☕ by Striver AI · striverai.com · GitHub · Tài liệu", "size": 13, "color": "rgba(154,160,181,1)" }
     ]}
   ]
 }
